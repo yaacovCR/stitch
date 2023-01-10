@@ -1,0 +1,84 @@
+{
+  "name": "@big-schema/stitch",
+  "version": "0.0.0-alpha.0",
+  "description": "Tools for Stitching GraphQL Schemas.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "typesVersions": {
+    ">=4.4.0": {
+      "*": [
+        "*"
+      ]
+    }
+  },
+  "sideEffects": false,
+  "homepage": "https://github.com/BigSchema/stitch",
+  "bugs": {
+    "url": "https://github.com/BigSchema/stitch/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BigSchema/stitch.git"
+  },
+  "keywords": [
+    "graphql",
+    "stitching",
+    "stitch",
+    "subschema",
+    "subgraph",
+    "superschema",
+    "supergraph",
+    "subgraph",
+    "compose",
+    "composition"
+  ],
+  "engines": {
+    "node": "^14.19.0 || ^16.10.0 || >=18.0.0"
+  },
+  "scripts": {
+    "changelog": "ts-node resources/gen-changelog.ts",
+    "benchmark": "ts-node resources/benchmark.ts",
+    "test": "npm run lint && npm run check && npm run testonly:cover && npm run prettier:check && npm run check:spelling",
+    "lint": "eslint --cache --max-warnings 0 .",
+    "check": "tsc --pretty",
+    "testonly": "mocha --full-trace src/**/__tests__/**/*-test.ts",
+    "testonly:cover": "c8 npm run testonly",
+    "testonly:watch": "npm run testonly -- --watch",
+    "prettier": "prettier --cache --cache-strategy metadata --write --list-different .",
+    "prettier:check": "prettier --cache --cache-strategy metadata --check .",
+    "check:spelling": "cspell --cache --no-progress '**/*'",
+    "build:npm": "ts-node resources/build-npm.ts",
+    "build:deno": "ts-node resources/build-deno.ts",
+    "diff:npm": "ts-node resources/diff-npm-package.ts",
+    "gitpublish:npm": "bash ./resources/gitpublish.sh npm npmDist",
+    "gitpublish:deno": "bash ./resources/gitpublish.sh deno denoDist"
+  },
+  "devDependencies": {
+    "@types/chai": "4.3.4",
+    "@types/mocha": "10.0.0",
+    "@types/node": "18.11.9",
+    "@types/prettier": "2.7.1",
+    "@typescript-eslint/eslint-plugin": "5.43.0",
+    "@typescript-eslint/parser": "5.43.0",
+    "c8": "7.12.0",
+    "chai": "4.3.7",
+    "clsx": "1.2.1",
+    "cspell": "6.14.3",
+    "eslint": "8.27.0",
+    "eslint-plugin-import": "2.26.0",
+    "eslint-plugin-internal-rules": "file:./resources/eslint-internal-rules",
+    "eslint-plugin-node": "11.1.0",
+    "eslint-plugin-simple-import-sort": "8.0.0",
+    "mocha": "10.1.0",
+    "prettier": "2.7.1",
+    "ts-node": "10.9.1",
+    "typescript": "4.9.3"
+  },
+  "publishConfig": {
+    "tag": "alpha"
+  },
+  "dependencies": {
+    "graphql": "git+https://git@github.com/graphql/graphql-js.git#npm"
+  }
+}
