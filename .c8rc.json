@@ -1,0 +1,18 @@
+{
+  "all": true,
+  "include": ["src/"],
+  "exclude": [
+    "src/**/index.ts",
+    "src/utilities/FieldSet.ts",
+    "src/utilities/GroupedFieldSet.ts"
+  ],
+  "clean": true,
+  "report-dir": "reports/coverage",
+  "skip-full": true,
+  "reporter": ["html", "text"],
+  "check-coverage": true,
+  "branches": 100,
+  "lines": 100,
+  "functions": 100,
+  "statements": 100
+}
