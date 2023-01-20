@@ -1,7 +1,7 @@
 'use strict';
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.deepAssign = void 0;
-const isObjectLike_js_1 = require('./isObjectLike.js');
+const isObjectLike_js_1 = require('../predicates/isObjectLike.js');
 function deepAssign(target, source) {
   for (const [key, sourceValue] of Object.entries(source)) {
     const targetValue = target[key];

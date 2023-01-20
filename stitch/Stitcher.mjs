@@ -1,5 +1,5 @@
+import { isPromise } from '../predicates/isPromise.mjs';
 import { deepAssign } from '../utilities/deepAssign.mjs';
-import { isPromise } from '../utilities/isPromise.mjs';
 /**
  * @internal
  */

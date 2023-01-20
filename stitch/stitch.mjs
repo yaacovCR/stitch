@@ -5,9 +5,9 @@ import {
   Kind,
   OperationTypeNode,
 } from 'graphql';
+import { isAsyncIterable } from '../predicates/isAsyncIterable.mjs';
+import { isPromise } from '../predicates/isPromise.mjs';
 import { invariant } from '../utilities/invariant.mjs';
-import { isAsyncIterable } from '../utilities/isAsyncIterable.mjs';
-import { isPromise } from '../utilities/isPromise.mjs';
 import { createRequest } from './createRequest.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
 import { Stitcher } from './Stitcher.mjs';

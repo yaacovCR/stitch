@@ -1,8 +1,8 @@
 'use strict';
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.Stitcher = void 0;
+const isPromise_js_1 = require('../predicates/isPromise.js');
 const deepAssign_js_1 = require('../utilities/deepAssign.js');
-const isPromise_js_1 = require('../utilities/isPromise.js');
 /**
  * @internal
  */

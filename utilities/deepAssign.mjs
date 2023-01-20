@@ -1,4 +1,4 @@
-import { isObjectLike } from './isObjectLike.mjs';
+import { isObjectLike } from '../predicates/isObjectLike.mjs';
 export function deepAssign(target, source) {
   for (const [key, sourceValue] of Object.entries(source)) {
     const targetValue = target[key];

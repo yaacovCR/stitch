@@ -2,9 +2,9 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.stitch = void 0;
 const graphql_1 = require('graphql');
+const isAsyncIterable_js_1 = require('../predicates/isAsyncIterable.js');
+const isPromise_js_1 = require('../predicates/isPromise.js');
 const invariant_js_1 = require('../utilities/invariant.js');
-const isAsyncIterable_js_1 = require('../utilities/isAsyncIterable.js');
-const isPromise_js_1 = require('../utilities/isPromise.js');
 const createRequest_js_1 = require('./createRequest.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
 const Stitcher_js_1 = require('./Stitcher.js');
