@@ -1,5 +1,5 @@
 import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
-import { isObjectLike } from './isObjectLike.ts';
+import { isObjectLike } from '../predicates/isObjectLike.ts';
 export function deepAssign(
   target: ObjMap<unknown>,
   source: ObjMap<unknown>,

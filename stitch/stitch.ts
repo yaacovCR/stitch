@@ -17,9 +17,9 @@ import {
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
+import { isAsyncIterable } from '../predicates/isAsyncIterable.ts';
+import { isPromise } from '../predicates/isPromise.ts';
 import { invariant } from '../utilities/invariant.ts';
-import { isAsyncIterable } from '../utilities/isAsyncIterable.ts';
-import { isPromise } from '../utilities/isPromise.ts';
 import { createRequest } from './createRequest.ts';
 import { mapAsyncIterable } from './mapAsyncIterable.ts';
 import type { ExecutionContext, Executor } from './Stitcher.ts';

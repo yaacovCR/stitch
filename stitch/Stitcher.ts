@@ -12,8 +12,8 @@ import type {
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
+import { isPromise } from '../predicates/isPromise.ts';
 import { deepAssign } from '../utilities/deepAssign.ts';
-import { isPromise } from '../utilities/isPromise.ts';
 export type Executor = (args: {
   document: DocumentNode;
   variables?:
