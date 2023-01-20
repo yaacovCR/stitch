@@ -32,11 +32,10 @@ export function inlineInvariant(context: ts.TransformationContext) {
           return factory.createBinaryExpression(
             factory.createParenthesizedExpression(condition),
             ts.SyntaxKind.BarBarToken,
-            factory.createCallExpression(
-              expression,
-              undefined,
-              [factory.createFalse(), ...otherArgs],
-            ),
+            factory.createCallExpression(expression, undefined, [
+              factory.createFalse(),
+              ...otherArgs,
+            ]),
           );
         }
       }
