@@ -3,4 +3,4 @@
  *
  * @packageDocumentation
  */
-export { buildPlanStep } from './plan/buildPlanStep.ts';
+export { stitch } from './stitch/stitch.ts';
