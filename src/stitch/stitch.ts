@@ -19,9 +19,9 @@ import {
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
+import { isAsyncIterable } from '../predicates/isAsyncIterable.js';
+import { isPromise } from '../predicates/isPromise.js';
 import { invariant } from '../utilities/invariant.js';
-import { isAsyncIterable } from '../utilities/isAsyncIterable.js';
-import { isPromise } from '../utilities/isPromise.js';
 
 import { createRequest } from './createRequest.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
