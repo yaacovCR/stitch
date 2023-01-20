@@ -33,7 +33,7 @@ export function inlineInvariant(context: ts.TransformationContext) {
             factory.createParenthesizedExpression(condition),
             ts.SyntaxKind.BarBarToken,
             factory.createCallExpression(
-              factory.createIdentifier(funcName),
+              expression,
               undefined,
               [factory.createFalse(), ...otherArgs],
             ),
