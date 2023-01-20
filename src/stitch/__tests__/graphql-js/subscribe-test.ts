@@ -17,8 +17,8 @@ import { expectJSON } from '../../../__testUtils__/expectJSON.js';
 import { expectPromise } from '../../../__testUtils__/expectPromise.js';
 import { resolveOnNextTick } from '../../../__testUtils__/resolveOnNextTick.js';
 
-import { isAsyncIterable } from '../../../utilities/isAsyncIterable.js';
-import { isPromise } from '../../../utilities/isPromise.js';
+import { isAsyncIterable } from '../../../predicates/isAsyncIterable.js';
+import { isPromise } from '../../../predicates/isPromise.js';
 
 import { SimplePubSub } from './simplePubSub.js';
 import { subscribeWithGraphQL as subscribe } from './subscribe.js';

@@ -1,7 +1,7 @@
 import { assert, expect } from 'chai';
 
+import { isPromise } from '../predicates/isPromise.js';
 import { inspect } from '../utilities/inspect.js';
-import { isPromise } from '../utilities/isPromise.js';
 
 export function expectPromise(maybePromise: unknown) {
   assert(

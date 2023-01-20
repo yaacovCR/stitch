@@ -14,8 +14,8 @@ import type {
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
+import { isPromise } from '../predicates/isPromise.js';
 import { deepAssign } from '../utilities/deepAssign.js';
-import { isPromise } from '../utilities/isPromise.js';
 
 export type Executor = (args: {
   document: DocumentNode;

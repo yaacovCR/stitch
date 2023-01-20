@@ -8,8 +8,8 @@ import { experimentalExecuteIncrementally as graphqlExecute } from 'graphql';
 
 import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
 
-import { isAsyncIterable } from '../../../utilities/isAsyncIterable.js';
-import { isPromise } from '../../../utilities/isPromise.js';
+import { isAsyncIterable } from '../../../predicates/isAsyncIterable.js';
+import { isPromise } from '../../../predicates/isPromise.js';
 
 import { stitch } from '../../stitch.js';
 
