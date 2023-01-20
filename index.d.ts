@@ -3,4 +3,4 @@
  *
  * @packageDocumentation
  */
-export { buildPlanStep } from './plan/buildPlanStep.js';
+export { stitch } from './stitch/stitch.js';
