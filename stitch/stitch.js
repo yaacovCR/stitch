@@ -133,7 +133,7 @@ function handlePossibleMultiPartResult(exeContext, result) {
     exeContext.operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION
   ) {
     // subscriptions cannot return a result containing an incremental stream
-    !('initialResult' in result) || invariant(false);
+    !('initialResult' in result) || (0, invariant_js_1.invariant)(false);
     // execution is not considered to have begun for subscriptions until the source stream is created
     if (result.data == null && result.errors) {
       return { errors: result.errors };
