@@ -6,13 +6,13 @@ import {
 
 import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
 
-import { subscribe as gatwaySubscribe } from '../../stitch.js';
+import { subscribe as gatewaySubscribe } from '../../stitch.js';
 
 export function subscribeWithGraphQL(
   args: ExecutionArgs,
 ): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
   // casting as subscriptions cannot return incremental values
-  return gatwaySubscribe({
+  return gatewaySubscribe({
     ...args,
     operationName: args.operationName ?? undefined,
     variableValues: args.variableValues ?? undefined,
