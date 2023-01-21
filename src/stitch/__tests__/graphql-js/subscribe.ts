@@ -6,7 +6,7 @@ import {
 
 import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
 
-import { subscribe as gatewaySubscribe } from '../../stitch.js';
+import { subscribe as gatewaySubscribe } from '../../subscribe.js';
 
 export function subscribeWithGraphQL(
   args: ExecutionArgs,

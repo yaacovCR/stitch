@@ -5,7 +5,6 @@ import type {
   FragmentDefinitionNode,
   GraphQLSchema,
   IncrementalResult,
-  InitialIncrementalExecutionResult,
   OperationDefinitionNode,
 } from 'graphql';
 import {
@@ -13,15 +12,12 @@ import {
   getVariableValues,
   GraphQLError,
   Kind,
-  OperationTypeNode,
 } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
-import { isAsyncIterable } from '../predicates/isAsyncIterable.js';
 import { isPromise } from '../predicates/isPromise.js';
-import { invariant } from '../utilities/invariant.js';
 
 import { createRequest } from './createRequest.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
@@ -58,7 +54,7 @@ export function execute(
   return handlePossibleMultiPartResult(exeContext, result);
 }
 
-function buildExecutionContext(
+export function buildExecutionContext(
   args: ExecutionArgs,
 ): ReadonlyArray<GraphQLError> | ExecutionContext {
   const {
@@ -160,21 +156,12 @@ function delegate(
   });
 }
 
-function handleSingleResult<
-  T extends
-    | ExecutionResult
-    | InitialIncrementalExecutionResult
-    | IncrementalResult,
->(exeContext: ExecutionContext, result: T): PromiseOrValue<T> {
-  return new Stitcher(exeContext, result).stitch();
-}
-
 function handlePossibleMultiPartResult<
   T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
 >(exeContext: ExecutionContext, result: T): PromiseOrValue<T> {
   if ('initialResult' in result) {
     return {
-      initialResult: handleSingleResult(exeContext, result.initialResult),
+      initialResult: new Stitcher(exeContext, result.initialResult).stitch(),
       subsequentResults: mapAsyncIterable(
         result.subsequentResults,
         (payload) => {
@@ -184,7 +171,7 @@ function handlePossibleMultiPartResult<
 
             let containsPromises = false;
             for (const entry of payload.incremental) {
-              const stitchedEntry = handleSingleResult(exeContext, entry);
+              const stitchedEntry = new Stitcher(exeContext, entry).stitch();
               if (isPromise(stitchedEntry)) {
                 containsPromises = true;
               }
@@ -204,78 +191,5 @@ function handlePossibleMultiPartResult<
     } as T;
   }
 
-  return handleSingleResult(exeContext, result) as T;
-}
-
-export type Subscriber = (args: {
-  document: DocumentNode;
-  variables?: { readonly [variable: string]: unknown } | undefined;
-}) => PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>>;
-
-export interface SubscriptionArgs extends ExecutionArgs {
-  subscriber: Subscriber;
-}
-
-export function subscribe(
-  args: SubscriptionArgs,
-): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
-  // If a valid execution context cannot be created due to incorrect arguments,
-  // a "Response" with only errors is returned.
-  const exeContext = buildExecutionContext(args);
-
-  // Return early errors if execution context failed.
-  if (!('schema' in exeContext)) {
-    return { errors: exeContext };
-  }
-
-  invariant(exeContext.operation.operation === OperationTypeNode.SUBSCRIPTION);
-
-  const result = delegateSubscription(exeContext, args.subscriber);
-
-  if (isPromise(result)) {
-    return result.then((resolved) =>
-      handlePossibleStream(exeContext, resolved),
-    );
-  }
-  return handlePossibleStream(exeContext, result);
-}
-
-function delegateSubscription(
-  exeContext: ExecutionContext,
-  subscriber: Subscriber,
-): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
-  const rootType = exeContext.schema.getRootType(
-    exeContext.operation.operation,
-  );
-
-  if (rootType == null) {
-    const error = new GraphQLError(
-      'Schema is not configured to execute subscription operation.',
-      { nodes: exeContext.operation },
-    );
-
-    return { errors: [error] };
-  }
-
-  const { operation, fragments, rawVariableValues } = exeContext;
-
-  const document = createRequest(operation, fragments);
-
-  return subscriber({
-    document,
-    variables: rawVariableValues,
-  });
-}
-
-function handlePossibleStream<
-  T extends ExecutionResult | AsyncIterableIterator<ExecutionResult>,
->(exeContext: ExecutionContext, result: T): PromiseOrValue<T> {
-  if (isAsyncIterable(result)) {
-    return mapAsyncIterable<ExecutionResult, ExecutionResult>(
-      result,
-      (payload) => handleSingleResult(exeContext, payload),
-    ) as T;
-  }
-
-  return result;
+  return new Stitcher(exeContext, result).stitch() as T;
 }
