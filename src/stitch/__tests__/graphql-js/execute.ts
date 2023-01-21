@@ -11,7 +11,7 @@ import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
 import { isAsyncIterable } from '../../../predicates/isAsyncIterable.js';
 import { isPromise } from '../../../predicates/isPromise.js';
 
-import { execute as gatewayExecute } from '../../stitch.js';
+import { execute as gatewayExecute } from '../../execute.js';
 
 export function executeWithGraphQL(
   args: ExecutionArgs,
