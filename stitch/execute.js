@@ -1,10 +1,8 @@
 'use strict';
 Object.defineProperty(exports, '__esModule', { value: true });
-exports.subscribe = exports.execute = void 0;
+exports.buildExecutionContext = exports.execute = void 0;
 const graphql_1 = require('graphql');
-const isAsyncIterable_js_1 = require('../predicates/isAsyncIterable.js');
 const isPromise_js_1 = require('../predicates/isPromise.js');
-const invariant_js_1 = require('../utilities/invariant.js');
 const createRequest_js_1 = require('./createRequest.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
 const Stitcher_js_1 = require('./Stitcher.js');
@@ -95,6 +93,7 @@ function buildExecutionContext(args) {
     executor,
   };
 }
+exports.buildExecutionContext = buildExecutionContext;
 function delegate(exeContext) {
   const rootType = exeContext.schema.getRootType(
     exeContext.operation.operation,
@@ -113,13 +112,13 @@ function delegate(exeContext) {
     variables: rawVariableValues,
   });
 }
-function handleSingleResult(exeContext, result) {
-  return new Stitcher_js_1.Stitcher(exeContext, result).stitch();
-}
 function handlePossibleMultiPartResult(exeContext, result) {
   if ('initialResult' in result) {
     return {
-      initialResult: handleSingleResult(exeContext, result.initialResult),
+      initialResult: new Stitcher_js_1.Stitcher(
+        exeContext,
+        result.initialResult,
+      ).stitch(),
       subsequentResults: (0, mapAsyncIterable_js_1.mapAsyncIterable)(
         result.subsequentResults,
         (payload) => {
@@ -127,7 +126,10 @@ function handlePossibleMultiPartResult(exeContext, result) {
             const stitchedEntries = [];
             let containsPromises = false;
             for (const entry of payload.incremental) {
-              const stitchedEntry = handleSingleResult(exeContext, entry);
+              const stitchedEntry = new Stitcher_js_1.Stitcher(
+                exeContext,
+                entry,
+              ).stitch();
               if ((0, isPromise_js_1.isPromise)(stitchedEntry)) {
                 containsPromises = true;
               }
@@ -145,50 +147,5 @@ function handlePossibleMultiPartResult(exeContext, result) {
       ),
     };
   }
-  return handleSingleResult(exeContext, result);
-}
-function subscribe(args) {
-  // If a valid execution context cannot be created due to incorrect arguments,
-  // a "Response" with only errors is returned.
-  const exeContext = buildExecutionContext(args);
-  // Return early errors if execution context failed.
-  if (!('schema' in exeContext)) {
-    return { errors: exeContext };
-  }
-  exeContext.operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION ||
-    (0, invariant_js_1.invariant)(false);
-  const result = delegateSubscription(exeContext, args.subscriber);
-  if ((0, isPromise_js_1.isPromise)(result)) {
-    return result.then((resolved) =>
-      handlePossibleStream(exeContext, resolved),
-    );
-  }
-  return handlePossibleStream(exeContext, result);
-}
-exports.subscribe = subscribe;
-function delegateSubscription(exeContext, subscriber) {
-  const rootType = exeContext.schema.getRootType(
-    exeContext.operation.operation,
-  );
-  if (rootType == null) {
-    const error = new graphql_1.GraphQLError(
-      'Schema is not configured to execute subscription operation.',
-      { nodes: exeContext.operation },
-    );
-    return { errors: [error] };
-  }
-  const { operation, fragments, rawVariableValues } = exeContext;
-  const document = (0, createRequest_js_1.createRequest)(operation, fragments);
-  return subscriber({
-    document,
-    variables: rawVariableValues,
-  });
-}
-function handlePossibleStream(exeContext, result) {
-  if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
-    return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) =>
-      handleSingleResult(exeContext, payload),
-    );
-  }
-  return result;
+  return new Stitcher_js_1.Stitcher(exeContext, result).stitch();
 }
