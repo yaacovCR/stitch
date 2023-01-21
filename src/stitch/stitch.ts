@@ -36,13 +36,9 @@ export interface ExecutionArgs {
   executor: Executor;
 }
 
-export function stitch(
+export function execute(
   args: ExecutionArgs,
-): PromiseOrValue<
-  | ExecutionResult
-  | AsyncIterableIterator<ExecutionResult>
-  | ExperimentalIncrementalExecutionResults
-> {
+): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults> {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);
@@ -140,11 +136,7 @@ function buildExecutionContext(
 
 function delegate(
   exeContext: ExecutionContext,
-): PromiseOrValue<
-  | ExecutionResult
-  | AsyncIterableIterator<ExecutionResult>
-  | ExperimentalIncrementalExecutionResults
-> {
+): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults> {
   const rootType = exeContext.schema.getRootType(
     exeContext.operation.operation,
   );
@@ -155,11 +147,6 @@ function delegate(
       { nodes: exeContext.operation },
     );
 
-    const { operation } = exeContext;
-    // execution is not considered to have begun for subscriptions until the source stream is created
-    if (operation.operation === OperationTypeNode.SUBSCRIPTION) {
-      return { errors: [error] };
-    }
     return { data: null, errors: [error] };
   }
 
@@ -182,32 +169,9 @@ function handleSingleResult<
   return new Stitcher(exeContext, result).stitch();
 }
 
-// executions and mutations can return incremental results
-// subscriptions on successful creation will return multiple payloads
 function handlePossibleMultiPartResult<
-  T extends
-    | ExecutionResult
-    | AsyncIterableIterator<ExecutionResult>
-    | ExperimentalIncrementalExecutionResults,
+  T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
 >(exeContext: ExecutionContext, result: T): PromiseOrValue<T> {
-  if (isAsyncIterable(result)) {
-    return mapAsyncIterable<ExecutionResult, ExecutionResult>(
-      result,
-      (payload) => handleSingleResult(exeContext, payload),
-    ) as T;
-  }
-
-  if (exeContext.operation.operation === OperationTypeNode.SUBSCRIPTION) {
-    // subscriptions cannot return a result containing an incremental stream
-    invariant(!('initialResult' in result));
-    // execution is not considered to have begun for subscriptions until the source stream is created
-    if (result.data == null && result.errors) {
-      return { errors: result.errors } as T;
-    }
-    // Not reached.
-    return result;
-  }
-
   if ('initialResult' in result) {
     return {
       initialResult: handleSingleResult(exeContext, result.initialResult),
@@ -241,4 +205,77 @@ function handlePossibleMultiPartResult<
   }
 
   return handleSingleResult(exeContext, result) as T;
+}
+
+export type Subscriber = (args: {
+  document: DocumentNode;
+  variables?: { readonly [variable: string]: unknown } | undefined;
+}) => PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>>;
+
+export interface SubscriptionArgs extends ExecutionArgs {
+  subscriber: Subscriber;
+}
+
+export function subscribe(
+  args: SubscriptionArgs,
+): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
+  // If a valid execution context cannot be created due to incorrect arguments,
+  // a "Response" with only errors is returned.
+  const exeContext = buildExecutionContext(args);
+
+  // Return early errors if execution context failed.
+  if (!('schema' in exeContext)) {
+    return { errors: exeContext };
+  }
+
+  invariant(exeContext.operation.operation === OperationTypeNode.SUBSCRIPTION);
+
+  const result = delegateSubscription(exeContext, args.subscriber);
+
+  if (isPromise(result)) {
+    return result.then((resolved) =>
+      handlePossibleStream(exeContext, resolved),
+    );
+  }
+  return handlePossibleStream(exeContext, result);
+}
+
+function delegateSubscription(
+  exeContext: ExecutionContext,
+  subscriber: Subscriber,
+): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
+  const rootType = exeContext.schema.getRootType(
+    exeContext.operation.operation,
+  );
+
+  if (rootType == null) {
+    const error = new GraphQLError(
+      'Schema is not configured to execute subscription operation.',
+      { nodes: exeContext.operation },
+    );
+
+    return { errors: [error] };
+  }
+
+  const { operation, fragments, rawVariableValues } = exeContext;
+
+  const document = createRequest(operation, fragments);
+
+  return subscriber({
+    document,
+    variables: rawVariableValues,
+  });
+}
+
+function handlePossibleStream<
+  T extends ExecutionResult | AsyncIterableIterator<ExecutionResult>,
+>(exeContext: ExecutionContext, result: T): PromiseOrValue<T> {
+  if (isAsyncIterable(result)) {
+    return mapAsyncIterable<ExecutionResult, ExecutionResult>(
+      result,
+      (payload) => handleSingleResult(exeContext, payload),
+    ) as T;
+  }
+
+  return result;
 }

@@ -11,7 +11,7 @@ import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
 import { isAsyncIterable } from '../../../predicates/isAsyncIterable.js';
 import { isPromise } from '../../../predicates/isPromise.js';
 
-import { stitch } from '../../stitch.js';
+import { execute as gatewayExecute } from '../../stitch.js';
 
 export function executeWithGraphQL(
   args: ExecutionArgs,
@@ -20,7 +20,7 @@ export function executeWithGraphQL(
   | AsyncIterableIterator<ExecutionResult>
   | ExperimentalIncrementalExecutionResults
 > {
-  return stitch({
+  return gatewayExecute({
     ...args,
     operationName: args.operationName ?? undefined,
     variableValues: args.variableValues ?? undefined,

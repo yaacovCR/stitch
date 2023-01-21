@@ -20,11 +20,7 @@ import { deepAssign } from '../utilities/deepAssign.js';
 export type Executor = (args: {
   document: DocumentNode;
   variables?: { readonly [variable: string]: unknown } | undefined;
-}) => PromiseOrValue<
-  | ExecutionResult
-  | AsyncIterableIterator<ExecutionResult>
-  | ExperimentalIncrementalExecutionResults
->;
+}) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
 
 export interface ExecutionContext {
   schema: GraphQLSchema;
