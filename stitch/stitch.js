@@ -1,6 +1,6 @@
 'use strict';
 Object.defineProperty(exports, '__esModule', { value: true });
-exports.stitch = void 0;
+exports.subscribe = exports.execute = void 0;
 const graphql_1 = require('graphql');
 const isAsyncIterable_js_1 = require('../predicates/isAsyncIterable.js');
 const isPromise_js_1 = require('../predicates/isPromise.js');
@@ -8,7 +8,7 @@ const invariant_js_1 = require('../utilities/invariant.js');
 const createRequest_js_1 = require('./createRequest.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
 const Stitcher_js_1 = require('./Stitcher.js');
-function stitch(args) {
+function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);
@@ -24,7 +24,7 @@ function stitch(args) {
   }
   return handlePossibleMultiPartResult(exeContext, result);
 }
-exports.stitch = stitch;
+exports.execute = execute;
 function buildExecutionContext(args) {
   const {
     schema,
@@ -104,11 +104,6 @@ function delegate(exeContext) {
       `Schema is not configured to execute ${exeContext.operation.operation} operation.`,
       { nodes: exeContext.operation },
     );
-    const { operation } = exeContext;
-    // execution is not considered to have begun for subscriptions until the source stream is created
-    if (operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION) {
-      return { errors: [error] };
-    }
     return { data: null, errors: [error] };
   }
   const { operation, fragments, rawVariableValues, executor } = exeContext;
@@ -121,26 +116,7 @@ function delegate(exeContext) {
 function handleSingleResult(exeContext, result) {
   return new Stitcher_js_1.Stitcher(exeContext, result).stitch();
 }
-// executions and mutations can return incremental results
-// subscriptions on successful creation will return multiple payloads
 function handlePossibleMultiPartResult(exeContext, result) {
-  if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
-    return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) =>
-      handleSingleResult(exeContext, payload),
-    );
-  }
-  if (
-    exeContext.operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION
-  ) {
-    // subscriptions cannot return a result containing an incremental stream
-    !('initialResult' in result) || (0, invariant_js_1.invariant)(false);
-    // execution is not considered to have begun for subscriptions until the source stream is created
-    if (result.data == null && result.errors) {
-      return { errors: result.errors };
-    }
-    // Not reached.
-    return result;
-  }
   if ('initialResult' in result) {
     return {
       initialResult: handleSingleResult(exeContext, result.initialResult),
@@ -170,4 +146,49 @@ function handlePossibleMultiPartResult(exeContext, result) {
     };
   }
   return handleSingleResult(exeContext, result);
+}
+function subscribe(args) {
+  // If a valid execution context cannot be created due to incorrect arguments,
+  // a "Response" with only errors is returned.
+  const exeContext = buildExecutionContext(args);
+  // Return early errors if execution context failed.
+  if (!('schema' in exeContext)) {
+    return { errors: exeContext };
+  }
+  exeContext.operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION ||
+    (0, invariant_js_1.invariant)(false);
+  const result = delegateSubscription(exeContext, args.subscriber);
+  if ((0, isPromise_js_1.isPromise)(result)) {
+    return result.then((resolved) =>
+      handlePossibleStream(exeContext, resolved),
+    );
+  }
+  return handlePossibleStream(exeContext, result);
+}
+exports.subscribe = subscribe;
+function delegateSubscription(exeContext, subscriber) {
+  const rootType = exeContext.schema.getRootType(
+    exeContext.operation.operation,
+  );
+  if (rootType == null) {
+    const error = new graphql_1.GraphQLError(
+      'Schema is not configured to execute subscription operation.',
+      { nodes: exeContext.operation },
+    );
+    return { errors: [error] };
+  }
+  const { operation, fragments, rawVariableValues } = exeContext;
+  const document = (0, createRequest_js_1.createRequest)(operation, fragments);
+  return subscriber({
+    document,
+    variables: rawVariableValues,
+  });
+}
+function handlePossibleStream(exeContext, result) {
+  if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
+    return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) =>
+      handleSingleResult(exeContext, payload),
+    );
+  }
+  return result;
 }

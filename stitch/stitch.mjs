@@ -11,7 +11,7 @@ import { invariant } from '../utilities/invariant.mjs';
 import { createRequest } from './createRequest.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
 import { Stitcher } from './Stitcher.mjs';
-export function stitch(args) {
+export function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);
@@ -102,11 +102,6 @@ function delegate(exeContext) {
       `Schema is not configured to execute ${exeContext.operation.operation} operation.`,
       { nodes: exeContext.operation },
     );
-    const { operation } = exeContext;
-    // execution is not considered to have begun for subscriptions until the source stream is created
-    if (operation.operation === OperationTypeNode.SUBSCRIPTION) {
-      return { errors: [error] };
-    }
     return { data: null, errors: [error] };
   }
   const { operation, fragments, rawVariableValues, executor } = exeContext;
@@ -119,24 +114,7 @@ function delegate(exeContext) {
 function handleSingleResult(exeContext, result) {
   return new Stitcher(exeContext, result).stitch();
 }
-// executions and mutations can return incremental results
-// subscriptions on successful creation will return multiple payloads
 function handlePossibleMultiPartResult(exeContext, result) {
-  if (isAsyncIterable(result)) {
-    return mapAsyncIterable(result, (payload) =>
-      handleSingleResult(exeContext, payload),
-    );
-  }
-  if (exeContext.operation.operation === OperationTypeNode.SUBSCRIPTION) {
-    // subscriptions cannot return a result containing an incremental stream
-    !('initialResult' in result) || invariant(false);
-    // execution is not considered to have begun for subscriptions until the source stream is created
-    if (result.data == null && result.errors) {
-      return { errors: result.errors };
-    }
-    // Not reached.
-    return result;
-  }
   if ('initialResult' in result) {
     return {
       initialResult: handleSingleResult(exeContext, result.initialResult),
@@ -166,4 +144,48 @@ function handlePossibleMultiPartResult(exeContext, result) {
     };
   }
   return handleSingleResult(exeContext, result);
+}
+export function subscribe(args) {
+  // If a valid execution context cannot be created due to incorrect arguments,
+  // a "Response" with only errors is returned.
+  const exeContext = buildExecutionContext(args);
+  // Return early errors if execution context failed.
+  if (!('schema' in exeContext)) {
+    return { errors: exeContext };
+  }
+  exeContext.operation.operation === OperationTypeNode.SUBSCRIPTION ||
+    invariant(false);
+  const result = delegateSubscription(exeContext, args.subscriber);
+  if (isPromise(result)) {
+    return result.then((resolved) =>
+      handlePossibleStream(exeContext, resolved),
+    );
+  }
+  return handlePossibleStream(exeContext, result);
+}
+function delegateSubscription(exeContext, subscriber) {
+  const rootType = exeContext.schema.getRootType(
+    exeContext.operation.operation,
+  );
+  if (rootType == null) {
+    const error = new GraphQLError(
+      'Schema is not configured to execute subscription operation.',
+      { nodes: exeContext.operation },
+    );
+    return { errors: [error] };
+  }
+  const { operation, fragments, rawVariableValues } = exeContext;
+  const document = createRequest(operation, fragments);
+  return subscriber({
+    document,
+    variables: rawVariableValues,
+  });
+}
+function handlePossibleStream(exeContext, result) {
+  if (isAsyncIterable(result)) {
+    return mapAsyncIterable(result, (payload) =>
+      handleSingleResult(exeContext, payload),
+    );
+  }
+  return result;
 }

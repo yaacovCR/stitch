@@ -17,10 +17,20 @@ export interface ExecutionArgs {
   operationName?: string | undefined;
   executor: Executor;
 }
-export declare function stitch(
+export declare function execute(
   args: ExecutionArgs,
-): PromiseOrValue<
-  | ExecutionResult
-  | AsyncIterableIterator<ExecutionResult>
-  | ExperimentalIncrementalExecutionResults
->;
+): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
+export type Subscriber = (args: {
+  document: DocumentNode;
+  variables?:
+    | {
+        readonly [variable: string]: unknown;
+      }
+    | undefined;
+}) => PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>>;
+export interface SubscriptionArgs extends ExecutionArgs {
+  subscriber: Subscriber;
+}
+export declare function subscribe(
+  args: SubscriptionArgs,
+): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>>;
