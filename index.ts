@@ -3,4 +3,4 @@
  *
  * @packageDocumentation
  */
-export { stitch } from './stitch/stitch.ts';
+export { execute, subscribe } from './stitch/stitch.ts';

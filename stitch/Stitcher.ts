@@ -21,11 +21,7 @@ export type Executor = (args: {
         readonly [variable: string]: unknown;
       }
     | undefined;
-}) => PromiseOrValue<
-  | ExecutionResult
-  | AsyncIterableIterator<ExecutionResult>
-  | ExperimentalIncrementalExecutionResults
->;
+}) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
 export interface ExecutionContext {
   schema: GraphQLSchema;
   fragments: Array<FragmentDefinitionNode>;
