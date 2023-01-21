@@ -4,4 +4,4 @@
  * @packageDocumentation
  */
 
-export { stitch } from './stitch/stitch.js';
+export { execute, subscribe } from './stitch/stitch.js';
