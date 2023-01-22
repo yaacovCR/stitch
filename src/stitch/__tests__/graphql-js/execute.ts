@@ -22,6 +22,7 @@ export function executeWithGraphQL(
 > {
   return gatewayExecute({
     ...args,
+    schemas: [args.schema],
     operationName: args.operationName ?? undefined,
     variableValues: args.variableValues ?? undefined,
     executor: ({ document, variables }) =>

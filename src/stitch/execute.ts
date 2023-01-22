@@ -8,12 +8,7 @@ import type {
   OperationDefinitionNode,
   VariableDefinitionNode,
 } from 'graphql';
-import {
-  assertValidSchema,
-  getVariableValues,
-  GraphQLError,
-  Kind,
-} from 'graphql';
+import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
@@ -22,9 +17,10 @@ import { isPromise } from '../predicates/isPromise.js';
 
 import { createRequest } from './createRequest.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
+import { SuperSchema } from './SuperSchema.js';
 
 export interface ExecutionArgs {
-  schema: GraphQLSchema;
+  schemas: ReadonlyArray<GraphQLSchema>;
   document: DocumentNode;
   variableValues?: { readonly [variable: string]: unknown } | undefined;
   operationName?: string | undefined;
@@ -37,7 +33,7 @@ export type Executor = (args: {
 }) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
 
 export interface ExecutionContext {
-  schema: GraphQLSchema;
+  superSchema: SuperSchema;
   fragments: Array<FragmentDefinitionNode>;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
   operation: OperationDefinitionNode;
@@ -55,7 +51,7 @@ export function execute(
   const exeContext = buildExecutionContext(args);
 
   // Return early errors if execution context failed.
-  if (!('schema' in exeContext)) {
+  if (!('superSchema' in exeContext)) {
     return { errors: exeContext };
   }
 
@@ -71,15 +67,19 @@ export function buildExecutionContext(
   args: ExecutionArgs,
 ): ReadonlyArray<GraphQLError> | ExecutionContext {
   const {
-    schema,
+    schemas,
     document,
     variableValues: rawVariableValues,
     operationName,
     executor,
   } = args;
 
-  // If the schema used for execution is invalid, throw an error.
-  assertValidSchema(schema);
+  for (const schema of schemas) {
+    // If the schema used for execution is invalid, throw an error.
+    assertValidSchema(schema);
+  }
+
+  const superSchema = new SuperSchema(schemas);
 
   let operation: OperationDefinitionNode | undefined;
   const fragments: Array<FragmentDefinitionNode> = [];
@@ -120,8 +120,7 @@ export function buildExecutionContext(
   /* c8 ignore next */
   const variableDefinitions = operation.variableDefinitions ?? [];
 
-  const coercedVariableValues = getVariableValues(
-    schema,
+  const coercedVariableValues = superSchema.getVariableValues(
     variableDefinitions,
     rawVariableValues ?? {},
     { maxErrors: 50 },
@@ -132,7 +131,7 @@ export function buildExecutionContext(
   }
 
   return {
-    schema,
+    superSchema,
     fragments,
     fragmentMap,
     operation,
@@ -146,7 +145,7 @@ export function buildExecutionContext(
 function delegate(
   exeContext: ExecutionContext,
 ): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults> {
-  const rootType = exeContext.schema.getRootType(
+  const rootType = exeContext.superSchema.getRootType(
     exeContext.operation.operation,
   );
 
