@@ -10,8 +10,9 @@ import type {
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
+import { SuperSchema } from './SuperSchema.js';
 export interface ExecutionArgs {
-  schema: GraphQLSchema;
+  schemas: ReadonlyArray<GraphQLSchema>;
   document: DocumentNode;
   variableValues?:
     | {
@@ -30,7 +31,7 @@ export type Executor = (args: {
     | undefined;
 }) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
 export interface ExecutionContext {
-  schema: GraphQLSchema;
+  superSchema: SuperSchema;
   fragments: Array<FragmentDefinitionNode>;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
   operation: OperationDefinitionNode;

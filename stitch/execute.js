@@ -5,12 +5,13 @@ const graphql_1 = require('graphql');
 const isPromise_js_1 = require('../predicates/isPromise.js');
 const createRequest_js_1 = require('./createRequest.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
+const SuperSchema_js_1 = require('./SuperSchema.js');
 function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);
   // Return early errors if execution context failed.
-  if (!('schema' in exeContext)) {
+  if (!('superSchema' in exeContext)) {
     return { errors: exeContext };
   }
   const result = delegate(exeContext);
@@ -22,14 +23,17 @@ function execute(args) {
 exports.execute = execute;
 function buildExecutionContext(args) {
   const {
-    schema,
+    schemas,
     document,
     variableValues: rawVariableValues,
     operationName,
     executor,
   } = args;
-  // If the schema used for execution is invalid, throw an error.
-  (0, graphql_1.assertValidSchema)(schema);
+  for (const schema of schemas) {
+    // If the schema used for execution is invalid, throw an error.
+    (0, graphql_1.assertValidSchema)(schema);
+  }
+  const superSchema = new SuperSchema_js_1.SuperSchema(schemas);
   let operation;
   const fragments = [];
   const fragmentMap = Object.create(null);
@@ -70,8 +74,7 @@ function buildExecutionContext(args) {
   // FIXME: https://github.com/graphql/graphql-js/issues/2203
   /* c8 ignore next */
   const variableDefinitions = operation.variableDefinitions ?? [];
-  const coercedVariableValues = (0, graphql_1.getVariableValues)(
-    schema,
+  const coercedVariableValues = superSchema.getVariableValues(
     variableDefinitions,
     rawVariableValues ?? {},
     { maxErrors: 50 },
@@ -80,7 +83,7 @@ function buildExecutionContext(args) {
     return coercedVariableValues.errors;
   }
   return {
-    schema,
+    superSchema,
     fragments,
     fragmentMap,
     operation,
@@ -92,7 +95,7 @@ function buildExecutionContext(args) {
 }
 exports.buildExecutionContext = buildExecutionContext;
 function delegate(exeContext) {
-  const rootType = exeContext.schema.getRootType(
+  const rootType = exeContext.superSchema.getRootType(
     exeContext.operation.operation,
   );
   if (rootType == null) {

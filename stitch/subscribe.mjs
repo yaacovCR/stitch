@@ -10,7 +10,7 @@ export function subscribe(args) {
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);
   // Return early errors if execution context failed.
-  if (!('schema' in exeContext)) {
+  if (!('superSchema' in exeContext)) {
     return { errors: exeContext };
   }
   exeContext.operation.operation === OperationTypeNode.SUBSCRIPTION ||
@@ -22,7 +22,7 @@ export function subscribe(args) {
   return handlePossibleStream(result);
 }
 function delegateSubscription(exeContext, subscriber) {
-  const rootType = exeContext.schema.getRootType(
+  const rootType = exeContext.superSchema.getRootType(
     exeContext.operation.operation,
   );
   if (rootType == null) {
