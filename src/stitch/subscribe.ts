@@ -8,11 +8,9 @@ import { isPromise } from '../predicates/isPromise.js';
 import { invariant } from '../utilities/invariant.js';
 
 import { createRequest } from './createRequest.js';
-import type { ExecutionArgs } from './execute.js';
+import type { ExecutionArgs, ExecutionContext } from './execute.js';
 import { buildExecutionContext } from './execute.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
-import type { ExecutionContext } from './Stitcher.js';
-import { Stitcher } from './Stitcher.js';
 
 export type Subscriber = (args: {
   document: DocumentNode;
@@ -40,11 +38,9 @@ export function subscribe(
   const result = delegateSubscription(exeContext, args.subscriber);
 
   if (isPromise(result)) {
-    return result.then((resolved) =>
-      handlePossibleStream(exeContext, resolved),
-    );
+    return result.then((resolved) => handlePossibleStream(resolved));
   }
-  return handlePossibleStream(exeContext, result);
+  return handlePossibleStream(result);
 }
 
 function delegateSubscription(
@@ -76,11 +72,11 @@ function delegateSubscription(
 
 function handlePossibleStream<
   T extends ExecutionResult | AsyncIterableIterator<ExecutionResult>,
->(exeContext: ExecutionContext, result: T): PromiseOrValue<T> {
+>(result: T): PromiseOrValue<T> {
   if (isAsyncIterable(result)) {
     return mapAsyncIterable<ExecutionResult, ExecutionResult>(
       result,
-      (payload) => new Stitcher(exeContext, payload).stitch(),
+      (payload) => payload,
     ) as T;
   }
 
