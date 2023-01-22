@@ -5,11 +5,9 @@ import { isAsyncIterable } from '../predicates/isAsyncIterable.ts';
 import { isPromise } from '../predicates/isPromise.ts';
 import { invariant } from '../utilities/invariant.ts';
 import { createRequest } from './createRequest.ts';
-import type { ExecutionArgs } from './execute.ts';
+import type { ExecutionArgs, ExecutionContext } from './execute.ts';
 import { buildExecutionContext } from './execute.ts';
 import { mapAsyncIterable } from './mapAsyncIterable.ts';
-import type { ExecutionContext } from './Stitcher.ts';
-import { Stitcher } from './Stitcher.ts';
 export type Subscriber = (args: {
   document: DocumentNode;
   variables?:
@@ -35,11 +33,9 @@ export function subscribe(
     invariant(false);
   const result = delegateSubscription(exeContext, args.subscriber);
   if (isPromise(result)) {
-    return result.then((resolved) =>
-      handlePossibleStream(exeContext, resolved),
-    );
+    return result.then((resolved) => handlePossibleStream(resolved));
   }
-  return handlePossibleStream(exeContext, result);
+  return handlePossibleStream(result);
 }
 function delegateSubscription(
   exeContext: ExecutionContext,
@@ -64,11 +60,11 @@ function delegateSubscription(
 }
 function handlePossibleStream<
   T extends ExecutionResult | AsyncIterableIterator<ExecutionResult>,
->(exeContext: ExecutionContext, result: T): PromiseOrValue<T> {
+>(result: T): PromiseOrValue<T> {
   if (isAsyncIterable(result)) {
     return mapAsyncIterable<ExecutionResult, ExecutionResult>(
       result,
-      (payload) => new Stitcher(exeContext, payload).stitch(),
+      (payload) => payload,
     ) as T;
   }
   return result;

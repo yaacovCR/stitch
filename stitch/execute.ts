@@ -6,6 +6,7 @@ import type {
   GraphQLSchema,
   IncrementalResult,
   OperationDefinitionNode,
+  VariableDefinitionNode,
 } from 'graphql';
 import {
   assertValidSchema,
@@ -18,8 +19,6 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import { isPromise } from '../predicates/isPromise.ts';
 import { createRequest } from './createRequest.ts';
 import { mapAsyncIterable } from './mapAsyncIterable.ts';
-import type { ExecutionContext, Executor } from './Stitcher.ts';
-import { Stitcher } from './Stitcher.ts';
 export interface ExecutionArgs {
   schema: GraphQLSchema;
   document: DocumentNode;
@@ -29,6 +28,30 @@ export interface ExecutionArgs {
       }
     | undefined;
   operationName?: string | undefined;
+  executor: Executor;
+}
+export type Executor = (args: {
+  document: DocumentNode;
+  variables?:
+    | {
+        readonly [variable: string]: unknown;
+      }
+    | undefined;
+}) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
+export interface ExecutionContext {
+  schema: GraphQLSchema;
+  fragments: Array<FragmentDefinitionNode>;
+  fragmentMap: ObjMap<FragmentDefinitionNode>;
+  operation: OperationDefinitionNode;
+  variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
+  rawVariableValues:
+    | {
+        readonly [variable: string]: unknown;
+      }
+    | undefined;
+  coercedVariableValues: {
+    [variable: string]: unknown;
+  };
   executor: Executor;
 }
 export function execute(
@@ -43,11 +66,9 @@ export function execute(
   }
   const result = delegate(exeContext);
   if (isPromise(result)) {
-    return result.then((resolved) =>
-      handlePossibleMultiPartResult(exeContext, resolved),
-    );
+    return result.then((resolved) => handlePossibleMultiPartResult(resolved));
   }
-  return handlePossibleMultiPartResult(exeContext, result);
+  return handlePossibleMultiPartResult(result);
 }
 export function buildExecutionContext(
   args: ExecutionArgs,
@@ -139,10 +160,10 @@ function delegate(
 }
 function handlePossibleMultiPartResult<
   T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
->(exeContext: ExecutionContext, result: T): PromiseOrValue<T> {
+>(result: T): PromiseOrValue<T> {
   if ('initialResult' in result) {
     return {
-      initialResult: new Stitcher(exeContext, result.initialResult).stitch(),
+      initialResult: result.initialResult,
       subsequentResults: mapAsyncIterable(
         result.subsequentResults,
         (payload) => {
@@ -151,7 +172,7 @@ function handlePossibleMultiPartResult<
               [];
             let containsPromises = false;
             for (const entry of payload.incremental) {
-              const stitchedEntry = new Stitcher(exeContext, entry).stitch();
+              const stitchedEntry = entry;
               if (isPromise(stitchedEntry)) {
                 containsPromises = true;
               }
@@ -169,5 +190,5 @@ function handlePossibleMultiPartResult<
       ),
     } as T;
   }
-  return new Stitcher(exeContext, result).stitch() as T;
+  return result;
 }
