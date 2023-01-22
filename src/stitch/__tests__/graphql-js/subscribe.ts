@@ -14,6 +14,7 @@ export function subscribeWithGraphQL(
   // casting as subscriptions cannot return incremental values
   return gatewaySubscribe({
     ...args,
+    schemas: [args.schema],
     operationName: args.operationName ?? undefined,
     variableValues: args.variableValues ?? undefined,
     executor: ({ document, variables }) =>
