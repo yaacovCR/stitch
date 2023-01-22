@@ -26,7 +26,7 @@ export function subscribe(
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);
   // Return early errors if execution context failed.
-  if (!('schema' in exeContext)) {
+  if (!('superSchema' in exeContext)) {
     return { errors: exeContext };
   }
   exeContext.operation.operation === OperationTypeNode.SUBSCRIPTION ||
@@ -41,7 +41,7 @@ function delegateSubscription(
   exeContext: ExecutionContext,
   subscriber: Subscriber,
 ): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
-  const rootType = exeContext.schema.getRootType(
+  const rootType = exeContext.superSchema.getRootType(
     exeContext.operation.operation,
   );
   if (rootType == null) {

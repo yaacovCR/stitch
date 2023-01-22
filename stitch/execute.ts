@@ -8,19 +8,15 @@ import type {
   OperationDefinitionNode,
   VariableDefinitionNode,
 } from 'graphql';
-import {
-  assertValidSchema,
-  getVariableValues,
-  GraphQLError,
-  Kind,
-} from 'graphql';
+import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import { isPromise } from '../predicates/isPromise.ts';
 import { createRequest } from './createRequest.ts';
 import { mapAsyncIterable } from './mapAsyncIterable.ts';
+import { SuperSchema } from './SuperSchema.ts';
 export interface ExecutionArgs {
-  schema: GraphQLSchema;
+  schemas: ReadonlyArray<GraphQLSchema>;
   document: DocumentNode;
   variableValues?:
     | {
@@ -39,7 +35,7 @@ export type Executor = (args: {
     | undefined;
 }) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
 export interface ExecutionContext {
-  schema: GraphQLSchema;
+  superSchema: SuperSchema;
   fragments: Array<FragmentDefinitionNode>;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
   operation: OperationDefinitionNode;
@@ -61,7 +57,7 @@ export function execute(
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);
   // Return early errors if execution context failed.
-  if (!('schema' in exeContext)) {
+  if (!('superSchema' in exeContext)) {
     return { errors: exeContext };
   }
   const result = delegate(exeContext);
@@ -74,14 +70,17 @@ export function buildExecutionContext(
   args: ExecutionArgs,
 ): ReadonlyArray<GraphQLError> | ExecutionContext {
   const {
-    schema,
+    schemas,
     document,
     variableValues: rawVariableValues,
     operationName,
     executor,
   } = args;
-  // If the schema used for execution is invalid, throw an error.
-  assertValidSchema(schema);
+  for (const schema of schemas) {
+    // If the schema used for execution is invalid, throw an error.
+    assertValidSchema(schema);
+  }
+  const superSchema = new SuperSchema(schemas);
   let operation: OperationDefinitionNode | undefined;
   const fragments: Array<FragmentDefinitionNode> = [];
   const fragmentMap: ObjMap<FragmentDefinitionNode> = Object.create(null);
@@ -118,8 +117,7 @@ export function buildExecutionContext(
   // FIXME: https://github.com/graphql/graphql-js/issues/2203
   /* c8 ignore next */
   const variableDefinitions = operation.variableDefinitions ?? [];
-  const coercedVariableValues = getVariableValues(
-    schema,
+  const coercedVariableValues = superSchema.getVariableValues(
     variableDefinitions,
     rawVariableValues ?? {},
     { maxErrors: 50 },
@@ -128,7 +126,7 @@ export function buildExecutionContext(
     return coercedVariableValues.errors;
   }
   return {
-    schema,
+    superSchema,
     fragments,
     fragmentMap,
     operation,
@@ -141,7 +139,7 @@ export function buildExecutionContext(
 function delegate(
   exeContext: ExecutionContext,
 ): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults> {
-  const rootType = exeContext.schema.getRootType(
+  const rootType = exeContext.superSchema.getRootType(
     exeContext.operation.operation,
   );
   if (rootType == null) {
