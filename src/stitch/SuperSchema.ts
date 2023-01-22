@@ -57,7 +57,7 @@ export class SuperSchema {
     }
 
     for (const schema of this.schemas) {
-      type = schema.getQueryType();
+      type = schema.getRootType(operation);
       if (type) {
         this.rootTypes[operation] = type;
         return type;
