@@ -7,7 +7,6 @@ import {
 import { isPromise } from '../predicates/isPromise.mjs';
 import { createRequest } from './createRequest.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
-import { Stitcher } from './Stitcher.mjs';
 export function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -18,11 +17,9 @@ export function execute(args) {
   }
   const result = delegate(exeContext);
   if (isPromise(result)) {
-    return result.then((resolved) =>
-      handlePossibleMultiPartResult(exeContext, resolved),
-    );
+    return result.then((resolved) => handlePossibleMultiPartResult(resolved));
   }
-  return handlePossibleMultiPartResult(exeContext, result);
+  return handlePossibleMultiPartResult(result);
 }
 export function buildExecutionContext(args) {
   const {
@@ -108,10 +105,10 @@ function delegate(exeContext) {
     variables: rawVariableValues,
   });
 }
-function handlePossibleMultiPartResult(exeContext, result) {
+function handlePossibleMultiPartResult(result) {
   if ('initialResult' in result) {
     return {
-      initialResult: new Stitcher(exeContext, result.initialResult).stitch(),
+      initialResult: result.initialResult,
       subsequentResults: mapAsyncIterable(
         result.subsequentResults,
         (payload) => {
@@ -119,7 +116,7 @@ function handlePossibleMultiPartResult(exeContext, result) {
             const stitchedEntries = [];
             let containsPromises = false;
             for (const entry of payload.incremental) {
-              const stitchedEntry = new Stitcher(exeContext, entry).stitch();
+              const stitchedEntry = entry;
               if (isPromise(stitchedEntry)) {
                 containsPromises = true;
               }
@@ -137,5 +134,5 @@ function handlePossibleMultiPartResult(exeContext, result) {
       ),
     };
   }
-  return new Stitcher(exeContext, result).stitch();
+  return result;
 }

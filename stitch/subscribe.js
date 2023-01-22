@@ -8,7 +8,6 @@ const invariant_js_1 = require('../utilities/invariant.js');
 const createRequest_js_1 = require('./createRequest.js');
 const execute_js_1 = require('./execute.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
-const Stitcher_js_1 = require('./Stitcher.js');
 function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -21,11 +20,9 @@ function subscribe(args) {
     (0, invariant_js_1.invariant)(false);
   const result = delegateSubscription(exeContext, args.subscriber);
   if ((0, isPromise_js_1.isPromise)(result)) {
-    return result.then((resolved) =>
-      handlePossibleStream(exeContext, resolved),
-    );
+    return result.then((resolved) => handlePossibleStream(resolved));
   }
-  return handlePossibleStream(exeContext, result);
+  return handlePossibleStream(result);
 }
 exports.subscribe = subscribe;
 function delegateSubscription(exeContext, subscriber) {
@@ -46,10 +43,11 @@ function delegateSubscription(exeContext, subscriber) {
     variables: rawVariableValues,
   });
 }
-function handlePossibleStream(exeContext, result) {
+function handlePossibleStream(result) {
   if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
-    return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) =>
-      new Stitcher_js_1.Stitcher(exeContext, payload).stitch(),
+    return (0, mapAsyncIterable_js_1.mapAsyncIterable)(
+      result,
+      (payload) => payload,
     );
   }
   return result;

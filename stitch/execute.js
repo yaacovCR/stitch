@@ -5,7 +5,6 @@ const graphql_1 = require('graphql');
 const isPromise_js_1 = require('../predicates/isPromise.js');
 const createRequest_js_1 = require('./createRequest.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
-const Stitcher_js_1 = require('./Stitcher.js');
 function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -16,11 +15,9 @@ function execute(args) {
   }
   const result = delegate(exeContext);
   if ((0, isPromise_js_1.isPromise)(result)) {
-    return result.then((resolved) =>
-      handlePossibleMultiPartResult(exeContext, resolved),
-    );
+    return result.then((resolved) => handlePossibleMultiPartResult(resolved));
   }
-  return handlePossibleMultiPartResult(exeContext, result);
+  return handlePossibleMultiPartResult(result);
 }
 exports.execute = execute;
 function buildExecutionContext(args) {
@@ -112,13 +109,10 @@ function delegate(exeContext) {
     variables: rawVariableValues,
   });
 }
-function handlePossibleMultiPartResult(exeContext, result) {
+function handlePossibleMultiPartResult(result) {
   if ('initialResult' in result) {
     return {
-      initialResult: new Stitcher_js_1.Stitcher(
-        exeContext,
-        result.initialResult,
-      ).stitch(),
+      initialResult: result.initialResult,
       subsequentResults: (0, mapAsyncIterable_js_1.mapAsyncIterable)(
         result.subsequentResults,
         (payload) => {
@@ -126,10 +120,7 @@ function handlePossibleMultiPartResult(exeContext, result) {
             const stitchedEntries = [];
             let containsPromises = false;
             for (const entry of payload.incremental) {
-              const stitchedEntry = new Stitcher_js_1.Stitcher(
-                exeContext,
-                entry,
-              ).stitch();
+              const stitchedEntry = entry;
               if ((0, isPromise_js_1.isPromise)(stitchedEntry)) {
                 containsPromises = true;
               }
@@ -147,5 +138,5 @@ function handlePossibleMultiPartResult(exeContext, result) {
       ),
     };
   }
-  return new Stitcher_js_1.Stitcher(exeContext, result).stitch();
+  return result;
 }

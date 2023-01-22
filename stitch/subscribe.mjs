@@ -5,7 +5,6 @@ import { invariant } from '../utilities/invariant.mjs';
 import { createRequest } from './createRequest.mjs';
 import { buildExecutionContext } from './execute.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
-import { Stitcher } from './Stitcher.mjs';
 export function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -18,11 +17,9 @@ export function subscribe(args) {
     invariant(false);
   const result = delegateSubscription(exeContext, args.subscriber);
   if (isPromise(result)) {
-    return result.then((resolved) =>
-      handlePossibleStream(exeContext, resolved),
-    );
+    return result.then((resolved) => handlePossibleStream(resolved));
   }
-  return handlePossibleStream(exeContext, result);
+  return handlePossibleStream(result);
 }
 function delegateSubscription(exeContext, subscriber) {
   const rootType = exeContext.schema.getRootType(
@@ -42,11 +39,9 @@ function delegateSubscription(exeContext, subscriber) {
     variables: rawVariableValues,
   });
 }
-function handlePossibleStream(exeContext, result) {
+function handlePossibleStream(result) {
   if (isAsyncIterable(result)) {
-    return mapAsyncIterable(result, (payload) =>
-      new Stitcher(exeContext, payload).stitch(),
-    );
+    return mapAsyncIterable(result, (payload) => payload);
   }
   return result;
 }
