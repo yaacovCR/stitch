@@ -56,7 +56,7 @@ export declare class SuperSchema {
   mergedRootTypes: ObjMap<GraphQLObjectType>;
   mergedTypes: ObjMap<GraphQLNamedType>;
   mergedDirectives: ObjMap<GraphQLDirective>;
-  mergeSchema: GraphQLSchema;
+  mergedSchema: GraphQLSchema;
   constructor(schemas: ReadonlyArray<GraphQLSchema>);
   _createMergedElements(): void;
   _mergeScalarTypes(

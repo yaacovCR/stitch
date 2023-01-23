@@ -21,7 +21,7 @@ class SuperSchema {
     this.mergedTypes = Object.create(null);
     this.mergedDirectives = Object.create(null);
     this._createMergedElements();
-    this.mergeSchema = new graphql_1.GraphQLSchema({
+    this.mergedSchema = new graphql_1.GraphQLSchema({
       query: this.mergedRootTypes[graphql_1.OperationTypeNode.QUERY],
       mutation: this.mergedRootTypes[graphql_1.OperationTypeNode.MUTATION],
       subscription:
