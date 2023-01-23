@@ -16,6 +16,7 @@ const operations = [
 class SuperSchema {
   constructor(schemas) {
     this.schemas = schemas;
+    this.subschemaSetsByTypeAndField = Object.create(null);
     this.mergedRootTypes = Object.create(null);
     this.mergedTypes = Object.create(null);
     this.mergedDirectives = Object.create(null);
@@ -55,6 +56,24 @@ class SuperSchema {
           originalTypes[name] = types;
         }
         types.push(type);
+        if (
+          (0, graphql_1.isObjectType)(type) ||
+          (0, graphql_1.isInterfaceType)(type) ||
+          (0, graphql_1.isInputObjectType)(type)
+        ) {
+          let subschemaSetsByField = this.subschemaSetsByTypeAndField[name];
+          if (!subschemaSetsByField) {
+            subschemaSetsByField = Object.create(null);
+            this.subschemaSetsByTypeAndField[name] = subschemaSetsByField;
+          }
+          for (const fieldName of Object.keys(type.getFields())) {
+            let subschemaSet = subschemaSetsByField[fieldName];
+            if (!subschemaSet) {
+              subschemaSet = new Set();
+            }
+            subschemaSet.add(schema);
+          }
+        }
       }
       for (const directive of schema.getDirectives()) {
         const name = directive.name;

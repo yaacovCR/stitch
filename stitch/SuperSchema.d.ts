@@ -52,6 +52,7 @@ type CoercedVariableValues =
  */
 export declare class SuperSchema {
   schemas: ReadonlyArray<GraphQLSchema>;
+  subschemaSetsByTypeAndField: ObjMap<ObjMap<Set<GraphQLSchema>>>;
   mergedRootTypes: ObjMap<GraphQLObjectType>;
   mergedTypes: ObjMap<GraphQLNamedType>;
   mergedDirectives: ObjMap<GraphQLDirective>;

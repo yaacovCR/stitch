@@ -11,9 +11,12 @@ import {
   GraphQLScalarType,
   GraphQLSchema,
   GraphQLUnionType,
+  isInputObjectType,
   isInputType,
+  isInterfaceType,
   isListType,
   isNonNullType,
+  isObjectType,
   isSpecifiedScalarType,
   Kind,
   OperationTypeNode,
@@ -34,6 +37,7 @@ const operations = [
 export class SuperSchema {
   constructor(schemas) {
     this.schemas = schemas;
+    this.subschemaSetsByTypeAndField = Object.create(null);
     this.mergedRootTypes = Object.create(null);
     this.mergedTypes = Object.create(null);
     this.mergedDirectives = Object.create(null);
@@ -72,6 +76,24 @@ export class SuperSchema {
           originalTypes[name] = types;
         }
         types.push(type);
+        if (
+          isObjectType(type) ||
+          isInterfaceType(type) ||
+          isInputObjectType(type)
+        ) {
+          let subschemaSetsByField = this.subschemaSetsByTypeAndField[name];
+          if (!subschemaSetsByField) {
+            subschemaSetsByField = Object.create(null);
+            this.subschemaSetsByTypeAndField[name] = subschemaSetsByField;
+          }
+          for (const fieldName of Object.keys(type.getFields())) {
+            let subschemaSet = subschemaSetsByField[fieldName];
+            if (!subschemaSet) {
+              subschemaSet = new Set();
+            }
+            subschemaSet.add(schema);
+          }
+        }
       }
       for (const directive of schema.getDirectives()) {
         const name = directive.name;
