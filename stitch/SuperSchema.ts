@@ -68,22 +68,15 @@ const operations = [
  */
 export class SuperSchema {
   schemas: ReadonlyArray<GraphQLSchema>;
-  originalRootTypes: ObjMap<Map<GraphQLSchema, GraphQLObjectType>>;
-  originalTypes: ObjMap<Map<GraphQLSchema, GraphQLNamedType>>;
-  originalDirectives: ObjMap<Map<GraphQLSchema, GraphQLDirective>>;
   mergedRootTypes: ObjMap<GraphQLObjectType>;
   mergedTypes: ObjMap<GraphQLNamedType>;
   mergedDirectives: ObjMap<GraphQLDirective>;
   mergeSchema: GraphQLSchema;
   constructor(schemas: ReadonlyArray<GraphQLSchema>) {
     this.schemas = schemas;
-    this.originalRootTypes = Object.create(null);
-    this.originalTypes = Object.create(null);
-    this.originalDirectives = Object.create(null);
     this.mergedRootTypes = Object.create(null);
     this.mergedTypes = Object.create(null);
     this.mergedDirectives = Object.create(null);
-    this._processOriginalSchemas();
     this._createMergedElements();
     this.mergeSchema = new GraphQLSchema({
       query: this.mergedRootTypes[OperationTypeNode.QUERY],
@@ -93,54 +86,50 @@ export class SuperSchema {
       directives: Object.values(this.mergedDirectives),
     });
   }
-  _processOriginalSchemas() {
+  _createMergedElements(): void {
+    const originalRootTypes: ObjMap<Array<GraphQLObjectType>> =
+      Object.create(null);
+    const originalTypes: ObjMap<Array<GraphQLNamedType>> = Object.create(null);
+    const originalDirectives: ObjMap<Array<GraphQLDirective>> =
+      Object.create(null);
     for (const schema of this.schemas) {
       for (const operation of operations) {
         const rootType = schema.getRootType(operation);
         if (rootType) {
-          let originalRootTypes = this.originalRootTypes[operation];
-          if (!originalRootTypes) {
-            originalRootTypes = new Map();
-            this.originalRootTypes[operation] = originalRootTypes;
+          let types = originalRootTypes[operation];
+          if (!types) {
+            types = [];
+            originalRootTypes[operation] = types;
           }
-          originalRootTypes.set(schema, rootType);
+          types.push(rootType);
         }
       }
       for (const [name, type] of Object.entries(schema.getTypeMap())) {
         if (name.startsWith('__')) {
           continue;
         }
-        let originalTypes = this.originalTypes[name];
-        if (!originalTypes) {
-          originalTypes = new Map();
-          this.originalTypes[name] = originalTypes;
+        let types = originalTypes[name];
+        if (!types) {
+          types = [];
+          originalTypes[name] = types;
         }
-        originalTypes.set(schema, type);
+        types.push(type);
       }
       for (const directive of schema.getDirectives()) {
         const name = directive.name;
-        let originalDirectives = this.originalDirectives[name];
-        if (!originalDirectives) {
-          originalDirectives = new Map();
-          this.originalDirectives[name] = originalDirectives;
+        let directives = originalDirectives[name];
+        if (!directives) {
+          directives = [];
+          originalDirectives[name] = directives;
         }
-        originalDirectives.set(schema, directive);
+        directives.push(directive);
       }
     }
-  }
-  _createMergedElements() {
-    for (const [operation, rootTypes] of Object.entries(
-      this.originalRootTypes,
-    )) {
-      this.mergedRootTypes[operation] = this._mergeObjectTypes(
-        Array.from(rootTypes.values()),
-      );
+    for (const [operation, rootTypes] of Object.entries(originalRootTypes)) {
+      this.mergedRootTypes[operation] = this._mergeObjectTypes(rootTypes);
     }
     const mergedRootTypes = Object.values(this.mergedRootTypes);
-    for (const [typeName, originalTypes] of Object.entries(
-      this.originalTypes,
-    )) {
-      const types = Array.from(originalTypes.values());
+    for (const [typeName, types] of Object.entries(originalTypes)) {
       const firstType = types[0];
       if (firstType instanceof GraphQLScalarType) {
         if (isSpecifiedScalarType(firstType)) {
@@ -177,10 +166,9 @@ export class SuperSchema {
         );
       }
     }
-    for (const [directiveName, originalDirectives] of Object.entries(
-      this.originalDirectives,
+    for (const [directiveName, directives] of Object.entries(
+      originalDirectives,
     )) {
-      const directives = Array.from(originalDirectives.values());
       this.mergedDirectives[directiveName] = this._mergeDirectives(directives);
     }
   }
