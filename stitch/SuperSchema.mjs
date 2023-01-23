@@ -1,56 +1,320 @@
 import {
   coerceInputValue,
+  GraphQLDirective,
+  GraphQLEnumType,
   GraphQLError,
+  GraphQLInputObjectType,
+  GraphQLInterfaceType,
   GraphQLList,
   GraphQLNonNull,
+  GraphQLObjectType,
+  GraphQLScalarType,
+  GraphQLSchema,
+  GraphQLUnionType,
   isInputType,
+  isListType,
   isNonNullType,
+  isSpecifiedScalarType,
   Kind,
+  OperationTypeNode,
   print,
   valueFromAST,
 } from 'graphql';
 import { hasOwnProperty } from '../utilities/hasOwnProperty.mjs';
 import { inspect } from '../utilities/inspect.mjs';
 import { printPathArray } from '../utilities/printPathArray.mjs';
+const operations = [
+  OperationTypeNode.QUERY,
+  OperationTypeNode.MUTATION,
+  OperationTypeNode.SUBSCRIPTION,
+];
 /**
  * @internal
  */
 export class SuperSchema {
   constructor(schemas) {
     this.schemas = schemas;
-    this.rootTypes = Object.create(null);
-    this.typeMap = Object.create(null);
+    this.originalRootTypes = Object.create(null);
+    this.originalTypes = Object.create(null);
+    this.originalDirectives = Object.create(null);
+    this.mergedRootTypes = Object.create(null);
+    this.mergedTypes = Object.create(null);
+    this.mergedDirectives = Object.create(null);
+    this._processOriginalSchemas();
+    this._createMergedElements();
+    this.mergeSchema = new GraphQLSchema({
+      query: this.mergedRootTypes[OperationTypeNode.QUERY],
+      mutation: this.mergedRootTypes[OperationTypeNode.MUTATION],
+      subscription: this.mergedRootTypes[OperationTypeNode.SUBSCRIPTION],
+      types: Object.values(this.mergedTypes),
+      directives: Object.values(this.mergedDirectives),
+    });
+  }
+  _processOriginalSchemas() {
+    for (const schema of this.schemas) {
+      for (const operation of operations) {
+        const rootType = schema.getRootType(operation);
+        if (rootType) {
+          let originalRootTypes = this.originalRootTypes[operation];
+          if (!originalRootTypes) {
+            originalRootTypes = new Map();
+            this.originalRootTypes[operation] = originalRootTypes;
+          }
+          originalRootTypes.set(schema, rootType);
+        }
+      }
+      for (const [name, type] of Object.entries(schema.getTypeMap())) {
+        if (name.startsWith('__')) {
+          continue;
+        }
+        let originalTypes = this.originalTypes[name];
+        if (!originalTypes) {
+          originalTypes = new Map();
+          this.originalTypes[name] = originalTypes;
+        }
+        originalTypes.set(schema, type);
+      }
+      for (const directive of schema.getDirectives()) {
+        const name = directive.name;
+        let originalDirectives = this.originalDirectives[name];
+        if (!originalDirectives) {
+          originalDirectives = new Map();
+          this.originalDirectives[name] = originalDirectives;
+        }
+        originalDirectives.set(schema, directive);
+      }
+    }
+  }
+  _createMergedElements() {
+    for (const [operation, rootTypes] of Object.entries(
+      this.originalRootTypes,
+    )) {
+      this.mergedRootTypes[operation] = this._mergeObjectTypes(
+        Array.from(rootTypes.values()),
+      );
+    }
+    const mergedRootTypes = Object.values(this.mergedRootTypes);
+    for (const [typeName, originalTypes] of Object.entries(
+      this.originalTypes,
+    )) {
+      const types = Array.from(originalTypes.values());
+      const firstType = types[0];
+      if (firstType instanceof GraphQLScalarType) {
+        if (isSpecifiedScalarType(firstType)) {
+          this.mergedTypes[typeName] = firstType;
+          continue;
+        }
+        this.mergedTypes[typeName] = this._mergeScalarTypes(types);
+      } else if (firstType instanceof GraphQLObjectType) {
+        const rootType = mergedRootTypes.find((type) => type.name === typeName);
+        if (rootType) {
+          this.mergedTypes[typeName] = rootType;
+          continue;
+        }
+        this.mergedTypes[typeName] = this._mergeObjectTypes(types);
+      } else if (firstType instanceof GraphQLInterfaceType) {
+        this.mergedTypes[typeName] = this._mergeInterfaceTypes(types);
+      } else if (firstType instanceof GraphQLUnionType) {
+        this.mergedTypes[typeName] = this._mergeUnionTypes(types);
+      } else if (firstType instanceof GraphQLInputObjectType) {
+        this.mergedTypes[typeName] = this._mergeInputObjectTypes(types);
+      } else if (firstType instanceof GraphQLEnumType) {
+        this.mergedTypes[typeName] = this._mergeEnumTypes(types);
+      }
+    }
+    for (const [directiveName, originalDirectives] of Object.entries(
+      this.originalDirectives,
+    )) {
+      const directives = Array.from(originalDirectives.values());
+      this.mergedDirectives[directiveName] = this._mergeDirectives(directives);
+    }
+  }
+  _mergeScalarTypes(originalTypes) {
+    const firstType = originalTypes[0];
+    return new GraphQLScalarType({
+      name: firstType.name,
+      description: firstType.description,
+    });
+  }
+  _mergeObjectTypes(originalTypes) {
+    const firstType = originalTypes[0];
+    return new GraphQLObjectType({
+      name: firstType.name,
+      description: firstType.description,
+      fields: () => this._getMergedFieldMap(originalTypes),
+      interfaces: () => this._getMergedInterfaces(originalTypes),
+    });
+  }
+  _mergeInterfaceTypes(originalTypes) {
+    const firstType = originalTypes[0];
+    return new GraphQLInterfaceType({
+      name: firstType.name,
+      description: firstType.description,
+      fields: () => this._getMergedFieldMap(originalTypes),
+    });
+  }
+  _mergeUnionTypes(originalTypes) {
+    const firstType = originalTypes[0];
+    return new GraphQLUnionType({
+      name: firstType.name,
+      description: firstType.description,
+      types: () => this._getMergedMemberTypes(originalTypes),
+    });
+  }
+  _mergeInputObjectTypes(originalTypes) {
+    const firstType = originalTypes[0];
+    return new GraphQLInputObjectType({
+      name: firstType.name,
+      description: firstType.description,
+      fields: () => this._getMergedInputFieldMap(originalTypes),
+    });
+  }
+  _mergeEnumTypes(originalTypes) {
+    const firstType = originalTypes[0];
+    return new GraphQLEnumType({
+      name: firstType.name,
+      description: firstType.description,
+      values: this._mergeEnumValueMaps(originalTypes),
+    });
+  }
+  _mergeDirectives(originalDirectives) {
+    const firstDirective = originalDirectives[0];
+    const args = Object.create(null);
+    const mergedDirective = new GraphQLDirective({
+      name: firstDirective.name,
+      description: firstDirective.description,
+      locations: this._mergeDirectiveLocations(originalDirectives),
+      args,
+      isRepeatable: originalDirectives.some(
+        (directive) => directive.isRepeatable,
+      ),
+    });
+    for (const arg of mergedDirective.args) {
+      args[arg.name] = this._argToArgConfig(arg);
+    }
+    return mergedDirective;
+  }
+  _getMergedFieldMap(originalTypes) {
+    const fields = Object.create(null);
+    for (const type of originalTypes) {
+      for (const [fieldName, field] of Object.entries(type.getFields())) {
+        if (fields[fieldName]) {
+          continue;
+        }
+        fields[fieldName] = this._fieldToFieldConfig(field);
+      }
+    }
+    return fields;
+  }
+  _fieldToFieldConfig(field) {
+    const args = Object.create(null);
+    const fieldConfig = {
+      description: field.description,
+      type: this._getMergedType(field.type),
+      args,
+      deprecationReason: field.deprecationReason,
+    };
+    for (const arg of field.args) {
+      args[arg.name] = this._argToArgConfig(arg);
+    }
+    return fieldConfig;
+  }
+  _argToArgConfig(arg) {
+    return {
+      description: arg.description,
+      type: this._getMergedType(arg.type),
+      defaultValue: arg.defaultValue,
+      deprecationReason: arg.deprecationReason,
+    };
+  }
+  _getMergedInterfaces(originalTypes) {
+    const interfaceMap = Object.create(null);
+    for (const type of originalTypes) {
+      for (const interfaceType of type.getInterfaces()) {
+        if (interfaceMap[interfaceType.name]) {
+          continue;
+        }
+        interfaceMap[type.name] = this._getMergedType(type);
+      }
+    }
+    return Object.values(interfaceMap);
+  }
+  _getMergedMemberTypes(originalTypes) {
+    const memberMap = Object.create(null);
+    for (const type of originalTypes) {
+      for (const unionType of type.getTypes()) {
+        if (memberMap[unionType.name]) {
+          continue;
+        }
+        memberMap[type.name] = this._getMergedType(type);
+      }
+    }
+    return Object.values(memberMap);
+  }
+  _getMergedInputFieldMap(originalTypes) {
+    const fields = Object.create(null);
+    for (const type of originalTypes) {
+      for (const [fieldName, field] of Object.entries(type.getFields())) {
+        if (fields[fieldName]) {
+          continue;
+        }
+        fields[fieldName] = this._inputFieldToInputFieldConfig(field);
+      }
+    }
+    return fields;
+  }
+  _inputFieldToInputFieldConfig(inputField) {
+    return {
+      description: inputField.description,
+      type: this._getMergedType(inputField.type),
+      deprecationReason: inputField.deprecationReason,
+    };
+  }
+  _mergeEnumValueMaps(originalTypes) {
+    const values = Object.create(null);
+    for (const type of originalTypes) {
+      for (const value of type.getValues()) {
+        const valueName = value.name;
+        if (values[valueName]) {
+          continue;
+        }
+        values[valueName] = this._enumValueToEnumValueConfig(value);
+      }
+    }
+    return values;
+  }
+  _enumValueToEnumValueConfig(value) {
+    return {
+      description: value.description,
+      value: value.value,
+      deprecationReason: value.deprecationReason,
+    };
+  }
+  _mergeDirectiveLocations(originalDirectives) {
+    const locations = new Set();
+    for (const directive of originalDirectives) {
+      for (const location of directive.locations) {
+        if (!locations.has(location)) {
+          locations.add(location);
+        }
+      }
+    }
+    return Array.from(locations.values());
+  }
+  _getMergedType(type) {
+    if (isListType(type)) {
+      return new GraphQLList(this._getMergedType(type.ofType));
+    }
+    if (isNonNullType(type)) {
+      return new GraphQLNonNull(this._getMergedType(type.ofType));
+    }
+    return this.mergedTypes[type.name];
   }
   getRootType(operation) {
-    let type = this.rootTypes[operation];
-    if (type) {
-      return type;
-    }
-    if (type === null) {
-      return undefined;
-    }
-    for (const schema of this.schemas) {
-      type = schema.getRootType(operation);
-      if (type) {
-        this.rootTypes[operation] = type;
-        return type;
-      }
-    }
-    this.rootTypes[operation] = null;
-    return undefined;
+    return this.mergedRootTypes[operation];
   }
   getType(name) {
-    let type = this.typeMap[name];
-    if (type) {
-      return type;
-    }
-    for (const schema of this.schemas) {
-      type = schema.getType(name);
-      if (type) {
-        this.typeMap[name] = type;
-        return type;
-      }
-    }
+    return this.mergedTypes[name];
   }
   /**
    * Prepares an object map of variableValues of the correct type based on the

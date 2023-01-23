@@ -1,16 +1,40 @@
 import type {
+  DirectiveLocation,
+  GraphQLArgument,
+  GraphQLArgumentConfig,
+  GraphQLEnumValue,
+  GraphQLEnumValueConfig,
+  GraphQLEnumValueConfigMap,
+  GraphQLField,
+  GraphQLFieldConfig,
+  GraphQLFieldConfigMap,
+  GraphQLInputField,
+  GraphQLInputFieldConfig,
+  GraphQLInputFieldConfigMap,
+  GraphQLInputType,
   GraphQLNamedType,
-  GraphQLObjectType,
-  GraphQLSchema,
+  GraphQLOutputType,
   GraphQLType,
   ListTypeNode,
   NamedTypeNode,
   NonNullTypeNode,
-  OperationTypeNode,
   TypeNode,
   VariableDefinitionNode,
 } from 'graphql';
-import { GraphQLError, GraphQLList, GraphQLNonNull } from 'graphql';
+import {
+  GraphQLDirective,
+  GraphQLEnumType,
+  GraphQLError,
+  GraphQLInputObjectType,
+  GraphQLInterfaceType,
+  GraphQLList,
+  GraphQLNonNull,
+  GraphQLObjectType,
+  GraphQLScalarType,
+  GraphQLSchema,
+  GraphQLUnionType,
+  OperationTypeNode,
+} from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 type CoercedVariableValues =
   | {
@@ -28,9 +52,66 @@ type CoercedVariableValues =
  */
 export declare class SuperSchema {
   schemas: ReadonlyArray<GraphQLSchema>;
-  rootTypes: ObjMap<GraphQLObjectType | null | undefined>;
-  typeMap: ObjMap<GraphQLNamedType>;
+  originalRootTypes: ObjMap<Map<GraphQLSchema, GraphQLObjectType>>;
+  originalTypes: ObjMap<Map<GraphQLSchema, GraphQLNamedType>>;
+  originalDirectives: ObjMap<Map<GraphQLSchema, GraphQLDirective>>;
+  mergedRootTypes: ObjMap<GraphQLObjectType>;
+  mergedTypes: ObjMap<GraphQLNamedType>;
+  mergedDirectives: ObjMap<GraphQLDirective>;
+  mergeSchema: GraphQLSchema;
   constructor(schemas: ReadonlyArray<GraphQLSchema>);
+  _processOriginalSchemas(): void;
+  _createMergedElements(): void;
+  _mergeScalarTypes(
+    originalTypes: ReadonlyArray<GraphQLScalarType>,
+  ): GraphQLScalarType;
+  _mergeObjectTypes(
+    originalTypes: ReadonlyArray<GraphQLObjectType>,
+  ): GraphQLObjectType;
+  _mergeInterfaceTypes(
+    originalTypes: ReadonlyArray<GraphQLInterfaceType>,
+  ): GraphQLInterfaceType;
+  _mergeUnionTypes(
+    originalTypes: ReadonlyArray<GraphQLUnionType>,
+  ): GraphQLUnionType;
+  _mergeInputObjectTypes(
+    originalTypes: ReadonlyArray<GraphQLInputObjectType>,
+  ): GraphQLInputObjectType;
+  _mergeEnumTypes(
+    originalTypes: ReadonlyArray<GraphQLEnumType>,
+  ): GraphQLEnumType;
+  _mergeDirectives(
+    originalDirectives: ReadonlyArray<GraphQLDirective>,
+  ): GraphQLDirective;
+  _getMergedFieldMap(
+    originalTypes: ReadonlyArray<GraphQLObjectType | GraphQLInterfaceType>,
+  ): GraphQLFieldConfigMap<unknown, unknown>;
+  _fieldToFieldConfig(
+    field: GraphQLField<unknown, unknown>,
+  ): GraphQLFieldConfig<unknown, unknown>;
+  _argToArgConfig(arg: GraphQLArgument): GraphQLArgumentConfig;
+  _getMergedInterfaces(
+    originalTypes: ReadonlyArray<GraphQLObjectType>,
+  ): Array<GraphQLInterfaceType>;
+  _getMergedMemberTypes(
+    originalTypes: ReadonlyArray<GraphQLUnionType>,
+  ): Array<GraphQLObjectType>;
+  _getMergedInputFieldMap(
+    originalTypes: ReadonlyArray<GraphQLInputObjectType>,
+  ): GraphQLInputFieldConfigMap;
+  _inputFieldToInputFieldConfig(
+    inputField: GraphQLInputField,
+  ): GraphQLInputFieldConfig;
+  _mergeEnumValueMaps(
+    originalTypes: ReadonlyArray<GraphQLEnumType>,
+  ): GraphQLEnumValueConfigMap;
+  _enumValueToEnumValueConfig(value: GraphQLEnumValue): GraphQLEnumValueConfig;
+  _mergeDirectiveLocations(
+    originalDirectives: ReadonlyArray<GraphQLDirective>,
+  ): Array<DirectiveLocation>;
+  _getMergedType(type: GraphQLOutputType): GraphQLOutputType;
+  _getMergedType(type: GraphQLInputType): GraphQLInputType;
+  _getMergedType(type: GraphQLType): GraphQLType;
   getRootType(operation: OperationTypeNode): GraphQLObjectType | undefined;
   getType(name: string): GraphQLNamedType | undefined;
   /**
