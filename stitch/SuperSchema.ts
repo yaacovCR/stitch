@@ -133,6 +133,7 @@ export class SuperSchema {
             let subschemaSet = subschemaSetsByField[fieldName];
             if (!subschemaSet) {
               subschemaSet = new Set();
+              subschemaSetsByField[fieldName] = subschemaSet;
             }
             subschemaSet.add(schema);
           }
