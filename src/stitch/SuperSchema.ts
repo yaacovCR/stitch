@@ -103,12 +103,11 @@ export class SuperSchema {
       for (const operation of operations) {
         const rootType = schema.getRootType(operation);
         if (rootType) {
-          let types = originalRootTypes[operation];
-          if (!types) {
-            types = [];
-            originalRootTypes[operation] = types;
+          if (!originalRootTypes[operation]) {
+            originalRootTypes[operation] = [rootType];
+          } else {
+            originalRootTypes[operation].push(rootType);
           }
-          types.push(rootType);
         }
       }
 
@@ -117,12 +116,11 @@ export class SuperSchema {
           continue;
         }
 
-        let types = originalTypes[name];
-        if (!types) {
-          types = [];
-          originalTypes[name] = types;
+        if (!originalTypes[name]) {
+          originalTypes[name] = [type];
+        } else {
+          originalTypes[name].push(type);
         }
-        types.push(type);
 
         if (
           isObjectType(type) ||
@@ -148,12 +146,11 @@ export class SuperSchema {
 
       for (const directive of schema.getDirectives()) {
         const name = directive.name;
-        let directives = originalDirectives[name];
-        if (!directives) {
-          directives = [];
-          originalDirectives[name] = directives;
+        if (!originalDirectives[name]) {
+          originalDirectives[name] = [directive];
+        } else {
+          originalDirectives[name].push(directive);
         }
-        directives.push(directive);
       }
     }
 
