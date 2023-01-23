@@ -520,7 +520,7 @@ export class SuperSchema {
         return innerType && new GraphQLNonNull(innerType);
       }
       case Kind.NAMED_TYPE:
-        return this.getType(typeNode.name.value);
+        return this.mergedTypes[typeNode.name.value];
     }
   }
 
