@@ -29,6 +29,7 @@ words:
   # TODO: contribute upstream
   - deno
   - subschema
+  - subschemas
 
   # TODO: remove below words
   - QLID # GraphQLID
