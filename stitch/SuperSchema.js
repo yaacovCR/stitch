@@ -351,7 +351,7 @@ class SuperSchema {
         return innerType && new graphql_1.GraphQLNonNull(innerType);
       }
       case graphql_1.Kind.NAMED_TYPE:
-        return this.getType(typeNode.name.value);
+        return this.mergedTypes[typeNode.name.value];
     }
   }
   _coerceVariableValues(varDefNodes, inputs, onError) {
