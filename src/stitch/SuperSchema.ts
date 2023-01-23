@@ -71,7 +71,7 @@ export class SuperSchema {
   mergedRootTypes: ObjMap<GraphQLObjectType>;
   mergedTypes: ObjMap<GraphQLNamedType>;
   mergedDirectives: ObjMap<GraphQLDirective>;
-  mergeSchema: GraphQLSchema;
+  mergedSchema: GraphQLSchema;
 
   constructor(schemas: ReadonlyArray<GraphQLSchema>) {
     this.schemas = schemas;
@@ -86,7 +86,7 @@ export class SuperSchema {
     this._processOriginalSchemas();
     this._createMergedElements();
 
-    this.mergeSchema = new GraphQLSchema({
+    this.mergedSchema = new GraphQLSchema({
       query: this.mergedRootTypes[OperationTypeNode.QUERY],
       mutation: this.mergedRootTypes[OperationTypeNode.MUTATION],
       subscription: this.mergedRootTypes[OperationTypeNode.SUBSCRIPTION],
