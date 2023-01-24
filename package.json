@@ -43,6 +43,7 @@
     "tag": "alpha"
   },
   "dependencies": {
+    "@repeaterjs/repeater": "^3.0.4",
     "graphql": "git+https://git@github.com/graphql/graphql-js.git#npm"
   },
   "main": "index",
