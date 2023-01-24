@@ -5,7 +5,7 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import { isPromise } from '../predicates/isPromise.js';
 
 /**
- * Given an AsyncIterable and a callback function, return an AsyncGenerator
+ * Given an AsyncIterable and a callback function, return an AsyncIterableIterator
  * which produces values mapped via calling the callback function.
  */
 export function mapAsyncIterable<T, U>(
