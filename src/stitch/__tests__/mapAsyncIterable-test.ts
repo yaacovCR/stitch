@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import { expectPromise } from '../../__testUtils__/expectPromise.js';
+import { resolveOnNextTick } from '../../__testUtils__/resolveOnNextTick.js';
 
 import { mapAsyncIterable } from '../mapAsyncIterable.js';
 
@@ -107,9 +108,9 @@ describe('mapAsyncIterable', () => {
     expect(await doubles.next()).to.deep.equal({ value: 2, done: false });
     expect(await doubles.next()).to.deep.equal({ value: 4, done: false });
 
-    // Early return
+    // Early return with parameter
     expect(await doubles.return?.('')).to.deep.equal({
-      value: 'The End',
+      value: '',
       done: true,
     });
 
@@ -146,14 +147,14 @@ describe('mapAsyncIterable', () => {
     expect(await doubles.next()).to.deep.equal({ value: 2, done: false });
     expect(await doubles.next()).to.deep.equal({ value: 4, done: false });
 
-    // Early return
+    // Early return with parameter
     expect(await doubles.return?.(0)).to.deep.equal({
-      value: undefined,
+      value: 0,
       done: true,
     });
   });
 
-  it('passes through early return from async values', async () => {
+  it('does not pass through early return from async values', async () => {
     async function* source() {
       try {
         yield 'a';
@@ -171,18 +172,78 @@ describe('mapAsyncIterable', () => {
     expect(await doubles.next()).to.deep.equal({ value: 'aa', done: false });
     expect(await doubles.next()).to.deep.equal({ value: 'bb', done: false });
 
-    // Early return
+    // Early return without parameter
     expect(await doubles.return?.()).to.deep.equal({
-      value: 'DoneDone',
-      done: false,
+      value: undefined,
+      done: true,
     });
 
-    // Subsequent next calls may yield from finally block
+    // Subsequent next calls
     expect(await doubles.next()).to.deep.equal({
-      value: 'LastLast',
-      done: false,
+      value: undefined,
+      done: true,
     });
-    expect(await doubles.next()).to.deep.equal({
+  });
+
+  it('handles early return from async iterable with throwing inner return', async () => {
+    const items = [1, 2, 3];
+
+    const iterable = {
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+      next() {
+        const value = items[0];
+        items.shift();
+        return Promise.resolve({
+          done: items.length === 0,
+          value,
+        });
+      },
+      return() {
+        return Promise.reject(new Error('Woah!'));
+      },
+    };
+
+    const doubles = mapAsyncIterable(iterable, (x) => x + x);
+
+    expect(await doubles.next()).to.deep.equal({ value: 2, done: false });
+
+    await expectPromise(doubles.return?.()).toRejectWith('Woah!');
+  });
+
+  it('handles early return from async iterable with pending next from inner iterator', async () => {
+    let called = false;
+    const iterable = {
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+      next() {
+        if (called) {
+          return new Promise<IteratorResult<string>>(() => {
+            /* never resolve */
+          });
+        }
+        called = true;
+        return Promise.resolve({ done: false, value: 'a' });
+      },
+      return() {
+        return Promise.reject(new Error('Woah!'));
+      },
+    };
+
+    const doubles = mapAsyncIterable(iterable, (x) => x + x);
+
+    expect(await doubles.next()).to.deep.equal({ value: 'aa', done: false });
+
+    const payload = doubles.next();
+
+    await resolveOnNextTick();
+
+    // Early return with parameter
+    await expectPromise(doubles.return?.()).toRejectWith('Woah!');
+
+    expect(await payload).to.deep.equal({
       value: undefined,
       done: true,
     });

@@ -1,57 +1,66 @@
+import { Repeater } from '@repeaterjs/repeater';
+
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
+import { isPromise } from '../predicates/isPromise.js';
+
 /**
- * Given an AsyncIterable and a callback function, return an AsyncIterator
+ * Given an AsyncIterable and a callback function, return an AsyncGenerator
  * which produces values mapped via calling the callback function.
  */
 export function mapAsyncIterable<T, U>(
-  iterable: AsyncIterable<T> | AsyncIterableIterator<T>,
-  callback: (value: T) => PromiseOrValue<U>,
+  iterable: AsyncIterable<T>,
+  fn: (value: T) => PromiseOrValue<U>,
 ): AsyncIterableIterator<U> {
-  const iterator = iterable[Symbol.asyncIterator]();
+  return new Repeater(async (push, stop) => {
+    const iter = iterable[Symbol.asyncIterator]();
+    let finalIteration: PromiseOrValue<unknown>;
 
-  async function mapResult(
-    result: IteratorResult<T>,
-  ): Promise<IteratorResult<U>> {
-    if (result.done) {
-      return result;
-    }
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    stop.then(() => {
+      finalIteration = typeof iter.return === 'function' ? iter.return() : true;
+    });
 
-    try {
-      return { value: await callback(result.value), done: false };
-    } catch (error) {
-      /* c8 ignore start */
-      // FIXME: add test case
-      if (typeof iterator.return === 'function') {
-        try {
-          await iterator.return();
-        } catch (_e) {
-          /* ignore error */
+    let thrown = false;
+    let nextValue;
+    // eslint-disable-next-line no-unmodified-loop-condition
+    while (!finalIteration) {
+      // safe race implementation
+      let eventStream: Repeater<IteratorResult<T> | undefined>;
+      if (thrown) {
+        if (!iter.throw || typeof iter.throw !== 'function') {
+          throw nextValue;
         }
+        thrown = false;
+        eventStream = Repeater.race([iter.throw(nextValue), stop]);
+      } else {
+        eventStream = Repeater.race([iter.next(nextValue), stop]);
       }
-      throw error;
-      /* c8 ignore stop */
-    }
-  }
 
-  return {
-    async next() {
-      return mapResult(await iterator.next());
-    },
-    async return(): Promise<IteratorResult<U>> {
-      // If iterator.return() does not exist, then type R must be undefined.
-      return typeof iterator.return === 'function'
-        ? mapResult(await iterator.return())
-        : { value: undefined as any, done: true };
-    },
-    async throw(error?: unknown) {
-      if (typeof iterator.throw === 'function') {
-        return mapResult(await iterator.throw(error));
+      // eslint-disable-next-line no-await-in-loop
+      const possibleIteration = (await eventStream.next()).value;
+
+      if (possibleIteration === undefined) {
+        break;
       }
-      throw error;
-    },
-    [Symbol.asyncIterator]() {
-      return this;
-    },
-  };
+
+      if (possibleIteration.done) {
+        stop();
+        break;
+      }
+
+      const mapped = fn(possibleIteration.value as T);
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        nextValue = await push(mapped);
+      } catch (err) {
+        thrown = true;
+        nextValue = err;
+      }
+    }
+
+    if (isPromise(finalIteration)) {
+      await finalIteration;
+    }
+  });
 }
