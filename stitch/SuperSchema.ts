@@ -2,6 +2,7 @@ import type {
   DirectiveLocation,
   GraphQLArgument,
   GraphQLArgumentConfig,
+  GraphQLCompositeType,
   GraphQLEnumValue,
   GraphQLEnumValueConfig,
   GraphQLEnumValueConfigMap,
@@ -18,6 +19,9 @@ import type {
   ListTypeNode,
   NamedTypeNode,
   NonNullTypeNode,
+  OperationDefinitionNode,
+  SelectionNode,
+  SelectionSetNode,
   TypeNode,
   VariableDefinitionNode,
 } from 'graphql';
@@ -49,6 +53,7 @@ import {
 import type { ObjMap } from '../types/ObjMap';
 import { hasOwnProperty } from '../utilities/hasOwnProperty.ts';
 import { inspect } from '../utilities/inspect.ts';
+import { invariant } from '../utilities/invariant.ts';
 import { printPathArray } from '../utilities/printPathArray.ts';
 type CoercedVariableValues =
   | {
@@ -553,5 +558,55 @@ export class SuperSchema {
       );
     }
     return coercedValues;
+  }
+  splitOperation(
+    operation: OperationDefinitionNode,
+  ): Map<GraphQLSchema, OperationDefinitionNode> {
+    const rootType = this.getRootType(operation.operation);
+    rootType !== undefined ||
+      invariant(
+        false,
+        `Schema is not configured to execute ${operation.operation}`,
+      );
+    const map = new Map<GraphQLSchema, OperationDefinitionNode>();
+    const splitSelections = this.splitSelectionSet(
+      operation.selectionSet,
+      rootType,
+    );
+    for (const [schema, selections] of splitSelections) {
+      map.set(schema, {
+        ...operation,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections,
+        },
+      });
+    }
+    return map;
+  }
+  splitSelectionSet(
+    selectionSet: SelectionSetNode,
+    parentType: GraphQLCompositeType,
+  ): Map<GraphQLSchema, Array<SelectionNode>> {
+    const subschemaSetsByField =
+      this.subschemaSetsByTypeAndField[parentType.name];
+    const map = new Map<GraphQLSchema, Array<SelectionNode>>();
+    for (const selection of selectionSet.selections) {
+      if (selection.kind === Kind.FIELD) {
+        const subschemas = subschemaSetsByField?.[selection.name.value];
+        if (subschemas) {
+          for (const subschema of subschemas) {
+            const selections = map.get(subschema);
+            if (selections) {
+              selections.push(selection);
+            } else {
+              map.set(subschema, [selection]);
+            }
+            continue;
+          }
+        }
+      }
+    }
+    return map;
   }
 }
