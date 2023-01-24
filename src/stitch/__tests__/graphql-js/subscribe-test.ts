@@ -966,7 +966,7 @@ describe('Subscription Publish Phase', () => {
     const subscription = createSubscription(pubsub);
     assert(isAsyncIterable(subscription));
 
-    let payload = subscription.next();
+    const payload = subscription.next();
 
     // A new email arrives!
     expect(
@@ -996,7 +996,23 @@ describe('Subscription Publish Phase', () => {
       },
     });
 
-    payload = subscription.next();
+    /**
+     * Note below change from graphql-js:
+     *
+     * Within graphql-js implementation of mapAsyncIterable, a later call to `.throw()` can return
+     * even if a prior call to `.next()` has not yet returned.
+     *
+     * With Repeaters, not only do all calls to `.next()`, `.throw()`, and `.return()` resolve in
+     * call order, but calls to `.next()` and `.throw()` are processed sequentially by design.
+     *
+     * Therefore, in our implementation, the below line will block resolution of the call to
+     * `.throw()` until after a payload is available.
+     *
+     * This change should have marginal effect on client use of the API, as clients should not be
+     * calling `.throw()` on the AsyncIterableIterator returned by our executor.
+     **/
+
+    // payload = subscription.next();
 
     // Throw error
     let caughtError;
@@ -1008,7 +1024,7 @@ describe('Subscription Publish Phase', () => {
     }
     expect(caughtError).to.equal('ouch');
 
-    expect(await payload).to.deep.equal({
+    expect(await subscription.next()).to.deep.equal({
       done: true,
       value: undefined,
     });
