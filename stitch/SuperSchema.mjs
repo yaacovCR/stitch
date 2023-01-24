@@ -25,6 +25,7 @@ import {
 } from 'graphql';
 import { hasOwnProperty } from '../utilities/hasOwnProperty.mjs';
 import { inspect } from '../utilities/inspect.mjs';
+import { invariant } from '../utilities/invariant.mjs';
 import { printPathArray } from '../utilities/printPathArray.mjs';
 const operations = [
   OperationTypeNode.QUERY,
@@ -436,5 +437,50 @@ export class SuperSchema {
       );
     }
     return coercedValues;
+  }
+  splitOperation(operation) {
+    const rootType = this.getRootType(operation.operation);
+    rootType !== undefined ||
+      invariant(
+        false,
+        `Schema is not configured to execute ${operation.operation}`,
+      );
+    const map = new Map();
+    const splitSelections = this.splitSelectionSet(
+      operation.selectionSet,
+      rootType,
+    );
+    for (const [schema, selections] of splitSelections) {
+      map.set(schema, {
+        ...operation,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections,
+        },
+      });
+    }
+    return map;
+  }
+  splitSelectionSet(selectionSet, parentType) {
+    const subschemaSetsByField =
+      this.subschemaSetsByTypeAndField[parentType.name];
+    const map = new Map();
+    for (const selection of selectionSet.selections) {
+      if (selection.kind === Kind.FIELD) {
+        const subschemas = subschemaSetsByField?.[selection.name.value];
+        if (subschemas) {
+          for (const subschema of subschemas) {
+            const selections = map.get(subschema);
+            if (selections) {
+              selections.push(selection);
+            } else {
+              map.set(subschema, [selection]);
+            }
+            continue;
+          }
+        }
+      }
+    }
+    return map;
   }
 }

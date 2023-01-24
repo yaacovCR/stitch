@@ -4,6 +4,7 @@ exports.SuperSchema = void 0;
 const graphql_1 = require('graphql');
 const hasOwnProperty_js_1 = require('../utilities/hasOwnProperty.js');
 const inspect_js_1 = require('../utilities/inspect.js');
+const invariant_js_1 = require('../utilities/invariant.js');
 const printPathArray_js_1 = require('../utilities/printPathArray.js');
 const operations = [
   graphql_1.OperationTypeNode.QUERY,
@@ -419,6 +420,51 @@ class SuperSchema {
       );
     }
     return coercedValues;
+  }
+  splitOperation(operation) {
+    const rootType = this.getRootType(operation.operation);
+    rootType !== undefined ||
+      (0, invariant_js_1.invariant)(
+        false,
+        `Schema is not configured to execute ${operation.operation}`,
+      );
+    const map = new Map();
+    const splitSelections = this.splitSelectionSet(
+      operation.selectionSet,
+      rootType,
+    );
+    for (const [schema, selections] of splitSelections) {
+      map.set(schema, {
+        ...operation,
+        selectionSet: {
+          kind: graphql_1.Kind.SELECTION_SET,
+          selections,
+        },
+      });
+    }
+    return map;
+  }
+  splitSelectionSet(selectionSet, parentType) {
+    const subschemaSetsByField =
+      this.subschemaSetsByTypeAndField[parentType.name];
+    const map = new Map();
+    for (const selection of selectionSet.selections) {
+      if (selection.kind === graphql_1.Kind.FIELD) {
+        const subschemas = subschemaSetsByField?.[selection.name.value];
+        if (subschemas) {
+          for (const subschema of subschemas) {
+            const selections = map.get(subschema);
+            if (selections) {
+              selections.push(selection);
+            } else {
+              map.set(subschema, [selection]);
+            }
+            continue;
+          }
+        }
+      }
+    }
+    return map;
   }
 }
 exports.SuperSchema = SuperSchema;

@@ -2,6 +2,7 @@ import type {
   DirectiveLocation,
   GraphQLArgument,
   GraphQLArgumentConfig,
+  GraphQLCompositeType,
   GraphQLEnumValue,
   GraphQLEnumValueConfig,
   GraphQLEnumValueConfigMap,
@@ -18,6 +19,9 @@ import type {
   ListTypeNode,
   NamedTypeNode,
   NonNullTypeNode,
+  OperationDefinitionNode,
+  SelectionNode,
+  SelectionSetNode,
   TypeNode,
   VariableDefinitionNode,
 } from 'graphql';
@@ -149,5 +153,12 @@ export declare class SuperSchema {
   ): {
     [variable: string]: unknown;
   };
+  splitOperation(
+    operation: OperationDefinitionNode,
+  ): Map<GraphQLSchema, OperationDefinitionNode>;
+  splitSelectionSet(
+    selectionSet: SelectionSetNode,
+    parentType: GraphQLCompositeType,
+  ): Map<GraphQLSchema, Array<SelectionNode>>;
 }
 export {};
