@@ -1,5 +1,9 @@
 import { expect } from 'chai';
-import type { GraphQLObjectType, OperationDefinitionNode } from 'graphql';
+import type {
+  GraphQLObjectType,
+  GraphQLSchema,
+  OperationDefinitionNode,
+} from 'graphql';
 import { buildSchema, GraphQLString, OperationTypeNode, parse } from 'graphql';
 import { describe, it } from 'mocha';
 
@@ -111,6 +115,76 @@ describe('SuperSchema', () => {
 
     const splitOperations = superSchema.splitOperation(
       operation.definitions[0] as OperationDefinitionNode,
+    );
+
+    const someSchemaOperation = splitOperations.get(someSchema);
+    expect(someSchemaOperation).to.deep.equal(
+      parse(
+        `{
+          someObject { someField }
+        }`,
+        { noLocation: true },
+      ).definitions[0],
+    );
+
+    const anotherSchemaOperation = splitOperations.get(anotherSchema);
+    expect(anotherSchemaOperation).to.deep.equal(
+      parse(
+        `{
+          anotherObject { anotherField }
+        }`,
+        { noLocation: true },
+      ).definitions[0],
+    );
+  });
+
+  it('works to split introspection root fields', () => {
+    const someSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        someField: String
+      }
+    `);
+
+    const anotherSchema = buildSchema(`
+      type Query {
+        anotherObject: AnotherObject
+      }
+
+      type AnotherObject {
+        someField: String
+      }
+    `);
+
+    const superSchema = new SuperSchema([someSchema, anotherSchema]);
+
+    const operation = parse(
+      `{
+        __schema { queryType { name } }
+        __type(name: "Query") { name }
+        someObject { someField }
+        anotherObject { anotherField }
+      }`,
+      { noLocation: true },
+    );
+
+    const splitOperations = superSchema.splitOperation(
+      operation.definitions[0] as OperationDefinitionNode,
+    );
+
+    const mergedSchema = splitOperations.keys().next().value as GraphQLSchema;
+    const mergedSchemaOperation = splitOperations.get(mergedSchema);
+    expect(mergedSchemaOperation).to.deep.equal(
+      parse(
+        `{
+          __schema { queryType { name } }
+          __type(name: "Query") { name }
+        }`,
+        { noLocation: true },
+      ).definitions[0],
     );
 
     const someSchemaOperation = splitOperations.get(someSchema);
