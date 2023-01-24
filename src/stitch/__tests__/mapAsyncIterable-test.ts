@@ -201,7 +201,7 @@ describe('mapAsyncIterable', () => {
         });
       },
       return() {
-        return Promise.reject(new Error('Woah!'));
+        return Promise.reject(new Error('Ouch!'));
       },
     };
 
@@ -209,7 +209,7 @@ describe('mapAsyncIterable', () => {
 
     expect(await doubles.next()).to.deep.equal({ value: 2, done: false });
 
-    await expectPromise(doubles.return?.()).toRejectWith('Woah!');
+    await expectPromise(doubles.return?.()).toRejectWith('Ouch!');
   });
 
   it('handles early return from async iterable with pending next from inner iterator', async () => {
@@ -228,7 +228,7 @@ describe('mapAsyncIterable', () => {
         return Promise.resolve({ done: false, value: 'a' });
       },
       return() {
-        return Promise.reject(new Error('Woah!'));
+        return Promise.reject(new Error('Ouch!'));
       },
     };
 
@@ -238,10 +238,11 @@ describe('mapAsyncIterable', () => {
 
     const payload = doubles.next();
 
+    // Wait for the inner iterator to be awaited
     await resolveOnNextTick();
 
-    // Early return with parameter
-    await expectPromise(doubles.return?.()).toRejectWith('Woah!');
+    // Early return works anyway
+    await expectPromise(doubles.return?.()).toRejectWith('Ouch!');
 
     expect(await payload).to.deep.equal({
       value: undefined,

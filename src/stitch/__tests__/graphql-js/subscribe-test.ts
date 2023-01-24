@@ -999,7 +999,7 @@ describe('Subscription Publish Phase', () => {
     /**
      * Note below change from graphql-js:
      *
-     * Witihin graphql-js implementation of mapAsyncIterable, a later call to `.throw()` can return
+     * Within graphql-js implementation of mapAsyncIterable, a later call to `.throw()` can return
      * even if a prior call to `.next()` has not yet returned.
      *
      * With Repeaters, not only do all calls to `.next()`, `.throw()`, and `.return()` resolve in
