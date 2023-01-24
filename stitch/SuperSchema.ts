@@ -95,6 +95,17 @@ export class SuperSchema {
       types: Object.values(this.mergedTypes),
       directives: Object.values(this.mergedDirectives),
     });
+    const queryType = this.mergedSchema.getQueryType();
+    if (queryType) {
+      let subSchemaSetsByField =
+        this.subschemaSetsByTypeAndField[queryType.name];
+      if (!subSchemaSetsByField) {
+        subSchemaSetsByField = Object.create(null);
+        this.subschemaSetsByTypeAndField[queryType.name] = subSchemaSetsByField;
+      }
+      subSchemaSetsByField.__schema = new Set([this.mergedSchema]);
+      subSchemaSetsByField.__type = new Set([this.mergedSchema]);
+    }
   }
   _createMergedElements(): void {
     const originalRootTypes: ObjMap<Array<GraphQLObjectType>> =
