@@ -28,7 +28,7 @@ export function mapAsyncIterable<T, U>(
       // safe race implementation
       let eventStream: Repeater<IteratorResult<T> | undefined>;
       if (thrown) {
-        if (!iter.throw || typeof iter.throw !== 'function') {
+        if (typeof iter.throw !== 'function') {
           throw nextValue;
         }
         thrown = false;
