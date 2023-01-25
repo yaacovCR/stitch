@@ -43,7 +43,7 @@ export function subscribe(
 
   const documents = exeContext.superSchema.splitDocument(
     operation,
-    fragments, 
+    fragments,
     fragmentMap,
   );
 
