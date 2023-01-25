@@ -49,9 +49,9 @@ describe('SuperSchema', () => {
       }
     `);
 
-    const someSubchema = getSubschema(someSchema);
-    const anotherSubchema = getSubschema(anotherSchema);
-    const superSchema = new SuperSchema([someSubchema, anotherSubchema]);
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
 
     const queryType = superSchema.getRootType(OperationTypeNode.QUERY);
     expect(queryType).to.deep.include({
@@ -86,9 +86,9 @@ describe('SuperSchema', () => {
       }
     `);
 
-    const someSubchema = getSubschema(someSchema);
-    const anotherSubchema = getSubschema(anotherSchema);
-    const superSchema = new SuperSchema([someSubchema, anotherSubchema]);
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
 
     const someObjectType = superSchema.getType('SomeObject') as
       | GraphQLObjectType
@@ -125,9 +125,9 @@ describe('SuperSchema', () => {
       }
     `);
 
-    const someSubchema = getSubschema(someSchema);
-    const anotherSubchema = getSubschema(anotherSchema);
-    const superSchema = new SuperSchema([someSubchema, anotherSubchema]);
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
 
     const operation = parse(
       `{
@@ -143,7 +143,7 @@ describe('SuperSchema', () => {
       {},
     );
 
-    const someSchemaOperation = splitDocuments.get(someSubchema);
+    const someSchemaOperation = splitDocuments.get(someSubschema);
     expect(someSchemaOperation).to.deep.equal(
       parse(
         `{
@@ -153,7 +153,7 @@ describe('SuperSchema', () => {
       ),
     );
 
-    const anotherSchemaOperation = splitDocuments.get(anotherSubchema);
+    const anotherSchemaOperation = splitDocuments.get(anotherSubschema);
     expect(anotherSchemaOperation).to.deep.equal(
       parse(
         `{
@@ -185,9 +185,9 @@ describe('SuperSchema', () => {
       }
     `);
 
-    const someSubchema = getSubschema(someSchema);
-    const anotherSubchema = getSubschema(anotherSchema);
-    const superSchema = new SuperSchema([someSubchema, anotherSubchema]);
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
 
     const operation = parse(
       `{
@@ -217,7 +217,7 @@ describe('SuperSchema', () => {
       ),
     );
 
-    const someSchemaOperation = splitDocuments.get(someSubchema);
+    const someSchemaOperation = splitDocuments.get(someSubschema);
     expect(someSchemaOperation).to.deep.equal(
       parse(
         `{
@@ -227,7 +227,7 @@ describe('SuperSchema', () => {
       ),
     );
 
-    const anotherSchemaOperation = splitDocuments.get(anotherSubchema);
+    const anotherSchemaOperation = splitDocuments.get(anotherSubschema);
     expect(anotherSchemaOperation).to.deep.equal(
       parse(
         `{
