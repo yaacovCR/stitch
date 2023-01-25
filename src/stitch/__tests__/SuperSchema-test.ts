@@ -157,8 +157,8 @@ describe('SuperSchema', () => {
       ),
     );
 
-    const someSubchemaPlan = plan.get(someSubschema);
-    expect(someSubchemaPlan).to.deep.equal({
+    const someSubschemaPlan = plan.get(someSubschema);
+    expect(someSubschemaPlan).to.deep.equal({
       document: parse(
         `{
           someObject { someField }
