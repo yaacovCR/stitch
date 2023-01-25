@@ -233,14 +233,14 @@ describe('SuperSchema', () => {
     });
 
     const someSubschemaPlan = plan.get(someSubschema);
-    expect(someSubschemaPlan).to.deep.equal(
-      parse(
+    expect(someSubschemaPlan).to.deep.equal({
+      document: parse(
         `{
           someObject { someField }
         }`,
         { noLocation: true },
       ),
-    );
+    });
 
     const anotherSubschemaPlan = plan.get(anotherSubschema);
     expect(anotherSubschemaPlan).to.deep.equal({
