@@ -1,4 +1,4 @@
-import type { DocumentNode, ExecutionResult } from 'graphql';
+import type { ExecutionResult } from 'graphql';
 import { GraphQLError, OperationTypeNode } from 'graphql';
 
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
@@ -10,7 +10,7 @@ import { invariant } from '../utilities/invariant.js';
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
-import type { Subschema } from './SuperSchema.js';
+import type { Subschema, SubschemaPlan } from './SuperSchema.js';
 
 export function subscribe(
   args: ExecutionArgs,
@@ -42,9 +42,9 @@ export function subscribe(
 
   const { operationContext, rawVariableValues } = exeContext;
 
-  const documents = superSchema.splitDocument(operationContext);
+  const plan = superSchema.generatePlan(operationContext);
 
-  if (documents.size === 0) {
+  if (plan.size === 0) {
     const error = new GraphQLError('Could not route subscription.', {
       nodes: operation,
     });
@@ -52,9 +52,9 @@ export function subscribe(
     return { errors: [error] };
   }
 
-  const [subschema, document] = documents.entries().next().value as [
+  const [subschema, subschemaPlan] = plan.entries().next().value as [
     Subschema,
-    DocumentNode,
+    SubschemaPlan,
   ];
 
   const subscriber = subschema.subscriber;
@@ -68,7 +68,7 @@ export function subscribe(
   }
 
   const result = subscriber({
-    document,
+    document: subschemaPlan.document,
     variables: rawVariableValues,
   });
 

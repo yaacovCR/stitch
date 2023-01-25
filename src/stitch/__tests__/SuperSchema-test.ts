@@ -150,32 +150,32 @@ describe('SuperSchema', () => {
       { noLocation: true },
     );
 
-    const splitDocuments = superSchema.splitDocument(
+    const plan = superSchema.generatePlan(
       createOperationContext(
         superSchema,
         operation.definitions[0] as OperationDefinitionNode,
       ),
     );
 
-    const someSchemaOperation = splitDocuments.get(someSubschema);
-    expect(someSchemaOperation).to.deep.equal(
-      parse(
+    const someSubchemaPlan = plan.get(someSubschema);
+    expect(someSubchemaPlan).to.deep.equal({
+      document: parse(
         `{
           someObject { someField }
         }`,
         { noLocation: true },
       ),
-    );
+    });
 
-    const anotherSchemaOperation = splitDocuments.get(anotherSubschema);
-    expect(anotherSchemaOperation).to.deep.equal(
-      parse(
+    const anotherSubschemaPlan = plan.get(anotherSubschema);
+    expect(anotherSubschemaPlan).to.deep.equal({
+      document: parse(
         `{
           anotherObject { anotherField }
         }`,
         { noLocation: true },
       ),
-    );
+    });
   });
 
   it('works to split introspection root fields', () => {
@@ -213,27 +213,27 @@ describe('SuperSchema', () => {
       { noLocation: true },
     );
 
-    const splitDocuments = superSchema.splitDocument(
+    const plan = superSchema.generatePlan(
       createOperationContext(
         superSchema,
         operation.definitions[0] as OperationDefinitionNode,
       ),
     );
 
-    const mergedSubschema = splitDocuments.keys().next().value as Subschema;
-    const mergedSchemaOperation = splitDocuments.get(mergedSubschema);
-    expect(mergedSchemaOperation).to.deep.equal(
-      parse(
+    const mergedSubschema = plan.keys().next().value as Subschema;
+    const mergedSubschemaPlan = plan.get(mergedSubschema);
+    expect(mergedSubschemaPlan).to.deep.equal({
+      document: parse(
         `{
           __schema { queryType { name } }
           __type(name: "Query") { name }
         }`,
         { noLocation: true },
       ),
-    );
+    });
 
-    const someSchemaOperation = splitDocuments.get(someSubschema);
-    expect(someSchemaOperation).to.deep.equal(
+    const someSubschemaPlan = plan.get(someSubschema);
+    expect(someSubschemaPlan).to.deep.equal(
       parse(
         `{
           someObject { someField }
@@ -242,14 +242,14 @@ describe('SuperSchema', () => {
       ),
     );
 
-    const anotherSchemaOperation = splitDocuments.get(anotherSubschema);
-    expect(anotherSchemaOperation).to.deep.equal(
-      parse(
+    const anotherSubschemaPlan = plan.get(anotherSubschema);
+    expect(anotherSubschemaPlan).to.deep.equal({
+      document: parse(
         `{
           anotherObject { anotherField }
         }`,
         { noLocation: true },
       ),
-    );
+    });
   });
 });
