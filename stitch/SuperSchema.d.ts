@@ -92,7 +92,7 @@ export declare class SuperSchema {
   ): GraphQLFieldConfig<unknown, unknown>;
   _argToArgConfig(arg: GraphQLArgument): GraphQLArgumentConfig;
   _getMergedInterfaces(
-    originalTypes: ReadonlyArray<GraphQLObjectType>,
+    originalTypes: ReadonlyArray<GraphQLObjectType | GraphQLInterfaceType>,
   ): Array<GraphQLInterfaceType>;
   _getMergedMemberTypes(
     originalTypes: ReadonlyArray<GraphQLUnionType>,

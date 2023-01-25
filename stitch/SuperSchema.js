@@ -152,6 +152,7 @@ class SuperSchema {
       name: firstType.name,
       description: firstType.description,
       fields: () => this._getMergedFieldMap(originalTypes),
+      interfaces: () => this._getMergedInterfaces(originalTypes),
     });
   }
   _mergeUnionTypes(originalTypes) {
@@ -235,19 +236,19 @@ class SuperSchema {
         if (interfaceMap[interfaceType.name]) {
           continue;
         }
-        interfaceMap[type.name] = this._getMergedType(type);
+        interfaceMap[interfaceType.name] = this._getMergedType(interfaceType);
       }
     }
     return Object.values(interfaceMap);
   }
   _getMergedMemberTypes(originalTypes) {
     const memberMap = Object.create(null);
-    for (const type of originalTypes) {
-      for (const unionType of type.getTypes()) {
-        if (memberMap[unionType.name]) {
+    for (const unionType of originalTypes) {
+      for (const memberType of unionType.getTypes()) {
+        if (memberMap[memberType.name]) {
           continue;
         }
-        memberMap[type.name] = this._getMergedType(type);
+        memberMap[memberType.name] = this._getMergedType(memberType);
       }
     }
     return Object.values(memberMap);
