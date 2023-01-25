@@ -164,10 +164,15 @@ function mergeInitialResults(results, hasNext) {
     }
     Object.assign(data, result.data);
   }
+  const dataOrNull = nullData ? null : data;
   if (hasNext) {
-    return errors.length > 0 ? { data, errors, hasNext } : { data, hasNext };
+    return errors.length > 0
+      ? { data: dataOrNull, errors, hasNext }
+      : { data: dataOrNull, hasNext };
   }
-  return errors.length > 0 ? { data, errors } : { data };
+  return errors.length > 0
+    ? { data: dataOrNull, errors }
+    : { data: dataOrNull };
 }
 function mergeSubsequentResults(asyncIterators) {
   const mergedAsyncIterator = repeater_1.Repeater.merge(asyncIterators);
