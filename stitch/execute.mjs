@@ -1,6 +1,6 @@
+import { Repeater } from '@repeaterjs/repeater';
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 import { isPromise } from '../predicates/isPromise.mjs';
-import { createRequest } from './createRequest.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
 import { SuperSchema } from './SuperSchema.mjs';
 export function execute(args) {
@@ -11,25 +11,36 @@ export function execute(args) {
   if (!('superSchema' in exeContext)) {
     return { errors: exeContext };
   }
-  const result = delegate(exeContext);
-  if (isPromise(result)) {
-    return result.then((resolved) => handlePossibleMultiPartResult(resolved));
+  const rootType = exeContext.superSchema.getRootType(
+    exeContext.operation.operation,
+  );
+  if (rootType == null) {
+    const error = new GraphQLError(
+      `Schema is not configured to execute ${exeContext.operation.operation} operation.`,
+      { nodes: exeContext.operation },
+    );
+    return { data: null, errors: [error] };
   }
-  return handlePossibleMultiPartResult(result);
+  const results = delegateRootFields(exeContext);
+  if (isPromise(results)) {
+    return results.then((resolvedResults) =>
+      handlePossibleMultiPartResults(resolvedResults),
+    );
+  }
+  return handlePossibleMultiPartResults(results);
 }
 export function buildExecutionContext(args) {
   const {
-    schemas,
+    subschemas,
     document,
     variableValues: rawVariableValues,
     operationName,
-    executor,
   } = args;
-  for (const schema of schemas) {
+  for (const subschema of subschemas) {
     // If the schema used for execution is invalid, throw an error.
-    assertValidSchema(schema);
+    assertValidSchema(subschema.schema);
   }
-  const superSchema = new SuperSchema(schemas);
+  const superSchema = new SuperSchema(subschemas);
   let operation;
   const fragments = [];
   const fragmentMap = Object.create(null);
@@ -82,55 +93,86 @@ export function buildExecutionContext(args) {
     variableDefinitions,
     rawVariableValues,
     coercedVariableValues: coercedVariableValues.coerced,
-    executor,
   };
 }
-function delegate(exeContext) {
-  const rootType = exeContext.superSchema.getRootType(
-    exeContext.operation.operation,
+function delegateRootFields(exeContext) {
+  const { operation, fragments, fragmentMap, rawVariableValues } = exeContext;
+  const documents = exeContext.superSchema.splitDocument(
+    operation,
+    fragments,
+    fragmentMap,
   );
-  if (rootType == null) {
-    const error = new GraphQLError(
-      `Schema is not configured to execute ${exeContext.operation.operation} operation.`,
-      { nodes: exeContext.operation },
-    );
-    return { data: null, errors: [error] };
+  const results = [];
+  let containsPromise = false;
+  for (const [subschema, document] of documents.entries()) {
+    const result = subschema.executor({
+      document,
+      variables: rawVariableValues,
+    });
+    if (isPromise(result)) {
+      containsPromise = true;
+    }
+    results.push(result);
   }
-  const { operation, fragments, rawVariableValues, executor } = exeContext;
-  const document = createRequest(operation, fragments);
-  return executor({
-    document,
-    variables: rawVariableValues,
-  });
+  return containsPromise ? Promise.all(results) : results;
 }
-function handlePossibleMultiPartResult(result) {
-  if ('initialResult' in result) {
-    return {
-      initialResult: result.initialResult,
-      subsequentResults: mapAsyncIterable(
-        result.subsequentResults,
-        (payload) => {
-          if (payload.incremental) {
-            const stitchedEntries = [];
-            let containsPromises = false;
-            for (const entry of payload.incremental) {
-              const stitchedEntry = entry;
-              if (isPromise(stitchedEntry)) {
-                containsPromises = true;
-              }
-              stitchedEntries.push(stitchedEntry);
-            }
-            return {
-              ...payload,
-              incremental: containsPromises
-                ? Promise.all(stitchedEntries)
-                : stitchedEntries,
-            };
-          }
-          return payload;
-        },
-      ),
-    };
+function handlePossibleMultiPartResults(results) {
+  if (results.length === 1) {
+    return results[0];
   }
-  return result;
+  const initialResults = [];
+  const asyncIterators = [];
+  for (const result of results) {
+    if ('initialResult' in result) {
+      initialResults.push(result.initialResult);
+      asyncIterators.push(result.subsequentResults);
+    } else {
+      initialResults.push(result);
+    }
+  }
+  if (asyncIterators.length === 0) {
+    return mergeInitialResults(initialResults, false);
+  }
+  return {
+    initialResult: mergeInitialResults(initialResults, true),
+    subsequentResults: mergeSubsequentResults(asyncIterators),
+  };
+}
+function mergeInitialResults(results, hasNext) {
+  const data = Object.create(null);
+  const errors = [];
+  let nullData = false;
+  for (const result of results) {
+    if (result.errors != null) {
+      errors.push(...result.errors);
+    }
+    if (nullData) {
+      continue;
+    }
+    if (result.data == null) {
+      nullData = true;
+      continue;
+    }
+    Object.assign(data, result.data);
+  }
+  if (hasNext) {
+    return errors.length > 0 ? { data, errors, hasNext } : { data, hasNext };
+  }
+  return errors.length > 0 ? { data, errors } : { data };
+}
+function mergeSubsequentResults(asyncIterators) {
+  const mergedAsyncIterator = Repeater.merge(asyncIterators);
+  return mapAsyncIterable(mergedAsyncIterator, (payload) => {
+    const incremental = [];
+    if (payload.incremental) {
+      for (const entry of payload.incremental) {
+        incremental.push(entry);
+      }
+      return {
+        ...payload,
+        incremental,
+      };
+    }
+    return payload;
+  });
 }

@@ -5,7 +5,6 @@ const graphql_1 = require('graphql');
 const isAsyncIterable_js_1 = require('../predicates/isAsyncIterable.js');
 const isPromise_js_1 = require('../predicates/isPromise.js');
 const invariant_js_1 = require('../utilities/invariant.js');
-const createRequest_js_1 = require('./createRequest.js');
 const execute_js_1 = require('./execute.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
 function subscribe(args) {
@@ -18,14 +17,6 @@ function subscribe(args) {
   }
   exeContext.operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION ||
     (0, invariant_js_1.invariant)(false);
-  const result = delegateSubscription(exeContext, args.subscriber);
-  if ((0, isPromise_js_1.isPromise)(result)) {
-    return result.then((resolved) => handlePossibleStream(resolved));
-  }
-  return handlePossibleStream(result);
-}
-exports.subscribe = subscribe;
-function delegateSubscription(exeContext, subscriber) {
   const rootType = exeContext.superSchema.getRootType(
     exeContext.operation.operation,
   );
@@ -36,13 +27,37 @@ function delegateSubscription(exeContext, subscriber) {
     );
     return { errors: [error] };
   }
-  const { operation, fragments, rawVariableValues } = exeContext;
-  const document = (0, createRequest_js_1.createRequest)(operation, fragments);
-  return subscriber({
+  const { operation, fragments, fragmentMap, rawVariableValues } = exeContext;
+  const documents = exeContext.superSchema.splitDocument(
+    operation,
+    fragments,
+    fragmentMap,
+  );
+  if (documents.size === 0) {
+    const error = new graphql_1.GraphQLError('Could not route subscription.', {
+      nodes: exeContext.operation,
+    });
+    return { errors: [error] };
+  }
+  const [subschema, document] = documents.entries().next().value;
+  const subscriber = subschema.subscriber;
+  if (!subscriber) {
+    const error = new graphql_1.GraphQLError(
+      'Subschema is not configured to execute subscription operation.',
+      { nodes: exeContext.operation },
+    );
+    return { errors: [error] };
+  }
+  const result = subscriber({
     document,
     variables: rawVariableValues,
   });
+  if ((0, isPromise_js_1.isPromise)(result)) {
+    return result.then((resolved) => handlePossibleStream(resolved));
+  }
+  return handlePossibleStream(result);
 }
+exports.subscribe = subscribe;
 function handlePossibleStream(result) {
   if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
     return (0, mapAsyncIterable_js_1.mapAsyncIterable)(

@@ -1,8 +1,12 @@
 import type {
   DirectiveLocation,
+  DocumentNode,
+  ExecutionResult,
+  ExperimentalIncrementalExecutionResults,
+  FieldNode,
+  FragmentDefinitionNode,
   GraphQLArgument,
   GraphQLArgumentConfig,
-  GraphQLCompositeType,
   GraphQLEnumValue,
   GraphQLEnumValueConfig,
   GraphQLEnumValueConfigMap,
@@ -16,6 +20,7 @@ import type {
   GraphQLNamedType,
   GraphQLOutputType,
   GraphQLType,
+  InlineFragmentNode,
   ListTypeNode,
   NamedTypeNode,
   NonNullTypeNode,
@@ -40,6 +45,7 @@ import {
   OperationTypeNode,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
+import type { PromiseOrValue } from '../types/PromiseOrValue';
 type CoercedVariableValues =
   | {
       errors: ReadonlyArray<GraphQLError>;
@@ -51,18 +57,44 @@ type CoercedVariableValues =
       };
       errors?: never;
     };
+export type Executor = (args: {
+  document: DocumentNode;
+  variables?:
+    | {
+        readonly [variable: string]: unknown;
+      }
+    | undefined;
+}) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
+export type Subscriber = (args: {
+  document: DocumentNode;
+  variables?:
+    | {
+        readonly [variable: string]: unknown;
+      }
+    | undefined;
+}) => PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>>;
+export interface Subschema {
+  schema: GraphQLSchema;
+  executor: Executor;
+  subscriber?: Subscriber;
+}
 /**
  * @internal
  */
 export declare class SuperSchema {
-  schemas: ReadonlyArray<GraphQLSchema>;
-  subschemaSetsByTypeAndField: ObjMap<ObjMap<Set<GraphQLSchema>>>;
+  subschemas: ReadonlyArray<Subschema>;
+  subschemaSetsByTypeAndField: ObjMap<ObjMap<Set<Subschema>>>;
   mergedRootTypes: ObjMap<GraphQLObjectType>;
   mergedTypes: ObjMap<GraphQLNamedType>;
   mergedDirectives: ObjMap<GraphQLDirective>;
   mergedSchema: GraphQLSchema;
-  constructor(schemas: ReadonlyArray<GraphQLSchema>);
+  constructor(schemas: ReadonlyArray<Subschema>);
   _createMergedElements(): void;
+  _addToSubschemaSets(
+    subschema: Subschema,
+    name: string,
+    type: GraphQLObjectType | GraphQLInterfaceType | GraphQLInputObjectType,
+  ): void;
   _mergeScalarTypes(
     originalTypes: ReadonlyArray<GraphQLScalarType>,
   ): GraphQLScalarType;
@@ -153,12 +185,24 @@ export declare class SuperSchema {
   ): {
     [variable: string]: unknown;
   };
-  splitOperation(
+  splitDocument(
     operation: OperationDefinitionNode,
-  ): Map<GraphQLSchema, OperationDefinitionNode>;
+    fragments: Array<FragmentDefinitionNode>,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
+  ): Map<Subschema, DocumentNode>;
   splitSelectionSet(
+    subschemaSetsByField: ObjMap<Set<Subschema>> | undefined,
     selectionSet: SelectionSetNode,
-    parentType: GraphQLCompositeType,
-  ): Map<GraphQLSchema, Array<SelectionNode>>;
+  ): Map<Subschema, Array<SelectionNode>>;
+  _addField(
+    subschemaSetsByField: ObjMap<Set<Subschema>>,
+    field: FieldNode,
+    map: Map<Subschema, Array<SelectionNode>>,
+  ): void;
+  _addInlineFragment(
+    subschemaSetsByField: ObjMap<Set<Subschema>>,
+    fragment: InlineFragmentNode,
+    map: Map<Subschema, Array<SelectionNode>>,
+  ): void;
 }
 export {};

@@ -3,16 +3,16 @@ import type {
   ExecutionResult,
   ExperimentalIncrementalExecutionResults,
   FragmentDefinitionNode,
-  GraphQLSchema,
   OperationDefinitionNode,
   VariableDefinitionNode,
 } from 'graphql';
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
+import type { Subschema } from './SuperSchema.js';
 import { SuperSchema } from './SuperSchema.js';
 export interface ExecutionArgs {
-  schemas: ReadonlyArray<GraphQLSchema>;
+  subschemas: ReadonlyArray<Subschema>;
   document: DocumentNode;
   variableValues?:
     | {
@@ -20,16 +20,7 @@ export interface ExecutionArgs {
       }
     | undefined;
   operationName?: string | undefined;
-  executor: Executor;
 }
-export type Executor = (args: {
-  document: DocumentNode;
-  variables?:
-    | {
-        readonly [variable: string]: unknown;
-      }
-    | undefined;
-}) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
 export interface ExecutionContext {
   superSchema: SuperSchema;
   fragments: Array<FragmentDefinitionNode>;
@@ -44,7 +35,6 @@ export interface ExecutionContext {
   coercedVariableValues: {
     [variable: string]: unknown;
   };
-  executor: Executor;
 }
 export declare function execute(
   args: ExecutionArgs,

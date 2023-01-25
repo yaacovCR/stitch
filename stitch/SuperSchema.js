@@ -3,6 +3,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 exports.SuperSchema = void 0;
 const graphql_1 = require('graphql');
 const hasOwnProperty_js_1 = require('../utilities/hasOwnProperty.js');
+const inlineRootFragments_js_1 = require('../utilities/inlineRootFragments.js');
 const inspect_js_1 = require('../utilities/inspect.js');
 const invariant_js_1 = require('../utilities/invariant.js');
 const printPathArray_js_1 = require('../utilities/printPathArray.js');
@@ -16,7 +17,7 @@ const operations = [
  */
 class SuperSchema {
   constructor(schemas) {
-    this.schemas = schemas;
+    this.subschemas = schemas;
     this.subschemaSetsByTypeAndField = Object.create(null);
     this.mergedRootTypes = Object.create(null);
     this.mergedTypes = Object.create(null);
@@ -38,15 +39,24 @@ class SuperSchema {
         subSchemaSetsByField = Object.create(null);
         this.subschemaSetsByTypeAndField[queryType.name] = subSchemaSetsByField;
       }
-      subSchemaSetsByField.__schema = new Set([this.mergedSchema]);
-      subSchemaSetsByField.__type = new Set([this.mergedSchema]);
+      const introspectionSubschema = {
+        schema: this.mergedSchema,
+        executor: (args) =>
+          (0, graphql_1.execute)({
+            ...args,
+            schema: this.mergedSchema,
+          }),
+      };
+      subSchemaSetsByField.__schema = new Set([introspectionSubschema]);
+      subSchemaSetsByField.__type = new Set([introspectionSubschema]);
     }
   }
   _createMergedElements() {
     const originalRootTypes = Object.create(null);
     const originalTypes = Object.create(null);
     const originalDirectives = Object.create(null);
-    for (const schema of this.schemas) {
+    for (const subschema of this.subschemas) {
+      const schema = subschema.schema;
       for (const operation of operations) {
         const rootType = schema.getRootType(operation);
         if (rootType) {
@@ -71,19 +81,7 @@ class SuperSchema {
           (0, graphql_1.isInterfaceType)(type) ||
           (0, graphql_1.isInputObjectType)(type)
         ) {
-          let subschemaSetsByField = this.subschemaSetsByTypeAndField[name];
-          if (!subschemaSetsByField) {
-            subschemaSetsByField = Object.create(null);
-            this.subschemaSetsByTypeAndField[name] = subschemaSetsByField;
-          }
-          for (const fieldName of Object.keys(type.getFields())) {
-            let subschemaSet = subschemaSetsByField[fieldName];
-            if (!subschemaSet) {
-              subschemaSet = new Set();
-              subschemaSetsByField[fieldName] = subschemaSet;
-            }
-            subschemaSet.add(schema);
-          }
+          this._addToSubschemaSets(subschema, name, type);
         }
       }
       for (const directive of schema.getDirectives()) {
@@ -128,6 +126,27 @@ class SuperSchema {
       originalDirectives,
     )) {
       this.mergedDirectives[directiveName] = this._mergeDirectives(directives);
+    }
+  }
+  _addToSubschemaSets(subschema, name, type) {
+    let subschemaSetsByField = this.subschemaSetsByTypeAndField[name];
+    if (!subschemaSetsByField) {
+      subschemaSetsByField = Object.create(null);
+      this.subschemaSetsByTypeAndField[name] = subschemaSetsByField;
+    }
+    let typenameSubschemaSet = subschemaSetsByField.__typename;
+    if (!typenameSubschemaSet) {
+      typenameSubschemaSet = new Set();
+      subschemaSetsByField.__typename = typenameSubschemaSet;
+    }
+    typenameSubschemaSet.add(subschema);
+    for (const fieldName of Object.keys(type.getFields())) {
+      let subschemaSet = subschemaSetsByField[fieldName];
+      if (!subschemaSet) {
+        subschemaSet = new Set();
+        subschemaSetsByField[fieldName] = subschemaSet;
+      }
+      subschemaSet.add(subschema);
     }
   }
   _mergeScalarTypes(originalTypes) {
@@ -433,50 +452,106 @@ class SuperSchema {
     }
     return coercedValues;
   }
-  splitOperation(operation) {
+  splitDocument(operation, fragments, fragmentMap) {
     const rootType = this.getRootType(operation.operation);
     rootType !== undefined ||
       (0, invariant_js_1.invariant)(
         false,
         `Schema is not configured to execute ${operation.operation}`,
       );
-    const map = new Map();
-    const splitSelections = this.splitSelectionSet(
+    const inlinedSelectionSet = (0,
+    inlineRootFragments_js_1.inlineRootFragments)(
       operation.selectionSet,
-      rootType,
+      fragmentMap,
+    );
+    const map = new Map();
+    const subschemaSetsByField =
+      this.subschemaSetsByTypeAndField[rootType.name];
+    const splitSelections = this.splitSelectionSet(
+      subschemaSetsByField,
+      inlinedSelectionSet,
     );
     for (const [schema, selections] of splitSelections) {
       map.set(schema, {
-        ...operation,
-        selectionSet: {
-          kind: graphql_1.Kind.SELECTION_SET,
-          selections,
-        },
+        kind: graphql_1.Kind.DOCUMENT,
+        definitions: [
+          {
+            ...operation,
+            selectionSet: {
+              kind: graphql_1.Kind.SELECTION_SET,
+              selections,
+            },
+          },
+          ...fragments,
+        ],
       });
     }
     return map;
   }
-  splitSelectionSet(selectionSet, parentType) {
-    const subschemaSetsByField =
-      this.subschemaSetsByTypeAndField[parentType.name];
+  splitSelectionSet(subschemaSetsByField, selectionSet) {
+    if (subschemaSetsByField === undefined) {
+      return new Map();
+    }
     const map = new Map();
     for (const selection of selectionSet.selections) {
-      if (selection.kind === graphql_1.Kind.FIELD) {
-        const subschemas = subschemaSetsByField?.[selection.name.value];
-        if (subschemas) {
-          for (const subschema of subschemas) {
-            const selections = map.get(subschema);
-            if (selections) {
-              selections.push(selection);
-            } else {
-              map.set(subschema, [selection]);
-            }
-            continue;
-          }
+      switch (selection.kind) {
+        case graphql_1.Kind.FIELD: {
+          this._addField(subschemaSetsByField, selection, map);
+          break;
+        }
+        case graphql_1.Kind.INLINE_FRAGMENT: {
+          this._addInlineFragment(subschemaSetsByField, selection, map);
+          break;
+        }
+        case graphql_1.Kind.FRAGMENT_SPREAD: {
+          // Not reached
+          false ||
+            (0, invariant_js_1.invariant)(
+              false,
+              'Fragment spreads should be inlined prior to selections being split!',
+            );
         }
       }
     }
     return map;
+  }
+  _addField(subschemaSetsByField, field, map) {
+    const subschemas = subschemaSetsByField[field.name.value];
+    if (subschemas) {
+      let foundSubschema = false;
+      for (const subschema of subschemas) {
+        const selections = map.get(subschema);
+        if (selections) {
+          selections.push(field);
+          foundSubschema = true;
+          break;
+        }
+      }
+      if (!foundSubschema) {
+        map.set(subschemas.values().next().value, [field]);
+      }
+    }
+  }
+  _addInlineFragment(subschemaSetsByField, fragment, map) {
+    const splitSelections = this.splitSelectionSet(
+      subschemaSetsByField,
+      fragment.selectionSet,
+    );
+    for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
+      const splitFragment = {
+        ...fragment,
+        selectionSet: {
+          kind: graphql_1.Kind.SELECTION_SET,
+          selections: fragmentSelections,
+        },
+      };
+      const selections = map.get(fragmentSubschema);
+      if (selections) {
+        selections.push(splitFragment);
+      } else {
+        map.set(fragmentSubschema, [splitFragment]);
+      }
+    }
   }
 }
 exports.SuperSchema = SuperSchema;
