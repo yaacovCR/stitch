@@ -1,22 +1,24 @@
+import { Repeater } from '@repeaterjs/repeater';
 import type {
   DocumentNode,
   ExecutionResult,
   ExperimentalIncrementalExecutionResults,
   FragmentDefinitionNode,
-  GraphQLSchema,
   IncrementalResult,
+  InitialIncrementalExecutionResult,
   OperationDefinitionNode,
+  SubsequentIncrementalExecutionResult,
   VariableDefinitionNode,
 } from 'graphql';
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import { isPromise } from '../predicates/isPromise.ts';
-import { createRequest } from './createRequest.ts';
 import { mapAsyncIterable } from './mapAsyncIterable.ts';
+import type { Subschema } from './SuperSchema.ts';
 import { SuperSchema } from './SuperSchema.ts';
 export interface ExecutionArgs {
-  schemas: ReadonlyArray<GraphQLSchema>;
+  subschemas: ReadonlyArray<Subschema>;
   document: DocumentNode;
   variableValues?:
     | {
@@ -24,16 +26,7 @@ export interface ExecutionArgs {
       }
     | undefined;
   operationName?: string | undefined;
-  executor: Executor;
 }
-export type Executor = (args: {
-  document: DocumentNode;
-  variables?:
-    | {
-        readonly [variable: string]: unknown;
-      }
-    | undefined;
-}) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
 export interface ExecutionContext {
   superSchema: SuperSchema;
   fragments: Array<FragmentDefinitionNode>;
@@ -48,7 +41,6 @@ export interface ExecutionContext {
   coercedVariableValues: {
     [variable: string]: unknown;
   };
-  executor: Executor;
 }
 export function execute(
   args: ExecutionArgs,
@@ -60,27 +52,38 @@ export function execute(
   if (!('superSchema' in exeContext)) {
     return { errors: exeContext };
   }
-  const result = delegate(exeContext);
-  if (isPromise(result)) {
-    return result.then((resolved) => handlePossibleMultiPartResult(resolved));
+  const rootType = exeContext.superSchema.getRootType(
+    exeContext.operation.operation,
+  );
+  if (rootType == null) {
+    const error = new GraphQLError(
+      `Schema is not configured to execute ${exeContext.operation.operation} operation.`,
+      { nodes: exeContext.operation },
+    );
+    return { data: null, errors: [error] };
   }
-  return handlePossibleMultiPartResult(result);
+  const results = delegateRootFields(exeContext);
+  if (isPromise(results)) {
+    return results.then((resolvedResults) =>
+      handlePossibleMultiPartResults(resolvedResults),
+    );
+  }
+  return handlePossibleMultiPartResults(results);
 }
 export function buildExecutionContext(
   args: ExecutionArgs,
 ): ReadonlyArray<GraphQLError> | ExecutionContext {
   const {
-    schemas,
+    subschemas,
     document,
     variableValues: rawVariableValues,
     operationName,
-    executor,
   } = args;
-  for (const schema of schemas) {
+  for (const subschema of subschemas) {
     // If the schema used for execution is invalid, throw an error.
-    assertValidSchema(schema);
+    assertValidSchema(subschema.schema);
   }
-  const superSchema = new SuperSchema(schemas);
+  const superSchema = new SuperSchema(subschemas);
   let operation: OperationDefinitionNode | undefined;
   const fragments: Array<FragmentDefinitionNode> = [];
   const fragmentMap: ObjMap<FragmentDefinitionNode> = Object.create(null);
@@ -133,60 +136,114 @@ export function buildExecutionContext(
     variableDefinitions,
     rawVariableValues,
     coercedVariableValues: coercedVariableValues.coerced,
-    executor,
   };
 }
-function delegate(
+function delegateRootFields(
   exeContext: ExecutionContext,
-): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults> {
-  const rootType = exeContext.superSchema.getRootType(
-    exeContext.operation.operation,
+): PromiseOrValue<
+  Array<ExecutionResult | ExperimentalIncrementalExecutionResults>
+> {
+  const { operation, fragments, fragmentMap, rawVariableValues } = exeContext;
+  const documents = exeContext.superSchema.splitDocument(
+    operation,
+    fragments,
+    fragmentMap,
   );
-  if (rootType == null) {
-    const error = new GraphQLError(
-      `Schema is not configured to execute ${exeContext.operation.operation} operation.`,
-      { nodes: exeContext.operation },
-    );
-    return { data: null, errors: [error] };
+  const results: Array<
+    PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>
+  > = [];
+  let containsPromise = false;
+  for (const [subschema, document] of documents.entries()) {
+    const result = subschema.executor({
+      document,
+      variables: rawVariableValues,
+    });
+    if (isPromise(result)) {
+      containsPromise = true;
+    }
+    results.push(result);
   }
-  const { operation, fragments, rawVariableValues, executor } = exeContext;
-  const document = createRequest(operation, fragments);
-  return executor({
-    document,
-    variables: rawVariableValues,
-  });
+  return containsPromise
+    ? Promise.all(results)
+    : (results as Array<
+        ExecutionResult | ExperimentalIncrementalExecutionResults
+      >);
 }
-function handlePossibleMultiPartResult<
+function handlePossibleMultiPartResults<
   T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
->(result: T): PromiseOrValue<T> {
-  if ('initialResult' in result) {
-    return {
-      initialResult: result.initialResult,
-      subsequentResults: mapAsyncIterable(
-        result.subsequentResults,
-        (payload) => {
-          if (payload.incremental) {
-            const stitchedEntries: Array<PromiseOrValue<IncrementalResult>> =
-              [];
-            let containsPromises = false;
-            for (const entry of payload.incremental) {
-              const stitchedEntry = entry;
-              if (isPromise(stitchedEntry)) {
-                containsPromises = true;
-              }
-              stitchedEntries.push(stitchedEntry);
-            }
-            return {
-              ...payload,
-              incremental: containsPromises
-                ? Promise.all(stitchedEntries)
-                : stitchedEntries,
-            };
-          }
-          return payload;
-        },
-      ),
-    } as T;
+>(
+  results: Array<T>,
+): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults> {
+  if (results.length === 1) {
+    return results[0];
   }
-  return result;
+  const initialResults: Array<
+    ExecutionResult | InitialIncrementalExecutionResult
+  > = [];
+  const asyncIterators: Array<
+    AsyncIterableIterator<SubsequentIncrementalExecutionResult>
+  > = [];
+  for (const result of results) {
+    if ('initialResult' in result) {
+      initialResults.push(result.initialResult);
+      asyncIterators.push(result.subsequentResults);
+    } else {
+      initialResults.push(result);
+    }
+  }
+  if (asyncIterators.length === 0) {
+    return mergeInitialResults(initialResults, false);
+  }
+  return {
+    initialResult: mergeInitialResults(
+      initialResults,
+      true,
+    ) as InitialIncrementalExecutionResult,
+    subsequentResults: mergeSubsequentResults(asyncIterators),
+  };
+}
+function mergeInitialResults(
+  results: Array<ExecutionResult | InitialIncrementalExecutionResult>,
+  hasNext: boolean,
+): ExecutionResult | InitialIncrementalExecutionResult {
+  const data = Object.create(null);
+  const errors: Array<GraphQLError> = [];
+  let nullData = false;
+  for (const result of results) {
+    if (result.errors != null) {
+      errors.push(...result.errors);
+    }
+    if (nullData) {
+      continue;
+    }
+    if (result.data == null) {
+      nullData = true;
+      continue;
+    }
+    Object.assign(data, result.data);
+  }
+  if (hasNext) {
+    return errors.length > 0 ? { data, errors, hasNext } : { data, hasNext };
+  }
+  return errors.length > 0 ? { data, errors } : { data };
+}
+function mergeSubsequentResults(
+  asyncIterators: Array<
+    AsyncIterableIterator<SubsequentIncrementalExecutionResult>
+  >,
+): AsyncGenerator<SubsequentIncrementalExecutionResult> {
+  const mergedAsyncIterator = Repeater.merge(asyncIterators);
+  return mapAsyncIterable(mergedAsyncIterator, (payload) => {
+    const incremental: Array<IncrementalResult> = [];
+    if (payload.incremental) {
+      for (const entry of payload.incremental) {
+        incremental.push(entry);
+      }
+      return {
+        ...payload,
+        incremental,
+      };
+    }
+    return payload;
+  }) as AsyncGenerator<SubsequentIncrementalExecutionResult>;
 }
