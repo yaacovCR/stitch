@@ -1,42 +1,21 @@
 import { Repeater } from '@repeaterjs/repeater';
 import type {
-  DocumentNode,
   ExecutionResult,
   ExperimentalIncrementalExecutionResults,
-  FragmentDefinitionNode,
   IncrementalResult,
   InitialIncrementalExecutionResult,
-  OperationDefinitionNode,
   SubsequentIncrementalExecutionResult,
-  VariableDefinitionNode,
 } from 'graphql';
-import { assertValidSchema, GraphQLError, Kind } from 'graphql';
+import { GraphQLError } from 'graphql';
 
-import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
 import { isPromise } from '../predicates/isPromise.js';
 
+import type { ExecutionArgs } from './buildExecutionContext.js';
+import { buildExecutionContext } from './buildExecutionContext.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
-import type { Subschema } from './SuperSchema.js';
-import { SuperSchema } from './SuperSchema.js';
-
-export interface ExecutionArgs {
-  subschemas: ReadonlyArray<Subschema>;
-  document: DocumentNode;
-  variableValues?: { readonly [variable: string]: unknown } | undefined;
-  operationName?: string | undefined;
-}
-
-export interface ExecutionContext {
-  superSchema: SuperSchema;
-  fragments: Array<FragmentDefinitionNode>;
-  fragmentMap: ObjMap<FragmentDefinitionNode>;
-  operation: OperationDefinitionNode;
-  variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
-  rawVariableValues: { readonly [variable: string]: unknown } | undefined;
-  coercedVariableValues: { [variable: string]: unknown };
-}
+import type { ExecutionContext } from './SuperSchema.js';
 
 export function execute(
   args: ExecutionArgs,
@@ -46,18 +25,20 @@ export function execute(
   const exeContext = buildExecutionContext(args);
 
   // Return early errors if execution context failed.
-  if (!('superSchema' in exeContext)) {
+  if (!('operationContext' in exeContext)) {
     return { errors: exeContext };
   }
 
-  const rootType = exeContext.superSchema.getRootType(
-    exeContext.operation.operation,
-  );
+  const {
+    operationContext: { superSchema, operation },
+  } = exeContext;
+
+  const rootType = superSchema.getRootType(operation.operation);
 
   if (rootType == null) {
     const error = new GraphQLError(
-      `Schema is not configured to execute ${exeContext.operation.operation} operation.`,
-      { nodes: exeContext.operation },
+      `Schema is not configured to execute ${operation.operation} operation.`,
+      { nodes: operation },
     );
 
     return { data: null, errors: [error] };
@@ -73,95 +54,16 @@ export function execute(
   return handlePossibleMultiPartResults(results);
 }
 
-export function buildExecutionContext(
-  args: ExecutionArgs,
-): ReadonlyArray<GraphQLError> | ExecutionContext {
-  const {
-    subschemas,
-    document,
-    variableValues: rawVariableValues,
-    operationName,
-  } = args;
-
-  for (const subschema of subschemas) {
-    // If the schema used for execution is invalid, throw an error.
-    assertValidSchema(subschema.schema);
-  }
-
-  const superSchema = new SuperSchema(subschemas);
-
-  let operation: OperationDefinitionNode | undefined;
-  const fragments: Array<FragmentDefinitionNode> = [];
-  const fragmentMap: ObjMap<FragmentDefinitionNode> = Object.create(null);
-  for (const definition of document.definitions) {
-    switch (definition.kind) {
-      case Kind.OPERATION_DEFINITION:
-        if (operationName == null) {
-          if (operation !== undefined) {
-            return [
-              new GraphQLError(
-                'Must provide operation name if query contains multiple operations.',
-              ),
-            ];
-          }
-          operation = definition;
-        } else if (definition.name?.value === operationName) {
-          operation = definition;
-        }
-        break;
-      case Kind.FRAGMENT_DEFINITION:
-        fragments.push(definition);
-        fragmentMap[definition.name.value] = definition;
-        break;
-      default:
-      // ignore non-executable definitions
-    }
-  }
-
-  if (!operation) {
-    if (operationName != null) {
-      return [new GraphQLError(`Unknown operation named "${operationName}".`)];
-    }
-    return [new GraphQLError('Must provide an operation.')];
-  }
-
-  // FIXME: https://github.com/graphql/graphql-js/issues/2203
-  /* c8 ignore next */
-  const variableDefinitions = operation.variableDefinitions ?? [];
-
-  const coercedVariableValues = superSchema.getVariableValues(
-    variableDefinitions,
-    rawVariableValues ?? {},
-    { maxErrors: 50 },
-  );
-
-  if (coercedVariableValues.errors) {
-    return coercedVariableValues.errors;
-  }
-
-  return {
-    superSchema,
-    fragments,
-    fragmentMap,
-    operation,
-    variableDefinitions,
-    rawVariableValues,
-    coercedVariableValues: coercedVariableValues.coerced,
-  };
-}
-
 function delegateRootFields(
   exeContext: ExecutionContext,
 ): PromiseOrValue<
   Array<ExecutionResult | ExperimentalIncrementalExecutionResults>
 > {
-  const { operation, fragments, fragmentMap, rawVariableValues } = exeContext;
+  const { operationContext, rawVariableValues } = exeContext;
 
-  const documents = exeContext.superSchema.splitDocument(
-    operation,
-    fragments,
-    fragmentMap,
-  );
+  const { superSchema } = operationContext;
+
+  const documents = superSchema.splitDocument(operationContext);
 
   const results: Array<
     PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>
