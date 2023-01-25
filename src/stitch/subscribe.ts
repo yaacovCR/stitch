@@ -7,8 +7,8 @@ import { isAsyncIterable } from '../predicates/isAsyncIterable.js';
 import { isPromise } from '../predicates/isPromise.js';
 import { invariant } from '../utilities/invariant.js';
 
-import type { ExecutionArgs } from './execute.js';
-import { buildExecutionContext } from './execute.js';
+import type { ExecutionArgs } from './buildExecutionContext.js';
+import { buildExecutionContext } from './buildExecutionContext.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
 import type { Subschema } from './SuperSchema.js';
 
@@ -20,36 +20,33 @@ export function subscribe(
   const exeContext = buildExecutionContext(args);
 
   // Return early errors if execution context failed.
-  if (!('superSchema' in exeContext)) {
+  if (!('operationContext' in exeContext)) {
     return { errors: exeContext };
   }
 
-  invariant(exeContext.operation.operation === OperationTypeNode.SUBSCRIPTION);
+  const {
+    operationContext: { superSchema, operation },
+  } = exeContext;
+  invariant(operation.operation === OperationTypeNode.SUBSCRIPTION);
 
-  const rootType = exeContext.superSchema.getRootType(
-    exeContext.operation.operation,
-  );
+  const rootType = superSchema.getRootType(operation.operation);
 
   if (rootType == null) {
     const error = new GraphQLError(
       'Schema is not configured to execute subscription operation.',
-      { nodes: exeContext.operation },
+      { nodes: operation },
     );
 
     return { errors: [error] };
   }
 
-  const { operation, fragments, fragmentMap, rawVariableValues } = exeContext;
+  const { operationContext, rawVariableValues } = exeContext;
 
-  const documents = exeContext.superSchema.splitDocument(
-    operation,
-    fragments,
-    fragmentMap,
-  );
+  const documents = superSchema.splitDocument(operationContext);
 
   if (documents.size === 0) {
     const error = new GraphQLError('Could not route subscription.', {
-      nodes: exeContext.operation,
+      nodes: operation,
     });
 
     return { errors: [error] };
@@ -64,7 +61,7 @@ export function subscribe(
   if (!subscriber) {
     const error = new GraphQLError(
       'Subschema is not configured to execute subscription operation.',
-      { nodes: exeContext.operation },
+      { nodes: operation },
     );
 
     return { errors: [error] };

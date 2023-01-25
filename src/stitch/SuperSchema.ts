@@ -66,6 +66,20 @@ import { inspect } from '../utilities/inspect.js';
 import { invariant } from '../utilities/invariant.js';
 import { printPathArray } from '../utilities/printPathArray.js';
 
+export interface OperationContext {
+  superSchema: SuperSchema;
+  operation: OperationDefinitionNode;
+  fragments: Array<FragmentDefinitionNode>;
+  fragmentMap: ObjMap<FragmentDefinitionNode>;
+  variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
+}
+
+export interface ExecutionContext {
+  operationContext: OperationContext;
+  rawVariableValues: { readonly [variable: string]: unknown } | undefined;
+  coercedVariableValues: { [variable: string]: unknown };
+}
+
 type CoercedVariableValues =
   | { errors: ReadonlyArray<GraphQLError>; coerced?: never }
   | { coerced: { [variable: string]: unknown }; errors?: never };
@@ -663,10 +677,9 @@ export class SuperSchema {
   }
 
   splitDocument(
-    operation: OperationDefinitionNode,
-    fragments: Array<FragmentDefinitionNode>,
-    fragmentMap: ObjMap<FragmentDefinitionNode>,
+    operationContext: OperationContext,
   ): Map<Subschema, DocumentNode> {
+    const { operation, fragments, fragmentMap } = operationContext;
     const rootType = this.getRootType(operation.operation);
     invariant(
       rootType !== undefined,

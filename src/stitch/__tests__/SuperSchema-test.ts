@@ -13,7 +13,7 @@ import {
 } from 'graphql';
 import { describe, it } from 'mocha';
 
-import type { Subschema } from '../SuperSchema.js';
+import type { OperationContext, Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
 function getSubschema(schema: GraphQLSchema): Subschema {
@@ -24,6 +24,19 @@ function getSubschema(schema: GraphQLSchema): Subschema {
         ...args,
         schema,
       }),
+  };
+}
+
+function createOperationContext(
+  superSchema: SuperSchema,
+  operation: OperationDefinitionNode,
+): OperationContext {
+  return {
+    superSchema,
+    operation,
+    fragments: [],
+    fragmentMap: {},
+    variableDefinitions: [],
   };
 }
 
@@ -138,9 +151,10 @@ describe('SuperSchema', () => {
     );
 
     const splitDocuments = superSchema.splitDocument(
-      operation.definitions[0] as OperationDefinitionNode,
-      [],
-      {},
+      createOperationContext(
+        superSchema,
+        operation.definitions[0] as OperationDefinitionNode,
+      ),
     );
 
     const someSchemaOperation = splitDocuments.get(someSubschema);
@@ -200,9 +214,10 @@ describe('SuperSchema', () => {
     );
 
     const splitDocuments = superSchema.splitDocument(
-      operation.definitions[0] as OperationDefinitionNode,
-      [],
-      {},
+      createOperationContext(
+        superSchema,
+        operation.definitions[0] as OperationDefinitionNode,
+      ),
     );
 
     const mergedSubschema = splitDocuments.keys().next().value as Subschema;
