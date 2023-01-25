@@ -7,22 +7,13 @@ import { isAsyncIterable } from '../predicates/isAsyncIterable.js';
 import { isPromise } from '../predicates/isPromise.js';
 import { invariant } from '../utilities/invariant.js';
 
-import { createRequest } from './createRequest.js';
-import type { ExecutionArgs, ExecutionContext } from './execute.js';
+import type { ExecutionArgs } from './execute.js';
 import { buildExecutionContext } from './execute.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
-
-export type Subscriber = (args: {
-  document: DocumentNode;
-  variables?: { readonly [variable: string]: unknown } | undefined;
-}) => PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>>;
-
-export interface SubscriptionArgs extends ExecutionArgs {
-  subscriber: Subscriber;
-}
+import type { Subschema } from './SuperSchema.js';
 
 export function subscribe(
-  args: SubscriptionArgs,
+  args: ExecutionArgs,
 ): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -35,18 +26,6 @@ export function subscribe(
 
   invariant(exeContext.operation.operation === OperationTypeNode.SUBSCRIPTION);
 
-  const result = delegateSubscription(exeContext, args.subscriber);
-
-  if (isPromise(result)) {
-    return result.then((resolved) => handlePossibleStream(resolved));
-  }
-  return handlePossibleStream(result);
-}
-
-function delegateSubscription(
-  exeContext: ExecutionContext,
-  subscriber: Subscriber,
-): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
   const rootType = exeContext.superSchema.getRootType(
     exeContext.operation.operation,
   );
@@ -60,14 +39,46 @@ function delegateSubscription(
     return { errors: [error] };
   }
 
-  const { operation, fragments, rawVariableValues } = exeContext;
+  const { operation, fragments, fragmentMap, rawVariableValues } = exeContext;
 
-  const document = createRequest(operation, fragments);
+  const documents = exeContext.superSchema.splitDocument(
+    operation,
+    fragments, 
+    fragmentMap,
+  );
 
-  return subscriber({
+  if (documents.size === 0) {
+    const error = new GraphQLError('Could not route subscription.', {
+      nodes: exeContext.operation,
+    });
+
+    return { errors: [error] };
+  }
+
+  const [subschema, document] = documents.entries().next().value as [
+    Subschema,
+    DocumentNode,
+  ];
+
+  const subscriber = subschema.subscriber;
+  if (!subscriber) {
+    const error = new GraphQLError(
+      'Subschema is not configured to execute subscription operation.',
+      { nodes: exeContext.operation },
+    );
+
+    return { errors: [error] };
+  }
+
+  const result = subscriber({
     document,
     variables: rawVariableValues,
   });
+
+  if (isPromise(result)) {
+    return result.then((resolved) => handlePossibleStream(resolved));
+  }
+  return handlePossibleStream(result);
 }
 
 function handlePossibleStream<

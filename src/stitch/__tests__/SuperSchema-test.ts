@@ -4,10 +4,28 @@ import type {
   GraphQLSchema,
   OperationDefinitionNode,
 } from 'graphql';
-import { buildSchema, GraphQLString, OperationTypeNode, parse } from 'graphql';
+import {
+  buildSchema,
+  execute,
+  GraphQLString,
+  OperationTypeNode,
+  parse,
+} from 'graphql';
 import { describe, it } from 'mocha';
 
+import type { Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
+
+function getSubschema(schema: GraphQLSchema): Subschema {
+  return {
+    schema,
+    executor: (args) =>
+      execute({
+        ...args,
+        schema,
+      }),
+  };
+}
 
 describe('SuperSchema', () => {
   it('works to combine root fields', () => {
@@ -31,7 +49,9 @@ describe('SuperSchema', () => {
       }
     `);
 
-    const superSchema = new SuperSchema([someSchema, anotherSchema]);
+    const someSubchema = getSubschema(someSchema);
+    const anotherSubchema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubchema, anotherSubchema]);
 
     const queryType = superSchema.getRootType(OperationTypeNode.QUERY);
     expect(queryType).to.deep.include({
@@ -66,7 +86,9 @@ describe('SuperSchema', () => {
       }
     `);
 
-    const superSchema = new SuperSchema([someSchema, anotherSchema]);
+    const someSubchema = getSubschema(someSchema);
+    const anotherSubchema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubchema, anotherSubchema]);
 
     const someObjectType = superSchema.getType('SomeObject') as
       | GraphQLObjectType
@@ -103,7 +125,9 @@ describe('SuperSchema', () => {
       }
     `);
 
-    const superSchema = new SuperSchema([someSchema, anotherSchema]);
+    const someSubchema = getSubschema(someSchema);
+    const anotherSubchema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubchema, anotherSubchema]);
 
     const operation = parse(
       `{
@@ -113,28 +137,30 @@ describe('SuperSchema', () => {
       { noLocation: true },
     );
 
-    const splitOperations = superSchema.splitOperation(
+    const splitDocuments = superSchema.splitDocument(
       operation.definitions[0] as OperationDefinitionNode,
+      [],
+      {},
     );
 
-    const someSchemaOperation = splitOperations.get(someSchema);
+    const someSchemaOperation = splitDocuments.get(someSubchema);
     expect(someSchemaOperation).to.deep.equal(
       parse(
         `{
           someObject { someField }
         }`,
         { noLocation: true },
-      ).definitions[0],
+      ),
     );
 
-    const anotherSchemaOperation = splitOperations.get(anotherSchema);
+    const anotherSchemaOperation = splitDocuments.get(anotherSubchema);
     expect(anotherSchemaOperation).to.deep.equal(
       parse(
         `{
           anotherObject { anotherField }
         }`,
         { noLocation: true },
-      ).definitions[0],
+      ),
     );
   });
 
@@ -159,7 +185,9 @@ describe('SuperSchema', () => {
       }
     `);
 
-    const superSchema = new SuperSchema([someSchema, anotherSchema]);
+    const someSubchema = getSubschema(someSchema);
+    const anotherSubchema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubchema, anotherSubchema]);
 
     const operation = parse(
       `{
@@ -171,12 +199,14 @@ describe('SuperSchema', () => {
       { noLocation: true },
     );
 
-    const splitOperations = superSchema.splitOperation(
+    const splitDocuments = superSchema.splitDocument(
       operation.definitions[0] as OperationDefinitionNode,
+      [],
+      {},
     );
 
-    const mergedSchema = splitOperations.keys().next().value as GraphQLSchema;
-    const mergedSchemaOperation = splitOperations.get(mergedSchema);
+    const mergedSubschema = splitDocuments.keys().next().value as Subschema;
+    const mergedSchemaOperation = splitDocuments.get(mergedSubschema);
     expect(mergedSchemaOperation).to.deep.equal(
       parse(
         `{
@@ -184,27 +214,27 @@ describe('SuperSchema', () => {
           __type(name: "Query") { name }
         }`,
         { noLocation: true },
-      ).definitions[0],
+      ),
     );
 
-    const someSchemaOperation = splitOperations.get(someSchema);
+    const someSchemaOperation = splitDocuments.get(someSubchema);
     expect(someSchemaOperation).to.deep.equal(
       parse(
         `{
           someObject { someField }
         }`,
         { noLocation: true },
-      ).definitions[0],
+      ),
     );
 
-    const anotherSchemaOperation = splitOperations.get(anotherSchema);
+    const anotherSchemaOperation = splitDocuments.get(anotherSubchema);
     expect(anotherSchemaOperation).to.deep.equal(
       parse(
         `{
           anotherObject { anotherField }
         }`,
         { noLocation: true },
-      ).definitions[0],
+      ),
     );
   });
 });

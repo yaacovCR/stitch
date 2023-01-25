@@ -400,11 +400,21 @@ describe('Subscription Initialization Phase', () => {
     const document = parse('subscription { unknownField }');
 
     const result = subscribe({ schema, document });
+    /*
     expectJSON(result).toDeepEqual({
       errors: [
         {
           message: 'The subscription field "unknownField" is not defined.',
           locations: [{ line: 1, column: 16 }],
+        },
+      ],
+    });
+    */
+    expectJSON(result).toDeepEqual({
+      errors: [
+        {
+          message: 'Could not route subscription.',
+          locations: [{ line: 1, column: 1 }],
         },
       ],
     });
