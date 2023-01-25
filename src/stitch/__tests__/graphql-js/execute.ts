@@ -22,15 +22,20 @@ export function executeWithGraphQL(
 > {
   return gatewayExecute({
     ...args,
-    schemas: [args.schema],
+    subschemas: [
+      {
+        schema: args.schema,
+        executor: ({ document, variables }) =>
+          graphqlExecute({
+            ...args,
+            schema: args.schema,
+            document,
+            variableValues: variables,
+          }),
+      },
+    ],
     operationName: args.operationName ?? undefined,
     variableValues: args.variableValues ?? undefined,
-    executor: ({ document, variables }) =>
-      graphqlExecute({
-        ...args,
-        document,
-        variableValues: variables,
-      }),
   });
 }
 
