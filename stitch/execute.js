@@ -1,26 +1,29 @@
 'use strict';
 Object.defineProperty(exports, '__esModule', { value: true });
-exports.buildExecutionContext = exports.execute = void 0;
+exports.execute = void 0;
 const repeater_1 = require('@repeaterjs/repeater');
 const graphql_1 = require('graphql');
 const isPromise_js_1 = require('../predicates/isPromise.js');
+const buildExecutionContext_js_1 = require('./buildExecutionContext.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
-const SuperSchema_js_1 = require('./SuperSchema.js');
 function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
-  const exeContext = buildExecutionContext(args);
+  const exeContext = (0, buildExecutionContext_js_1.buildExecutionContext)(
+    args,
+  );
   // Return early errors if execution context failed.
-  if (!('superSchema' in exeContext)) {
+  if (!('operationContext' in exeContext)) {
     return { errors: exeContext };
   }
-  const rootType = exeContext.superSchema.getRootType(
-    exeContext.operation.operation,
-  );
+  const {
+    operationContext: { superSchema, operation },
+  } = exeContext;
+  const rootType = superSchema.getRootType(operation.operation);
   if (rootType == null) {
     const error = new graphql_1.GraphQLError(
-      `Schema is not configured to execute ${exeContext.operation.operation} operation.`,
-      { nodes: exeContext.operation },
+      `Schema is not configured to execute ${operation.operation} operation.`,
+      { nodes: operation },
     );
     return { data: null, errors: [error] };
   }
@@ -33,84 +36,10 @@ function execute(args) {
   return handlePossibleMultiPartResults(results);
 }
 exports.execute = execute;
-function buildExecutionContext(args) {
-  const {
-    subschemas,
-    document,
-    variableValues: rawVariableValues,
-    operationName,
-  } = args;
-  for (const subschema of subschemas) {
-    // If the schema used for execution is invalid, throw an error.
-    (0, graphql_1.assertValidSchema)(subschema.schema);
-  }
-  const superSchema = new SuperSchema_js_1.SuperSchema(subschemas);
-  let operation;
-  const fragments = [];
-  const fragmentMap = Object.create(null);
-  for (const definition of document.definitions) {
-    switch (definition.kind) {
-      case graphql_1.Kind.OPERATION_DEFINITION:
-        if (operationName == null) {
-          if (operation !== undefined) {
-            return [
-              new graphql_1.GraphQLError(
-                'Must provide operation name if query contains multiple operations.',
-              ),
-            ];
-          }
-          operation = definition;
-        } else if (definition.name?.value === operationName) {
-          operation = definition;
-        }
-        break;
-      case graphql_1.Kind.FRAGMENT_DEFINITION:
-        fragments.push(definition);
-        fragmentMap[definition.name.value] = definition;
-        break;
-      default:
-      // ignore non-executable definitions
-    }
-  }
-  if (!operation) {
-    if (operationName != null) {
-      return [
-        new graphql_1.GraphQLError(
-          `Unknown operation named "${operationName}".`,
-        ),
-      ];
-    }
-    return [new graphql_1.GraphQLError('Must provide an operation.')];
-  }
-  // FIXME: https://github.com/graphql/graphql-js/issues/2203
-  /* c8 ignore next */
-  const variableDefinitions = operation.variableDefinitions ?? [];
-  const coercedVariableValues = superSchema.getVariableValues(
-    variableDefinitions,
-    rawVariableValues ?? {},
-    { maxErrors: 50 },
-  );
-  if (coercedVariableValues.errors) {
-    return coercedVariableValues.errors;
-  }
-  return {
-    superSchema,
-    fragments,
-    fragmentMap,
-    operation,
-    variableDefinitions,
-    rawVariableValues,
-    coercedVariableValues: coercedVariableValues.coerced,
-  };
-}
-exports.buildExecutionContext = buildExecutionContext;
 function delegateRootFields(exeContext) {
-  const { operation, fragments, fragmentMap, rawVariableValues } = exeContext;
-  const documents = exeContext.superSchema.splitDocument(
-    operation,
-    fragments,
-    fragmentMap,
-  );
+  const { operationContext, rawVariableValues } = exeContext;
+  const { superSchema } = operationContext;
+  const documents = superSchema.splitDocument(operationContext);
   const results = [];
   let containsPromise = false;
   for (const [subschema, document] of documents.entries()) {

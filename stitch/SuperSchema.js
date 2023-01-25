@@ -452,7 +452,8 @@ class SuperSchema {
     }
     return coercedValues;
   }
-  splitDocument(operation, fragments, fragmentMap) {
+  splitDocument(operationContext) {
+    const { operation, fragments, fragmentMap } = operationContext;
     const rootType = this.getRootType(operation.operation);
     rootType !== undefined ||
       (0, invariant_js_1.invariant)(

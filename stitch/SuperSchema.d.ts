@@ -46,6 +46,24 @@ import {
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 import type { PromiseOrValue } from '../types/PromiseOrValue';
+export interface OperationContext {
+  superSchema: SuperSchema;
+  operation: OperationDefinitionNode;
+  fragments: Array<FragmentDefinitionNode>;
+  fragmentMap: ObjMap<FragmentDefinitionNode>;
+  variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
+}
+export interface ExecutionContext {
+  operationContext: OperationContext;
+  rawVariableValues:
+    | {
+        readonly [variable: string]: unknown;
+      }
+    | undefined;
+  coercedVariableValues: {
+    [variable: string]: unknown;
+  };
+}
 type CoercedVariableValues =
   | {
       errors: ReadonlyArray<GraphQLError>;
@@ -186,9 +204,7 @@ export declare class SuperSchema {
     [variable: string]: unknown;
   };
   splitDocument(
-    operation: OperationDefinitionNode,
-    fragments: Array<FragmentDefinitionNode>,
-    fragmentMap: ObjMap<FragmentDefinitionNode>,
+    operationContext: OperationContext,
   ): Map<Subschema, DocumentNode>;
   splitSelectionSet(
     subschemaSetsByField: ObjMap<Set<Subschema>> | undefined,
