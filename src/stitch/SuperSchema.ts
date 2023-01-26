@@ -714,7 +714,7 @@ export class SuperSchema {
     );
 
     const map = new Map<Subschema, SubschemaPlan>();
-    for (const [schema, selections] of splitSelections) {
+    for (const [subschema, selections] of splitSelections) {
       const document: DocumentNode = {
         kind: Kind.DOCUMENT,
         definitions: [
@@ -730,10 +730,10 @@ export class SuperSchema {
       };
 
       const plan: SubschemaPlan = {
-        document: this._pruneDocument(document, schema),
+        document: this._pruneDocument(document, subschema),
       };
 
-      map.set(schema, plan);
+      map.set(subschema, plan);
     }
     return map;
   }
