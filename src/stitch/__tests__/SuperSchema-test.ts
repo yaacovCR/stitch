@@ -15,6 +15,7 @@ import {
 import { describe, it } from 'mocha';
 
 import { invariant } from '../../utilities/invariant.js';
+import { parseSelectionSet } from '../../utilities/parseSelectionSet.js';
 
 import type { OperationContext, Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
@@ -319,10 +320,7 @@ it('works to split subfields', () => {
   const selections = subPlan.selectionsBySubschema.values().next()
     .value as Array<SelectionNode>;
   expect(selections).to.deep.equal(
-    (
-      parse('{ anotherField }', { noLocation: true })
-        .definitions[0] as OperationDefinitionNode
-    ).selectionSet.selections,
+    parseSelectionSet('{ anotherField }').selections,
   );
 
   const anotherSubschemaPlan = plan.get(anotherSubschema);
