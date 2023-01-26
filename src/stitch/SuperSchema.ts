@@ -55,10 +55,9 @@ import {
   Kind,
   OperationTypeNode,
   print,
-  TypeInfo,
+  SchemaMetaFieldDef,
+  TypeMetaFieldDef,
   valueFromAST,
-  visit,
-  visitWithTypeInfo,
 } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap';
@@ -112,6 +111,7 @@ export interface Subschema {
 
 export interface SubschemaPlan {
   document: DocumentNode;
+  subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>;
 }
 
 /**
@@ -705,12 +705,15 @@ export class SuperSchema {
       fragmentMap,
     );
 
-    const subschemaSetsByField =
-      this.subschemaSetsByTypeAndField[rootType.name];
+    const subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>> =
+      Object.create(null);
 
     const splitSelections = this._splitSelectionSet(
-      subschemaSetsByField,
+      rootType,
       inlinedSelectionSet,
+      fragmentMap,
+      subPlans,
+      [],
     );
 
     const map = new Map<Subschema, SubschemaPlan>();
@@ -729,28 +732,48 @@ export class SuperSchema {
         ],
       };
 
-      const plan: SubschemaPlan = {
-        document: this._pruneDocument(document, subschema),
-      };
-
-      map.set(subschema, plan);
+      map.set(subschema, {
+        document,
+        subPlans,
+      });
     }
     return map;
   }
 
   _splitSelectionSet(
-    subschemaSetsByField: ObjMap<Set<Subschema>>,
+    parentType: GraphQLCompositeType,
     selectionSet: SelectionSetNode,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
+    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>> {
     const map = new Map<Subschema, Array<SelectionNode>>();
     for (const selection of selectionSet.selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addField(subschemaSetsByField, selection, map);
+          this._addField(
+            parentType as GraphQLObjectType | GraphQLInterfaceType,
+            selection,
+            fragmentMap,
+            map,
+            subPlans,
+            [...path, selection.name.value],
+          );
           break;
         }
         case Kind.INLINE_FRAGMENT: {
-          this._addInlineFragment(subschemaSetsByField, selection, map);
+          const typeName = selection.typeCondition?.name.value;
+          const refinedType = typeName
+            ? (this.getType(typeName) as GraphQLCompositeType)
+            : parentType;
+          this._addInlineFragment(
+            refinedType,
+            selection,
+            fragmentMap,
+            map,
+            subPlans,
+            path,
+          );
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -765,36 +788,123 @@ export class SuperSchema {
     return map;
   }
 
+  // eslint-disable-next-line max-params
   _addField(
-    subschemaSetsByField: ObjMap<Set<Subschema>>,
+    parentType: GraphQLObjectType | GraphQLInterfaceType,
     field: FieldNode,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
     map: Map<Subschema, Array<SelectionNode>>,
+    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    path: Array<string>,
   ): void {
+    const subschemaSetsByField =
+      this.subschemaSetsByTypeAndField[parentType.name];
+
     const subschemas = subschemaSetsByField[field.name.value];
     if (subschemas) {
-      let foundSubschema = false;
+      let subschemaAndSelections:
+        | {
+            subschema: Subschema;
+            selections: Array<SelectionNode>;
+          }
+        | undefined;
       for (const subschema of subschemas) {
         const selections = map.get(subschema);
         if (selections) {
-          selections.push(field);
-          foundSubschema = true;
+          subschemaAndSelections = { subschema, selections };
           break;
         }
       }
-      if (!foundSubschema) {
-        map.set(subschemas.values().next().value as Subschema, [field]);
+      if (!subschemaAndSelections) {
+        const subschema = subschemas.values().next().value as Subschema;
+        const selections: Array<SelectionNode> = [];
+        map.set(subschema, selections);
+        subschemaAndSelections = { subschema, selections };
+      }
+
+      const { subschema, selections } = subschemaAndSelections;
+
+      if (!field.selectionSet) {
+        selections.push(field);
+        return;
+      }
+
+      const inlinedSelectionSet = inlineRootFragments(
+        field.selectionSet,
+        fragmentMap,
+      );
+
+      const fieldName = field.name.value;
+      const fieldDef = this._getFieldDef(parentType, fieldName);
+      if (fieldDef) {
+        const fieldType = fieldDef.type;
+
+        const splitSelections = this._splitSelectionSet(
+          getNamedType(fieldType) as GraphQLCompositeType,
+          inlinedSelectionSet,
+          fragmentMap,
+          subPlans,
+          path,
+        );
+
+        const filteredSelections = splitSelections.get(subschema);
+
+        if (filteredSelections) {
+          selections.push({
+            ...field,
+            selectionSet: {
+              kind: Kind.SELECTION_SET,
+              selections: filteredSelections,
+            },
+          });
+        }
+
+        splitSelections.delete(subschema);
+
+        if (splitSelections.size > 0) {
+          subPlans[path.join('.')] = splitSelections;
+        }
       }
     }
   }
 
+  _getFieldDef(
+    parentType: GraphQLObjectType | GraphQLInterfaceType,
+    fieldName: string,
+  ): GraphQLField<any, any> | undefined {
+    if (
+      fieldName === SchemaMetaFieldDef.name &&
+      parentType === this.mergedSchema.getQueryType()
+    ) {
+      return SchemaMetaFieldDef;
+    }
+    if (
+      fieldName === TypeMetaFieldDef.name &&
+      parentType === this.mergedSchema.getQueryType()
+    ) {
+      return TypeMetaFieldDef;
+    }
+
+    const fields = parentType.getFields();
+
+    return fields[fieldName];
+  }
+
+  // eslint-disable-next-line max-params
   _addInlineFragment(
-    subschemaSetsByField: ObjMap<Set<Subschema>>,
+    parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
     map: Map<Subschema, Array<SelectionNode>>,
+    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    path: Array<string>,
   ): void {
     const splitSelections = this._splitSelectionSet(
-      subschemaSetsByField,
+      parentType,
       fragment.selectionSet,
+      fragmentMap,
+      subPlans,
+      path,
     );
     for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
       const splitFragment: InlineFragmentNode = {
@@ -811,48 +921,5 @@ export class SuperSchema {
         map.set(fragmentSubschema, [splitFragment]);
       }
     }
-  }
-
-  _pruneDocument(document: DocumentNode, subschema: Subschema): DocumentNode {
-    const typeInfo = new TypeInfo(subschema.schema);
-    return visit(
-      document,
-      visitWithTypeInfo(typeInfo, {
-        [Kind.SELECTION_SET]: (node) =>
-          this._visitSelectionSet(node, subschema, typeInfo),
-      }),
-    );
-  }
-
-  _visitSelectionSet(
-    node: SelectionSetNode,
-    subschema: Subschema,
-    typeInfo: TypeInfo,
-  ): SelectionSetNode | undefined {
-    const prunedSelections: Array<SelectionNode> = [];
-    const maybeType = typeInfo.getParentType();
-
-    invariant(maybeType != null);
-
-    const namedType = getNamedType(maybeType);
-    const typeName = namedType.name;
-
-    const subschemaSetsByField = this.subschemaSetsByTypeAndField[typeName];
-
-    invariant(subschemaSetsByField !== undefined);
-
-    for (const selection of node.selections) {
-      if (
-        selection.kind !== Kind.FIELD ||
-        subschemaSetsByField[selection.name.value]?.has(subschema)
-      ) {
-        prunedSelections.push(selection);
-      }
-    }
-
-    return {
-      ...node,
-      selections: prunedSelections,
-    };
   }
 }
