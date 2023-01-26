@@ -44,7 +44,6 @@ import {
   GraphQLSchema,
   GraphQLUnionType,
   OperationTypeNode,
-  TypeInfo,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 import type { PromiseOrValue } from '../types/PromiseOrValue';
@@ -100,6 +99,7 @@ export interface Subschema {
 }
 export interface SubschemaPlan {
   document: DocumentNode;
+  subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>;
 }
 /**
  * @internal
@@ -212,24 +212,31 @@ export declare class SuperSchema {
     operationContext: OperationContext,
   ): Map<Subschema, SubschemaPlan>;
   _splitSelectionSet(
-    subschemaSetsByField: ObjMap<Set<Subschema>>,
+    parentType: GraphQLCompositeType,
     selectionSet: SelectionSetNode,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
+    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>>;
   _addField(
-    subschemaSetsByField: ObjMap<Set<Subschema>>,
+    parentType: GraphQLObjectType | GraphQLInterfaceType,
     field: FieldNode,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
     map: Map<Subschema, Array<SelectionNode>>,
+    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    path: Array<string>,
   ): void;
+  _getFieldDef(
+    parentType: GraphQLObjectType | GraphQLInterfaceType,
+    fieldName: string,
+  ): GraphQLField<any, any> | undefined;
   _addInlineFragment(
-    subschemaSetsByField: ObjMap<Set<Subschema>>,
+    parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
     map: Map<Subschema, Array<SelectionNode>>,
+    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    path: Array<string>,
   ): void;
-  _pruneDocument(document: DocumentNode, subschema: Subschema): DocumentNode;
-  _visitSelectionSet(
-    node: SelectionSetNode,
-    subschema: Subschema,
-    typeInfo: TypeInfo,
-  ): SelectionSetNode | undefined;
 }
 export {};
