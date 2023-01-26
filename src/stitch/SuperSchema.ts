@@ -708,7 +708,7 @@ export class SuperSchema {
     const subschemaSetsByField =
       this.subschemaSetsByTypeAndField[rootType.name];
 
-    const splitSelections = this.splitSelectionSet(
+    const splitSelections = this._splitSelectionSet(
       subschemaSetsByField,
       inlinedSelectionSet,
     );
@@ -738,7 +738,7 @@ export class SuperSchema {
     return map;
   }
 
-  splitSelectionSet(
+  _splitSelectionSet(
     subschemaSetsByField: ObjMap<Set<Subschema>>,
     selectionSet: SelectionSetNode,
   ): Map<Subschema, Array<SelectionNode>> {
@@ -792,7 +792,7 @@ export class SuperSchema {
     fragment: InlineFragmentNode,
     map: Map<Subschema, Array<SelectionNode>>,
   ): void {
-    const splitSelections = this.splitSelectionSet(
+    const splitSelections = this._splitSelectionSet(
       subschemaSetsByField,
       fragment.selectionSet,
     );
