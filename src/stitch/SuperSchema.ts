@@ -737,13 +737,9 @@ export class SuperSchema {
   }
 
   splitSelectionSet(
-    subschemaSetsByField: ObjMap<Set<Subschema>> | undefined,
+    subschemaSetsByField: ObjMap<Set<Subschema>>,
     selectionSet: SelectionSetNode,
   ): Map<Subschema, Array<SelectionNode>> {
-    if (subschemaSetsByField === undefined) {
-      return new Map();
-    }
-
     const map = new Map<Subschema, Array<SelectionNode>>();
     for (const selection of selectionSet.selections) {
       switch (selection.kind) {
