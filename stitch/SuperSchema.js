@@ -478,20 +478,21 @@ class SuperSchema {
       inlinedSelectionSet,
     );
     for (const [schema, selections] of splitSelections) {
-      map.set(schema, {
-        document: {
-          kind: graphql_1.Kind.DOCUMENT,
-          definitions: [
-            {
-              ...operation,
-              selectionSet: {
-                kind: graphql_1.Kind.SELECTION_SET,
-                selections,
-              },
+      const document = {
+        kind: graphql_1.Kind.DOCUMENT,
+        definitions: [
+          {
+            ...operation,
+            selectionSet: {
+              kind: graphql_1.Kind.SELECTION_SET,
+              selections,
             },
-            ...fragments,
-          ],
-        },
+          },
+          ...fragments,
+        ],
+      };
+      map.set(schema, {
+        document: this._pruneDocument(document, schema),
       });
     }
     return map;
@@ -560,6 +561,47 @@ class SuperSchema {
         map.set(fragmentSubschema, [splitFragment]);
       }
     }
+  }
+  _pruneDocument(document, subschema) {
+    const typeInfo = new graphql_1.TypeInfo(subschema.schema);
+    return (0, graphql_1.visit)(
+      document,
+      (0, graphql_1.visitWithTypeInfo)(typeInfo, {
+        [graphql_1.Kind.SELECTION_SET]: (node) =>
+          this._visitSelectionSet(node, subschema, typeInfo),
+      }),
+    );
+  }
+  _visitSelectionSet(node, subschema, typeInfo) {
+    const prunedSelections = [];
+    const maybeType = typeInfo.getParentType();
+    if (!maybeType) {
+      return {
+        ...node,
+        selections: prunedSelections,
+      };
+    }
+    const namedType = (0, graphql_1.getNamedType)(maybeType);
+    const typeName = namedType.name;
+    const subschemaSetsByField = this.subschemaSetsByTypeAndField[typeName];
+    if (subschemaSetsByField === undefined) {
+      return {
+        ...node,
+        selections: prunedSelections,
+      };
+    }
+    for (const selection of node.selections) {
+      if (
+        selection.kind !== graphql_1.Kind.FIELD ||
+        subschemaSetsByField[selection.name.value]?.has(subschema)
+      ) {
+        prunedSelections.push(selection);
+      }
+    }
+    return {
+      ...node,
+      selections: prunedSelections,
+    };
   }
 }
 exports.SuperSchema = SuperSchema;

@@ -44,6 +44,7 @@ import {
   GraphQLSchema,
   GraphQLUnionType,
   OperationTypeNode,
+  TypeInfo,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 import type { PromiseOrValue } from '../types/PromiseOrValue';
@@ -224,5 +225,11 @@ export declare class SuperSchema {
     fragment: InlineFragmentNode,
     map: Map<Subschema, Array<SelectionNode>>,
   ): void;
+  _pruneDocument(document: DocumentNode, subschema: Subschema): DocumentNode;
+  _visitSelectionSet(
+    node: SelectionSetNode,
+    subschema: Subschema,
+    typeInfo: TypeInfo,
+  ): SelectionSetNode | undefined;
 }
 export {};
