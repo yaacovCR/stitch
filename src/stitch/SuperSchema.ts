@@ -834,24 +834,14 @@ export class SuperSchema {
     const prunedSelections: Array<SelectionNode> = [];
     const maybeType = typeInfo.getParentType();
 
-    if (!maybeType) {
-      return {
-        ...node,
-        selections: prunedSelections,
-      };
-    }
+    invariant(maybeType != null);
 
     const namedType = getNamedType(maybeType);
     const typeName = namedType.name;
 
     const subschemaSetsByField = this.subschemaSetsByTypeAndField[typeName];
 
-    if (subschemaSetsByField === undefined) {
-      return {
-        ...node,
-        selections: prunedSelections,
-      };
-    }
+    invariant(subschemaSetsByField !== undefined);
 
     for (const selection of node.selections) {
       if (
