@@ -705,7 +705,6 @@ export class SuperSchema {
       fragmentMap,
     );
 
-    const map = new Map<Subschema, SubschemaPlan>();
     const subschemaSetsByField =
       this.subschemaSetsByTypeAndField[rootType.name];
 
@@ -714,6 +713,7 @@ export class SuperSchema {
       inlinedSelectionSet,
     );
 
+    const map = new Map<Subschema, SubschemaPlan>();
     for (const [schema, selections] of splitSelections) {
       const document: DocumentNode = {
         kind: Kind.DOCUMENT,
@@ -729,9 +729,11 @@ export class SuperSchema {
         ],
       };
 
-      map.set(schema, {
+      const plan: SubschemaPlan = {
         document: this._pruneDocument(document, schema),
-      });
+      };
+
+      map.set(schema, plan);
     }
     return map;
   }
