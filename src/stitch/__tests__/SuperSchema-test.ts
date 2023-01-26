@@ -13,6 +13,8 @@ import {
 } from 'graphql';
 import { describe, it } from 'mocha';
 
+import { invariant } from '../../utilities/invariant.js';
+
 import type { OperationContext, Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
@@ -165,6 +167,7 @@ describe('SuperSchema', () => {
         }`,
         { noLocation: true },
       ),
+      subPlans: {},
     });
 
     const anotherSubschemaPlan = plan.get(anotherSubschema);
@@ -175,6 +178,7 @@ describe('SuperSchema', () => {
         }`,
         { noLocation: true },
       ),
+      subPlans: {},
     });
   });
 
@@ -230,6 +234,7 @@ describe('SuperSchema', () => {
         }`,
         { noLocation: true },
       ),
+      subPlans: {},
     });
 
     const someSubschemaPlan = plan.get(someSubschema);
@@ -240,6 +245,7 @@ describe('SuperSchema', () => {
         }`,
         { noLocation: true },
       ),
+      subPlans: {},
     });
 
     const anotherSubschemaPlan = plan.get(anotherSubschema);
@@ -250,6 +256,70 @@ describe('SuperSchema', () => {
         }`,
         { noLocation: true },
       ),
+      subPlans: {},
     });
   });
+});
+
+it('works to split subfields', () => {
+  const someSchema = buildSchema(`
+    type Query {
+      someObject: SomeObject
+    }
+
+    type SomeObject {
+      someField: String
+    }
+  `);
+
+  const anotherSchema = buildSchema(`
+    type Query {
+      someObject: SomeObject
+    }
+
+    type SomeObject {
+      anotherField: String
+    }
+  `);
+
+  const someSubschema = getSubschema(someSchema);
+  const anotherSubschema = getSubschema(anotherSchema);
+  const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+
+  const operation = parse(
+    `{
+      someObject { someField anotherField }
+    }`,
+    { noLocation: true },
+  );
+
+  const plan = superSchema.generatePlan(
+    createOperationContext(
+      superSchema,
+      operation.definitions[0] as OperationDefinitionNode,
+    ),
+  );
+
+  const someSubschemaPlan = plan.get(someSubschema);
+  invariant(someSubschemaPlan !== undefined);
+  expect(someSubschemaPlan.document).to.deep.equal(
+    parse(
+      `{
+        someObject { someField }
+      }`,
+      { noLocation: true },
+    ),
+  );
+
+  const selections = someSubschemaPlan.subPlans.someObject.values().next()
+    .value as Array<SelectionMode>;
+  expect(selections).to.deep.equal(
+    (
+      parse('{ anotherField }', { noLocation: true })
+        .definitions[0] as OperationDefinitionNode
+    ).selectionSet.selections,
+  );
+
+  const anotherSubschemaPlan = plan.get(anotherSubschema);
+  expect(anotherSubschemaPlan).to.equal(undefined);
 });
