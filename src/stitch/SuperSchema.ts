@@ -846,24 +846,19 @@ export class SuperSchema {
 
     const subschemaSetsByField = this.subschemaSetsByTypeAndField[typeName];
 
-    const predicate = (fieldName: string) =>
-      subschemaSetsByField?.[fieldName]?.has(subschema);
+    if (subschemaSetsByField === undefined) {
+      return {
+        ...node,
+        selections: prunedSelections,
+      };
+    }
 
     for (const selection of node.selections) {
-      switch (selection.kind) {
-        case Kind.INLINE_FRAGMENT: {
-          prunedSelections.push(selection);
-          break;
-        }
-        case Kind.FRAGMENT_SPREAD: {
-          prunedSelections.push(selection);
-          break;
-        }
-        case Kind.FIELD: {
-          if (predicate(selection.name.value)) {
-            prunedSelections.push(selection);
-          }
-        }
+      if (
+        selection.kind !== Kind.FIELD ||
+        subschemaSetsByField[selection.name.value]?.has(subschema)
+      ) {
+        prunedSelections.push(selection);
       }
     }
 
