@@ -589,7 +589,10 @@ class SuperSchema {
         }
         splitSelections.delete(subschema);
         if (splitSelections.size > 0) {
-          subPlans[path.join('.')] = splitSelections;
+          subPlans[path.join('.')] = {
+            type: fieldType,
+            selectionsBySubschema: splitSelections,
+          };
         }
       }
     }

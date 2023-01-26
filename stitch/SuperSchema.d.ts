@@ -97,9 +97,13 @@ export interface Subschema {
   executor: Executor;
   subscriber?: Subscriber;
 }
+export interface SubPlan {
+  type: GraphQLOutputType;
+  selectionsBySubschema: Map<Subschema, Array<SelectionNode>>;
+}
 export interface SubschemaPlan {
   document: DocumentNode;
-  subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>;
+  subPlans: ObjMap<SubPlan>;
 }
 /**
  * @internal
@@ -215,7 +219,7 @@ export declare class SuperSchema {
     parentType: GraphQLCompositeType,
     selectionSet: SelectionSetNode,
     fragmentMap: ObjMap<FragmentDefinitionNode>,
-    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>>;
   _addField(
@@ -223,7 +227,7 @@ export declare class SuperSchema {
     field: FieldNode,
     fragmentMap: ObjMap<FragmentDefinitionNode>,
     map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): void;
   _getFieldDef(
@@ -235,7 +239,7 @@ export declare class SuperSchema {
     fragment: InlineFragmentNode,
     fragmentMap: ObjMap<FragmentDefinitionNode>,
     map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): void;
 }
