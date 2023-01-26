@@ -220,6 +220,16 @@ describe('Execute: Union and intersection types', () => {
     });
   });
 
+  /**
+   * Note below change from graphql-js:
+   *
+   * Within graphql-js although the query below is invalid, it is executable.
+   *
+   * But given that it is invalid, we cannot properly route the `name` field.
+   *
+   **/
+
+  /*
   it('executes using union types', () => {
     // NOTE: This is an *invalid* query, but it should be an *executable* query.
     const document = parse(`
@@ -254,6 +264,7 @@ describe('Execute: Union and intersection types', () => {
       },
     });
   });
+  */
 
   it('executes union types with inline fragments', () => {
     // This is the valid version of the query in the above test.
@@ -295,6 +306,16 @@ describe('Execute: Union and intersection types', () => {
     });
   });
 
+  /**
+   * Note below change from graphql-js:
+   *
+   * Within graphql-js although the query below is invalid, it is executable.
+   *
+   * But given that it is invalid, we cannot properly route the `name` field.
+   *
+   **/
+
+  /*
   it('executes using interface types', () => {
     // NOTE: This is an *invalid* query, but it should be an *executable* query.
     const document = parse(`
@@ -321,6 +342,7 @@ describe('Execute: Union and intersection types', () => {
       },
     });
   });
+  */
 
   it('executes interface types with inline fragments', () => {
     // This is the valid version of the query in the above test.
