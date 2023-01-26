@@ -3,6 +3,7 @@ import type {
   GraphQLObjectType,
   GraphQLSchema,
   OperationDefinitionNode,
+  SelectionNode,
 } from 'graphql';
 import {
   buildSchema,
@@ -311,8 +312,12 @@ it('works to split subfields', () => {
     ),
   );
 
-  const selections = someSubschemaPlan.subPlans.someObject.values().next()
-    .value as Array<SelectionMode>;
+  const subPlan = someSubschemaPlan.subPlans.someObject;
+
+  expect(subPlan.type).to.equal(superSchema.getType('SomeObject'));
+
+  const selections = subPlan.selectionsBySubschema.values().next()
+    .value as Array<SelectionNode>;
   expect(selections).to.deep.equal(
     (
       parse('{ anotherField }', { noLocation: true })
