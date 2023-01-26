@@ -312,11 +312,11 @@ it('works to split subfields', () => {
     ),
   );
 
-  const subplan = someSubschemaPlan.subPlans.someObject;
+  const subPlan = someSubschemaPlan.subPlans.someObject;
 
-  expect(subplan.type).to.equal(superSchema.getType('SomeObject'));
+  expect(subPlan.type).to.equal(superSchema.getType('SomeObject'));
 
-  const selections = subplan.selectionsBySubschema.values().next()
+  const selections = subPlan.selectionsBySubschema.values().next()
     .value as Array<SelectionNode>;
   expect(selections).to.deep.equal(
     (
