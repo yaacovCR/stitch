@@ -31,14 +31,14 @@ function subscribe(args) {
     return { errors: [error] };
   }
   const { operationContext, rawVariableValues } = exeContext;
-  const documents = superSchema.splitDocument(operationContext);
-  if (documents.size === 0) {
+  const plan = superSchema.generatePlan(operationContext);
+  if (plan.size === 0) {
     const error = new graphql_1.GraphQLError('Could not route subscription.', {
       nodes: operation,
     });
     return { errors: [error] };
   }
-  const [subschema, document] = documents.entries().next().value;
+  const [subschema, subschemaPlan] = plan.entries().next().value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new graphql_1.GraphQLError(
@@ -48,7 +48,7 @@ function subscribe(args) {
     return { errors: [error] };
   }
   const result = subscriber({
-    document,
+    document: subschemaPlan.document,
     variables: rawVariableValues,
   });
   if ((0, isPromise_js_1.isPromise)(result)) {

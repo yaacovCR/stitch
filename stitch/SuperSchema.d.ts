@@ -96,6 +96,9 @@ export interface Subschema {
   executor: Executor;
   subscriber?: Subscriber;
 }
+export interface SubschemaPlan {
+  document: DocumentNode;
+}
 /**
  * @internal
  */
@@ -203,9 +206,9 @@ export declare class SuperSchema {
   ): {
     [variable: string]: unknown;
   };
-  splitDocument(
+  generatePlan(
     operationContext: OperationContext,
-  ): Map<Subschema, DocumentNode>;
+  ): Map<Subschema, SubschemaPlan>;
   splitSelectionSet(
     subschemaSetsByField: ObjMap<Set<Subschema>> | undefined,
     selectionSet: SelectionSetNode,

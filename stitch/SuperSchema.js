@@ -452,7 +452,7 @@ class SuperSchema {
     }
     return coercedValues;
   }
-  splitDocument(operationContext) {
+  generatePlan(operationContext) {
     const { operation, fragments, fragmentMap } = operationContext;
     const rootType = this.getRootType(operation.operation);
     rootType !== undefined ||
@@ -474,17 +474,19 @@ class SuperSchema {
     );
     for (const [schema, selections] of splitSelections) {
       map.set(schema, {
-        kind: graphql_1.Kind.DOCUMENT,
-        definitions: [
-          {
-            ...operation,
-            selectionSet: {
-              kind: graphql_1.Kind.SELECTION_SET,
-              selections,
+        document: {
+          kind: graphql_1.Kind.DOCUMENT,
+          definitions: [
+            {
+              ...operation,
+              selectionSet: {
+                kind: graphql_1.Kind.SELECTION_SET,
+                selections,
+              },
             },
-          },
-          ...fragments,
-        ],
+            ...fragments,
+          ],
+        },
       });
     }
     return map;

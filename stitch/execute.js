@@ -39,12 +39,12 @@ exports.execute = execute;
 function delegateRootFields(exeContext) {
   const { operationContext, rawVariableValues } = exeContext;
   const { superSchema } = operationContext;
-  const documents = superSchema.splitDocument(operationContext);
+  const plan = superSchema.generatePlan(operationContext);
   const results = [];
   let containsPromise = false;
-  for (const [subschema, document] of documents.entries()) {
+  for (const [subschema, subschemaPlan] of plan.entries()) {
     const result = subschema.executor({
-      document,
+      document: subschemaPlan.document,
       variables: rawVariableValues,
     });
     if ((0, isPromise_js_1.isPromise)(result)) {

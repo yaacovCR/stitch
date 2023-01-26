@@ -470,7 +470,7 @@ export class SuperSchema {
     }
     return coercedValues;
   }
-  splitDocument(operationContext) {
+  generatePlan(operationContext) {
     const { operation, fragments, fragmentMap } = operationContext;
     const rootType = this.getRootType(operation.operation);
     rootType !== undefined ||
@@ -491,17 +491,19 @@ export class SuperSchema {
     );
     for (const [schema, selections] of splitSelections) {
       map.set(schema, {
-        kind: Kind.DOCUMENT,
-        definitions: [
-          {
-            ...operation,
-            selectionSet: {
-              kind: Kind.SELECTION_SET,
-              selections,
+        document: {
+          kind: Kind.DOCUMENT,
+          definitions: [
+            {
+              ...operation,
+              selectionSet: {
+                kind: Kind.SELECTION_SET,
+                selections,
+              },
             },
-          },
-          ...fragments,
-        ],
+            ...fragments,
+          ],
+        },
       });
     }
     return map;
