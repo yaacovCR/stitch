@@ -145,7 +145,7 @@ describe('SuperSchema', () => {
     const operation = parse(
       `{
         someObject { someField }
-        anotherObject { anotherField }
+        anotherObject { someField }
       }`,
       { noLocation: true },
     );
@@ -171,7 +171,7 @@ describe('SuperSchema', () => {
     expect(anotherSubschemaPlan).to.deep.equal({
       document: parse(
         `{
-          anotherObject { anotherField }
+          anotherObject { someField }
         }`,
         { noLocation: true },
       ),
@@ -208,7 +208,7 @@ describe('SuperSchema', () => {
         __schema { queryType { name } }
         __type(name: "Query") { name }
         someObject { someField }
-        anotherObject { anotherField }
+        anotherObject { someField }
       }`,
       { noLocation: true },
     );
@@ -246,7 +246,7 @@ describe('SuperSchema', () => {
     expect(anotherSubschemaPlan).to.deep.equal({
       document: parse(
         `{
-          anotherObject { anotherField }
+          anotherObject { someField }
         }`,
         { noLocation: true },
       ),
