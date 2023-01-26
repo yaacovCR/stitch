@@ -666,14 +666,14 @@ export class SuperSchema {
       operation.selectionSet,
       fragmentMap,
     );
-    const map = new Map<Subschema, SubschemaPlan>();
     const subschemaSetsByField =
       this.subschemaSetsByTypeAndField[rootType.name];
-    const splitSelections = this.splitSelectionSet(
+    const splitSelections = this._splitSelectionSet(
       subschemaSetsByField,
       inlinedSelectionSet,
     );
-    for (const [schema, selections] of splitSelections) {
+    const map = new Map<Subschema, SubschemaPlan>();
+    for (const [subschema, selections] of splitSelections) {
       const document: DocumentNode = {
         kind: Kind.DOCUMENT,
         definitions: [
@@ -687,19 +687,17 @@ export class SuperSchema {
           ...fragments,
         ],
       };
-      map.set(schema, {
-        document: this._pruneDocument(document, schema),
-      });
+      const plan: SubschemaPlan = {
+        document: this._pruneDocument(document, subschema),
+      };
+      map.set(subschema, plan);
     }
     return map;
   }
-  splitSelectionSet(
-    subschemaSetsByField: ObjMap<Set<Subschema>> | undefined,
+  _splitSelectionSet(
+    subschemaSetsByField: ObjMap<Set<Subschema>>,
     selectionSet: SelectionSetNode,
   ): Map<Subschema, Array<SelectionNode>> {
-    if (subschemaSetsByField === undefined) {
-      return new Map();
-    }
     const map = new Map<Subschema, Array<SelectionNode>>();
     for (const selection of selectionSet.selections) {
       switch (selection.kind) {
@@ -749,7 +747,7 @@ export class SuperSchema {
     fragment: InlineFragmentNode,
     map: Map<Subschema, Array<SelectionNode>>,
   ): void {
-    const splitSelections = this.splitSelectionSet(
+    const splitSelections = this._splitSelectionSet(
       subschemaSetsByField,
       fragment.selectionSet,
     );
@@ -786,21 +784,11 @@ export class SuperSchema {
   ): SelectionSetNode | undefined {
     const prunedSelections: Array<SelectionNode> = [];
     const maybeType = typeInfo.getParentType();
-    if (!maybeType) {
-      return {
-        ...node,
-        selections: prunedSelections,
-      };
-    }
+    maybeType != null || invariant(false);
     const namedType = getNamedType(maybeType);
     const typeName = namedType.name;
     const subschemaSetsByField = this.subschemaSetsByTypeAndField[typeName];
-    if (subschemaSetsByField === undefined) {
-      return {
-        ...node,
-        selections: prunedSelections,
-      };
-    }
+    subschemaSetsByField !== undefined || invariant(false);
     for (const selection of node.selections) {
       if (
         selection.kind !== Kind.FIELD ||
