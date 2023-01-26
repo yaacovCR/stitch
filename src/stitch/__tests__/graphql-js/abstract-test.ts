@@ -453,6 +453,16 @@ describe('Execute: Handles execution of abstract types', () => {
       }
     `);
 
+    /**
+     * Note below change from graphql-js:
+     *
+     * Within graphql-js although the query below is invalid, it is executable.
+     *
+     * But given that it is invalid, we cannot properly route the `name` field.
+     *
+     **/
+
+    /*
     const query = `
       {
         pets {
@@ -461,6 +471,22 @@ describe('Execute: Handles execution of abstract types', () => {
             woofs
           }
           ... on Cat {
+            meows
+          }
+        }
+      }
+    `;
+    */
+
+    const query = `
+      {
+        pets {
+          ... on Dog {
+            name
+            woofs
+          }
+          ... on Cat {
+            name
             meows
           }
         }

@@ -34,6 +34,7 @@ import type {
 import {
   coerceInputValue,
   execute,
+  getNamedType,
   GraphQLDirective,
   GraphQLEnumType,
   GraphQLError,
@@ -54,7 +55,10 @@ import {
   Kind,
   OperationTypeNode,
   print,
+  TypeInfo,
   valueFromAST,
+  visit,
+  visitWithTypeInfo,
 } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap';
@@ -711,20 +715,22 @@ export class SuperSchema {
     );
 
     for (const [schema, selections] of splitSelections) {
-      map.set(schema, {
-        document: {
-          kind: Kind.DOCUMENT,
-          definitions: [
-            {
-              ...operation,
-              selectionSet: {
-                kind: Kind.SELECTION_SET,
-                selections,
-              },
+      const document: DocumentNode = {
+        kind: Kind.DOCUMENT,
+        definitions: [
+          {
+            ...operation,
+            selectionSet: {
+              kind: Kind.SELECTION_SET,
+              selections,
             },
-            ...fragments,
-          ],
-        },
+          },
+          ...fragments,
+        ],
+      };
+
+      map.set(schema, {
+        document: this._pruneDocument(document, schema),
       });
     }
     return map;
@@ -807,5 +813,63 @@ export class SuperSchema {
         map.set(fragmentSubschema, [splitFragment]);
       }
     }
+  }
+
+  _pruneDocument(document: DocumentNode, subschema: Subschema): DocumentNode {
+    const typeInfo = new TypeInfo(subschema.schema);
+    return visit(
+      document,
+      visitWithTypeInfo(typeInfo, {
+        [Kind.SELECTION_SET]: (node) =>
+          this._visitSelectionSet(node, subschema, typeInfo),
+      }),
+    );
+  }
+
+  _visitSelectionSet(
+    node: SelectionSetNode,
+    subschema: Subschema,
+    typeInfo: TypeInfo,
+  ): SelectionSetNode | undefined {
+    const prunedSelections: Array<SelectionNode> = [];
+    const maybeType = typeInfo.getParentType();
+
+    if (!maybeType) {
+      return {
+        ...node,
+        selections: prunedSelections,
+      };
+    }
+
+    const namedType = getNamedType(maybeType);
+    const typeName = namedType.name;
+
+    const subschemaSetsByField = this.subschemaSetsByTypeAndField[typeName];
+
+    const predicate = (fieldName: string) =>
+      subschemaSetsByField?.[fieldName]?.has(subschema);
+
+    for (const selection of node.selections) {
+      switch (selection.kind) {
+        case Kind.INLINE_FRAGMENT: {
+          prunedSelections.push(selection);
+          break;
+        }
+        case Kind.FRAGMENT_SPREAD: {
+          prunedSelections.push(selection);
+          break;
+        }
+        case Kind.FIELD: {
+          if (predicate(selection.name.value)) {
+            prunedSelections.push(selection);
+          }
+        }
+      }
+    }
+
+    return {
+      ...node,
+      selections: prunedSelections,
+    };
   }
 }
