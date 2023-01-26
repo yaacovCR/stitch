@@ -63,16 +63,16 @@ function delegateRootFields(
 
   const { superSchema } = operationContext;
 
-  const documents = superSchema.splitDocument(operationContext);
+  const plan = superSchema.generatePlan(operationContext);
 
   const results: Array<
     PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>
   > = [];
 
   let containsPromise = false;
-  for (const [subschema, document] of documents.entries()) {
+  for (const [subschema, subschemaPlan] of plan.entries()) {
     const result = subschema.executor({
-      document,
+      document: subschemaPlan.document,
       variables: rawVariableValues,
     });
 
