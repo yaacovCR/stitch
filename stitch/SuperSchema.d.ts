@@ -7,6 +7,7 @@ import type {
   FragmentDefinitionNode,
   GraphQLArgument,
   GraphQLArgumentConfig,
+  GraphQLCompositeType,
   GraphQLEnumValue,
   GraphQLEnumValueConfig,
   GraphQLEnumValueConfigMap,
@@ -114,7 +115,7 @@ export declare class SuperSchema {
   _addToSubschemaSets(
     subschema: Subschema,
     name: string,
-    type: GraphQLObjectType | GraphQLInterfaceType | GraphQLInputObjectType,
+    type: GraphQLCompositeType,
   ): void;
   _mergeScalarTypes(
     originalTypes: ReadonlyArray<GraphQLScalarType>,

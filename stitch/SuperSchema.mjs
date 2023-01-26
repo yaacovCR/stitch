@@ -12,13 +12,12 @@ import {
   GraphQLScalarType,
   GraphQLSchema,
   GraphQLUnionType,
-  isInputObjectType,
+  isCompositeType,
   isInputType,
-  isInterfaceType,
   isListType,
   isNonNullType,
-  isObjectType,
   isSpecifiedScalarType,
+  isUnionType,
   Kind,
   OperationTypeNode,
   print,
@@ -54,12 +53,6 @@ export class SuperSchema {
     });
     const queryType = this.mergedSchema.getQueryType();
     if (queryType) {
-      let subSchemaSetsByField =
-        this.subschemaSetsByTypeAndField[queryType.name];
-      if (!subSchemaSetsByField) {
-        subSchemaSetsByField = Object.create(null);
-        this.subschemaSetsByTypeAndField[queryType.name] = subSchemaSetsByField;
-      }
       const introspectionSubschema = {
         schema: this.mergedSchema,
         executor: (args) =>
@@ -68,6 +61,18 @@ export class SuperSchema {
             schema: this.mergedSchema,
           }),
       };
+      for (const [name, type] of Object.entries(
+        this.mergedSchema.getTypeMap(),
+      )) {
+        if (!name.startsWith('__')) {
+          continue;
+        }
+        if (isCompositeType(type)) {
+          this._addToSubschemaSets(introspectionSubschema, name, type);
+        }
+      }
+      const subSchemaSetsByField =
+        this.subschemaSetsByTypeAndField[queryType.name];
       subSchemaSetsByField.__schema = new Set([introspectionSubschema]);
       subSchemaSetsByField.__type = new Set([introspectionSubschema]);
     }
@@ -97,11 +102,7 @@ export class SuperSchema {
         } else {
           originalTypes[name].push(type);
         }
-        if (
-          isObjectType(type) ||
-          isInterfaceType(type) ||
-          isInputObjectType(type)
-        ) {
+        if (isCompositeType(type)) {
           this._addToSubschemaSets(subschema, name, type);
         }
       }
@@ -161,6 +162,9 @@ export class SuperSchema {
       subschemaSetsByField.__typename = typenameSubschemaSet;
     }
     typenameSubschemaSet.add(subschema);
+    if (isUnionType(type)) {
+      return;
+    }
     for (const fieldName of Object.keys(type.getFields())) {
       let subschemaSet = subschemaSetsByField[fieldName];
       if (!subschemaSet) {
