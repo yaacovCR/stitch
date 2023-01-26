@@ -118,6 +118,9 @@ export interface Subschema {
   executor: Executor;
   subscriber?: Subscriber;
 }
+export interface SubschemaPlan {
+  document: DocumentNode;
+}
 /**
  * @internal
  */
@@ -640,9 +643,9 @@ export class SuperSchema {
     }
     return coercedValues;
   }
-  splitDocument(
+  generatePlan(
     operationContext: OperationContext,
-  ): Map<Subschema, DocumentNode> {
+  ): Map<Subschema, SubschemaPlan> {
     const { operation, fragments, fragmentMap } = operationContext;
     const rootType = this.getRootType(operation.operation);
     rootType !== undefined ||
@@ -654,7 +657,7 @@ export class SuperSchema {
       operation.selectionSet,
       fragmentMap,
     );
-    const map = new Map<Subschema, DocumentNode>();
+    const map = new Map<Subschema, SubschemaPlan>();
     const subschemaSetsByField =
       this.subschemaSetsByTypeAndField[rootType.name];
     const splitSelections = this.splitSelectionSet(
@@ -663,17 +666,19 @@ export class SuperSchema {
     );
     for (const [schema, selections] of splitSelections) {
       map.set(schema, {
-        kind: Kind.DOCUMENT,
-        definitions: [
-          {
-            ...operation,
-            selectionSet: {
-              kind: Kind.SELECTION_SET,
-              selections,
+        document: {
+          kind: Kind.DOCUMENT,
+          definitions: [
+            {
+              ...operation,
+              selectionSet: {
+                kind: Kind.SELECTION_SET,
+                selections,
+              },
             },
-          },
-          ...fragments,
-        ],
+            ...fragments,
+          ],
+        },
       });
     }
     return map;
