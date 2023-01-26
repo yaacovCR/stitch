@@ -121,9 +121,13 @@ export interface Subschema {
   executor: Executor;
   subscriber?: Subscriber;
 }
+export interface SubPlan {
+  type: GraphQLOutputType;
+  selectionsBySubschema: Map<Subschema, Array<SelectionNode>>;
+}
 export interface SubschemaPlan {
   document: DocumentNode;
-  subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>;
+  subPlans: ObjMap<SubPlan>;
 }
 /**
  * @internal
@@ -666,8 +670,7 @@ export class SuperSchema {
       operation.selectionSet,
       fragmentMap,
     );
-    const subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>> =
-      Object.create(null);
+    const subPlans: ObjMap<SubPlan> = Object.create(null);
     const splitSelections = this._splitSelectionSet(
       rootType,
       inlinedSelectionSet,
@@ -701,7 +704,7 @@ export class SuperSchema {
     parentType: GraphQLCompositeType,
     selectionSet: SelectionSetNode,
     fragmentMap: ObjMap<FragmentDefinitionNode>,
-    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>> {
     const map = new Map<Subschema, Array<SelectionNode>>();
@@ -751,7 +754,7 @@ export class SuperSchema {
     field: FieldNode,
     fragmentMap: ObjMap<FragmentDefinitionNode>,
     map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): void {
     const subschemaSetsByField =
@@ -809,7 +812,10 @@ export class SuperSchema {
         }
         splitSelections.delete(subschema);
         if (splitSelections.size > 0) {
-          subPlans[path.join('.')] = splitSelections;
+          subPlans[path.join('.')] = {
+            type: fieldType,
+            selectionsBySubschema: splitSelections,
+          };
         }
       }
     }
@@ -839,7 +845,7 @@ export class SuperSchema {
     fragment: InlineFragmentNode,
     fragmentMap: ObjMap<FragmentDefinitionNode>,
     map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<Map<Subschema, Array<SelectionNode>>>,
+    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): void {
     const splitSelections = this._splitSelectionSet(
