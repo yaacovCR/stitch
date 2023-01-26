@@ -211,8 +211,8 @@ export declare class SuperSchema {
   generatePlan(
     operationContext: OperationContext,
   ): Map<Subschema, SubschemaPlan>;
-  splitSelectionSet(
-    subschemaSetsByField: ObjMap<Set<Subschema>> | undefined,
+  _splitSelectionSet(
+    subschemaSetsByField: ObjMap<Set<Subschema>>,
     selectionSet: SelectionSetNode,
   ): Map<Subschema, Array<SelectionNode>>;
   _addField(

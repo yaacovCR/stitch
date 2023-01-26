@@ -470,14 +470,14 @@ class SuperSchema {
       operation.selectionSet,
       fragmentMap,
     );
-    const map = new Map();
     const subschemaSetsByField =
       this.subschemaSetsByTypeAndField[rootType.name];
-    const splitSelections = this.splitSelectionSet(
+    const splitSelections = this._splitSelectionSet(
       subschemaSetsByField,
       inlinedSelectionSet,
     );
-    for (const [schema, selections] of splitSelections) {
+    const map = new Map();
+    for (const [subschema, selections] of splitSelections) {
       const document = {
         kind: graphql_1.Kind.DOCUMENT,
         definitions: [
@@ -491,16 +491,14 @@ class SuperSchema {
           ...fragments,
         ],
       };
-      map.set(schema, {
-        document: this._pruneDocument(document, schema),
-      });
+      const plan = {
+        document: this._pruneDocument(document, subschema),
+      };
+      map.set(subschema, plan);
     }
     return map;
   }
-  splitSelectionSet(subschemaSetsByField, selectionSet) {
-    if (subschemaSetsByField === undefined) {
-      return new Map();
-    }
+  _splitSelectionSet(subschemaSetsByField, selectionSet) {
     const map = new Map();
     for (const selection of selectionSet.selections) {
       switch (selection.kind) {
@@ -542,7 +540,7 @@ class SuperSchema {
     }
   }
   _addInlineFragment(subschemaSetsByField, fragment, map) {
-    const splitSelections = this.splitSelectionSet(
+    const splitSelections = this._splitSelectionSet(
       subschemaSetsByField,
       fragment.selectionSet,
     );
@@ -575,21 +573,11 @@ class SuperSchema {
   _visitSelectionSet(node, subschema, typeInfo) {
     const prunedSelections = [];
     const maybeType = typeInfo.getParentType();
-    if (!maybeType) {
-      return {
-        ...node,
-        selections: prunedSelections,
-      };
-    }
+    maybeType != null || (0, invariant_js_1.invariant)(false);
     const namedType = (0, graphql_1.getNamedType)(maybeType);
     const typeName = namedType.name;
     const subschemaSetsByField = this.subschemaSetsByTypeAndField[typeName];
-    if (subschemaSetsByField === undefined) {
-      return {
-        ...node,
-        selections: prunedSelections,
-      };
-    }
+    subschemaSetsByField !== undefined || (0, invariant_js_1.invariant)(false);
     for (const selection of node.selections) {
       if (
         selection.kind !== graphql_1.Kind.FIELD ||
