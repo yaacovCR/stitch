@@ -1,9 +1,5 @@
 import { Repeater } from '@repeaterjs/repeater';
 import { isPromise } from '../predicates/isPromise.mjs';
-/**
- * Given an AsyncIterable and a callback function, return an AsyncIterableIterator
- * which produces values mapped via calling the callback function.
- */
 export function mapAsyncIterable(iterable, fn) {
   return new Repeater(async (push, stop) => {
     const iter = iterable[Symbol.asyncIterator]();
@@ -48,5 +44,6 @@ export function mapAsyncIterable(iterable, fn) {
     if (isPromise(finalIteration)) {
       await finalIteration;
     }
+    return undefined;
   });
 }

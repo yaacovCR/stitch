@@ -3,10 +3,6 @@ Object.defineProperty(exports, '__esModule', { value: true });
 exports.mapAsyncIterable = void 0;
 const repeater_1 = require('@repeaterjs/repeater');
 const isPromise_js_1 = require('../predicates/isPromise.js');
-/**
- * Given an AsyncIterable and a callback function, return an AsyncIterableIterator
- * which produces values mapped via calling the callback function.
- */
 function mapAsyncIterable(iterable, fn) {
   return new repeater_1.Repeater(async (push, stop) => {
     const iter = iterable[Symbol.asyncIterator]();
@@ -51,6 +47,7 @@ function mapAsyncIterable(iterable, fn) {
     if ((0, isPromise_js_1.isPromise)(finalIteration)) {
       await finalIteration;
     }
+    return undefined;
   });
 }
 exports.mapAsyncIterable = mapAsyncIterable;
