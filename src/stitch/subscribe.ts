@@ -11,9 +11,7 @@ import { invariant } from '../utilities/invariant.js';
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
-import type { SubschemaPlan } from './Plan.js';
 import { Plan } from './Plan.js';
-import type { Subschema } from './SuperSchema.js';
 
 export function subscribe(
   args: ExecutionArgs,
@@ -47,7 +45,8 @@ export function subscribe(
 
   const plan = new Plan(superSchema, operationContext);
 
-  if (plan.map.size === 0) {
+  const iteration = plan.map.entries().next();
+  if (iteration.done) {
     const error = new GraphQLError('Could not route subscription.', {
       nodes: operation,
     });
@@ -55,10 +54,7 @@ export function subscribe(
     return { errors: [error] };
   }
 
-  const [subschema, subschemaPlan] = plan.map.entries().next().value as [
-    Subschema,
-    SubschemaPlan,
-  ];
+  const [subschema, subschemaPlan] = iteration.value;
 
   const subscriber = subschema.subscriber;
   if (!subscriber) {
