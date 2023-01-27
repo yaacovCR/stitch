@@ -15,6 +15,7 @@ import { isPromise } from '../predicates/isPromise.js';
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
+import { Plan } from './Plan.js';
 import type { ExecutionContext } from './SuperSchema.js';
 
 export function execute(
@@ -63,14 +64,14 @@ function delegateRootFields(
 
   const { superSchema } = operationContext;
 
-  const plan = superSchema.generatePlan(operationContext);
+  const plan = new Plan(superSchema, operationContext);
 
   const results: Array<
     PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>
   > = [];
 
   let containsPromise = false;
-  for (const [subschema, subschemaPlan] of plan.entries()) {
+  for (const [subschema, subschemaPlan] of plan.map.entries()) {
     const result = subschema.executor({
       document: subschemaPlan.document,
       variables: rawVariableValues,
