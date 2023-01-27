@@ -143,74 +143,84 @@ export class Plan {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
 
-    const subschemas = subschemaSetsByField[field.name.value];
-    if (subschemas) {
-      let subschemaAndSelections:
-        | {
-            subschema: Subschema;
-            selections: Array<SelectionNode>;
-          }
-        | undefined;
-      for (const subschema of subschemas) {
-        const selections = map.get(subschema);
-        if (selections) {
-          subschemaAndSelections = { subschema, selections };
-          break;
-        }
-      }
-      if (!subschemaAndSelections) {
-        const subschema = subschemas.values().next().value as Subschema;
-        const selections: Array<SelectionNode> = [];
-        map.set(subschema, selections);
-        subschemaAndSelections = { subschema, selections };
-      }
+    const subschemaSets = subschemaSetsByField[field.name.value];
 
-      const { subschema, selections } = subschemaAndSelections;
+    if (!subschemaSets) {
+      return;
+    }
 
-      if (!field.selectionSet) {
-        selections.push(field);
-        return;
-      }
+    const { subschema, selections } = this._getSubschemaAndSelections(
+      Array.from(subschemaSets),
+      map,
+    );
 
-      const inlinedSelectionSet = inlineRootFragments(
-        field.selectionSet,
-        this.fragmentMap,
-      );
+    if (!field.selectionSet) {
+      selections.push(field);
+      return;
+    }
 
-      const fieldName = field.name.value;
-      const fieldDef = this._getFieldDef(parentType, fieldName);
-      if (fieldDef) {
-        const fieldType = fieldDef.type;
+    const inlinedSelectionSet = inlineRootFragments(
+      field.selectionSet,
+      this.fragmentMap,
+    );
 
-        const splitSelections = this._splitSelectionSet(
-          getNamedType(fieldType) as GraphQLCompositeType,
-          inlinedSelectionSet,
-          subPlans,
-          path,
-        );
+    const fieldName = field.name.value;
+    const fieldDef = this._getFieldDef(parentType, fieldName);
 
-        const filteredSelections = splitSelections.get(subschema);
+    if (!fieldDef) {
+      return;
+    }
 
-        if (filteredSelections) {
-          selections.push({
-            ...field,
-            selectionSet: {
-              kind: Kind.SELECTION_SET,
-              selections: filteredSelections,
-            },
-          });
-        }
+    const fieldType = fieldDef.type;
 
-        splitSelections.delete(subschema);
+    const splitSelections = this._splitSelectionSet(
+      getNamedType(fieldType) as GraphQLCompositeType,
+      inlinedSelectionSet,
+      subPlans,
+      path,
+    );
 
-        if (splitSelections.size > 0) {
-          subPlans[path.join('.')] = {
-            type: fieldType,
-            selectionsBySubschema: splitSelections,
-          };
-        }
+    const filteredSelections = splitSelections.get(subschema);
+
+    if (filteredSelections) {
+      selections.push({
+        ...field,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: filteredSelections,
+        },
+      });
+    }
+
+    splitSelections.delete(subschema);
+
+    if (splitSelections.size > 0) {
+      subPlans[path.join('.')] = {
+        type: fieldType,
+        selectionsBySubschema: splitSelections,
+      };
+    }
+  }
+
+  _getSubschemaAndSelections(
+    subschemas: ReadonlyArray<Subschema>,
+    map: Map<Subschema, Array<SelectionNode>>,
+  ): {
+    subschema: Subschema;
+    selections: Array<SelectionNode>;
+  } {
+    let selections: Array<SelectionNode> | undefined;
+    for (const subschema of subschemas) {
+      selections = map.get(subschema);
+      if (selections) {
+        return { subschema, selections };
       }
     }
+
+    selections = [];
+    const subschema = subschemas[0];
+    map.set(subschema, selections);
+    return { subschema, selections };
   }
 
   _getFieldDef(
