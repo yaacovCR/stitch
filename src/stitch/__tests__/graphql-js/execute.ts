@@ -7,6 +7,7 @@ import type {
 import { experimentalExecuteIncrementally as graphqlExecute } from 'graphql';
 
 import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
+import type { SimpleAsyncGenerator } from '../../../types/SimpleAsyncGenerator.js';
 
 import { isAsyncIterable } from '../../../predicates/isAsyncIterable.js';
 import { isPromise } from '../../../predicates/isPromise.js';
@@ -17,7 +18,7 @@ export function executeWithGraphQL(
   args: ExecutionArgs,
 ): PromiseOrValue<
   | ExecutionResult
-  | AsyncGenerator<ExecutionResult, void, void>
+  | SimpleAsyncGenerator<ExecutionResult>
   | ExperimentalIncrementalExecutionResults
 > {
   return gatewayExecute({

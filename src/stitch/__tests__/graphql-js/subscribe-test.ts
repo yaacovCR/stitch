@@ -12,6 +12,7 @@ import {
 import { describe, it } from 'mocha';
 
 import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
+import type { SimpleAsyncGenerator } from '../../../types/SimpleAsyncGenerator.js';
 
 import { expectJSON } from '../../../__testUtils__/expectJSON.js';
 import { expectPromise } from '../../../__testUtils__/expectPromise.js';
@@ -161,9 +162,7 @@ const DummyQueryType = new GraphQLObjectType({
 
 function subscribeWithBadFn(
   subscribeFn: () => unknown,
-): PromiseOrValue<
-  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
-> {
+): PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>> {
   const schema = new GraphQLSchema({
     query: DummyQueryType,
     subscription: new GraphQLObjectType({
