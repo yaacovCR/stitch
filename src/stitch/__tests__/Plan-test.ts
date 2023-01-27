@@ -1,9 +1,5 @@
 import { expect } from 'chai';
-import type {
-  GraphQLSchema,
-  OperationDefinitionNode,
-  SelectionNode,
-} from 'graphql';
+import type { GraphQLSchema, OperationDefinitionNode } from 'graphql';
 import { buildSchema, execute, parse } from 'graphql';
 import { describe, it } from 'mocha';
 
@@ -82,7 +78,10 @@ describe('Plan', () => {
       ),
     );
 
-    const mergedSubschema = plan.map.keys().next().value as Subschema;
+    const iteration = plan.map.keys().next();
+    invariant(!iteration.done);
+
+    const mergedSubschema = iteration.value;
     const mergedSubschemaPlan = plan.map.get(mergedSubschema);
     expect(mergedSubschemaPlan).to.deep.equal({
       document: parse(
@@ -174,8 +173,10 @@ it('works to split subfields', () => {
 
   expect(subPlan.type).to.equal(superSchema.getType('SomeObject'));
 
-  const selections = subPlan.selectionsBySubschema.values().next()
-    .value as Array<SelectionNode>;
+  const iteration = subPlan.selectionsBySubschema.values().next();
+  invariant(!iteration.done);
+
+  const selections = iteration.value;
   expect(selections).to.deep.equal(
     parseSelectionSet('{ anotherField }').selections,
   );
