@@ -54,7 +54,7 @@ export function subscribe(
     return { errors: [error] };
   }
 
-  const [subschema, subschemaPlan] = iteration.value;
+  const [subschema, document] = iteration.value;
 
   const subscriber = subschema.subscriber;
   if (!subscriber) {
@@ -67,7 +67,7 @@ export function subscribe(
   }
 
   const result = subscriber({
-    document: subschemaPlan.document,
+    document,
     variables: rawVariableValues,
   });
 

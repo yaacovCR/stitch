@@ -31,11 +31,6 @@ export interface SubPlan {
   selectionsBySubschema: Map<Subschema, Array<SelectionNode>>;
 }
 
-export interface SubschemaPlan {
-  document: DocumentNode;
-  subPlans: ObjMap<SubPlan>;
-}
-
 /**
  * @internal
  */
@@ -43,13 +38,15 @@ export class Plan {
   superSchema: SuperSchema;
   operationContext: OperationContext;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, SubschemaPlan>;
+  map: Map<Subschema, DocumentNode>;
+  subPlans: ObjMap<SubPlan>;
 
   constructor(superSchema: SuperSchema, operationContext: OperationContext) {
     this.superSchema = superSchema;
     this.operationContext = operationContext;
     this.fragmentMap = operationContext.fragmentMap;
     this.map = new Map();
+    this.subPlans = Object.create(null);
 
     const { operation, fragments, fragmentMap } = this.operationContext;
     const rootType = this.superSchema.getRootType(operation.operation);
@@ -63,12 +60,9 @@ export class Plan {
       fragmentMap,
     );
 
-    const subPlans = Object.create(null);
-
     const splitSelections = this._splitSelectionSet(
       rootType,
       inlinedSelectionSet,
-      subPlans,
       [],
     );
 
@@ -87,17 +81,13 @@ export class Plan {
         ],
       };
 
-      this.map.set(subschema, {
-        document,
-        subPlans,
-      });
+      this.map.set(subschema, document);
     }
   }
 
   _splitSelectionSet(
     parentType: GraphQLCompositeType,
     selectionSet: SelectionSetNode,
-    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>> {
     const map = new Map<Subschema, Array<SelectionNode>>();
@@ -108,7 +98,6 @@ export class Plan {
             parentType as GraphQLObjectType | GraphQLInterfaceType,
             selection,
             map,
-            subPlans,
             [...path, selection.name.value],
           );
           break;
@@ -118,7 +107,7 @@ export class Plan {
           const refinedType = typeName
             ? (this.superSchema.getType(typeName) as GraphQLCompositeType)
             : parentType;
-          this._addInlineFragment(refinedType, selection, map, subPlans, path);
+          this._addInlineFragment(refinedType, selection, map, path);
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -137,7 +126,6 @@ export class Plan {
     parentType: GraphQLObjectType | GraphQLInterfaceType,
     field: FieldNode,
     map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): void {
     const subschemaSetsByField =
@@ -176,7 +164,6 @@ export class Plan {
     const splitSelections = this._splitSelectionSet(
       getNamedType(fieldType) as GraphQLCompositeType,
       inlinedSelectionSet,
-      subPlans,
       path,
     );
 
@@ -195,7 +182,7 @@ export class Plan {
     splitSelections.delete(subschema);
 
     if (splitSelections.size > 0) {
-      subPlans[path.join('.')] = {
+      this.subPlans[path.join('.')] = {
         type: fieldType,
         selectionsBySubschema: splitSelections,
       };
@@ -251,13 +238,11 @@ export class Plan {
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
     map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): void {
     const splitSelections = this._splitSelectionSet(
       parentType,
       fragment.selectionSet,
-      subPlans,
       path,
     );
     for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
