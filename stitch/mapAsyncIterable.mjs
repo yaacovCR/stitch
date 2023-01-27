@@ -16,6 +16,7 @@ export function mapAsyncIterable(iterable, fn) {
       let eventStream;
       if (thrown) {
         if (typeof iter.throw !== 'function') {
+          // eslint-disable-next-line @typescript-eslint/no-throw-literal
           throw nextValue;
         }
         thrown = false;
