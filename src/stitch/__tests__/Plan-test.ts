@@ -82,39 +82,36 @@ describe('Plan', () => {
     invariant(!iteration.done);
 
     const mergedSubschema = iteration.value;
-    const mergedSubschemaPlan = plan.map.get(mergedSubschema);
-    expect(mergedSubschemaPlan).to.deep.equal({
-      document: parse(
+    const mergedSubschemaDocument = plan.map.get(mergedSubschema);
+    expect(mergedSubschemaDocument).to.deep.equal(
+      parse(
         `{
           __schema { queryType { name } }
           __type(name: "Query") { name }
         }`,
         { noLocation: true },
       ),
-      subPlans: {},
-    });
+    );
 
-    const someSubschemaPlan = plan.map.get(someSubschema);
-    expect(someSubschemaPlan).to.deep.equal({
-      document: parse(
+    const someSubschemaDocument = plan.map.get(someSubschema);
+    expect(someSubschemaDocument).to.deep.equal(
+      parse(
         `{
           someObject { someField }
         }`,
         { noLocation: true },
       ),
-      subPlans: {},
-    });
+    );
 
-    const anotherSubschemaPlan = plan.map.get(anotherSubschema);
-    expect(anotherSubschemaPlan).to.deep.equal({
-      document: parse(
+    const anotherSubschemaDocument = plan.map.get(anotherSubschema);
+    expect(anotherSubschemaDocument).to.deep.equal(
+      parse(
         `{
           anotherObject { someField }
         }`,
         { noLocation: true },
       ),
-      subPlans: {},
-    });
+    );
   });
 });
 
@@ -158,9 +155,8 @@ it('works to split subfields', () => {
     ),
   );
 
-  const someSubschemaPlan = plan.map.get(someSubschema);
-  invariant(someSubschemaPlan !== undefined);
-  expect(someSubschemaPlan.document).to.deep.equal(
+  const someSubschemaDocument = plan.map.get(someSubschema);
+  expect(someSubschemaDocument).to.deep.equal(
     parse(
       `{
         someObject { someField }
@@ -169,7 +165,7 @@ it('works to split subfields', () => {
     ),
   );
 
-  const subPlan = someSubschemaPlan.subPlans.someObject;
+  const subPlan = plan.subPlans.someObject;
 
   expect(subPlan.type).to.equal(superSchema.getType('SomeObject'));
 
