@@ -8,9 +8,7 @@ import { invariant } from '../utilities/invariant.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
 import { mapAsyncIterable } from './mapAsyncIterable.ts';
-import type { SubschemaPlan } from './Plan.ts';
 import { Plan } from './Plan.ts';
-import type { Subschema } from './SuperSchema.ts';
 export function subscribe(
   args: ExecutionArgs,
 ): PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>> {
@@ -35,16 +33,14 @@ export function subscribe(
   }
   const { operationContext, rawVariableValues } = exeContext;
   const plan = new Plan(superSchema, operationContext);
-  if (plan.map.size === 0) {
+  const iteration = plan.map.entries().next();
+  if (iteration.done) {
     const error = new GraphQLError('Could not route subscription.', {
       nodes: operation,
     });
     return { errors: [error] };
   }
-  const [subschema, subschemaPlan] = plan.map.entries().next().value as [
-    Subschema,
-    SubschemaPlan,
-  ];
+  const [subschema, subschemaPlan] = iteration.value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new GraphQLError(
