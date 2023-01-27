@@ -33,13 +33,14 @@ function subscribe(args) {
   }
   const { operationContext, rawVariableValues } = exeContext;
   const plan = new Plan_js_1.Plan(superSchema, operationContext);
-  if (plan.map.size === 0) {
+  const iteration = plan.map.entries().next();
+  if (iteration.done) {
     const error = new graphql_1.GraphQLError('Could not route subscription.', {
       nodes: operation,
     });
     return { errors: [error] };
   }
-  const [subschema, subschemaPlan] = plan.map.entries().next().value;
+  const [subschema, subschemaPlan] = iteration.value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new graphql_1.GraphQLError(
