@@ -47,19 +47,20 @@ export function mapAsyncIterable<T, U, R, N>(
     });
 
     let thrown = false;
-    let nextValue;
+    let nextValue: N | undefined;
     // eslint-disable-next-line no-unmodified-loop-condition
     while (!finalIteration) {
       // safe race implementation
       let eventStream: Repeater<IteratorResult<T> | undefined>;
       if (thrown) {
         if (typeof iter.throw !== 'function') {
+          // eslint-disable-next-line @typescript-eslint/no-throw-literal
           throw nextValue;
         }
         thrown = false;
         eventStream = Repeater.race([iter.throw(nextValue), stop]);
       } else {
-        eventStream = Repeater.race([iter.next(nextValue), stop]);
+        eventStream = Repeater.race([iter.next(nextValue as N), stop]);
       }
 
       // eslint-disable-next-line no-await-in-loop
