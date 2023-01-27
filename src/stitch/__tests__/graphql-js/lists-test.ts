@@ -94,7 +94,7 @@ describe('Execute: Accepts async iterables as list value', () => {
     resolve: GraphQLFieldResolver<{ index: number }, unknown>,
   ): PromiseOrValue<
     | ExecutionResult
-    | AsyncIterableIterator<ExecutionResult>
+    | AsyncGenerator<ExecutionResult, void, void>
     | ExperimentalIncrementalExecutionResults
   > {
     const schema = new GraphQLSchema({

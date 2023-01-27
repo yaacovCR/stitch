@@ -161,7 +161,9 @@ const DummyQueryType = new GraphQLObjectType({
 
 function subscribeWithBadFn(
   subscribeFn: () => unknown,
-): PromiseOrValue<ExecutionResult | AsyncIterableIterator<unknown>> {
+): PromiseOrValue<
+  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
+> {
   const schema = new GraphQLSchema({
     query: DummyQueryType,
     subscription: new GraphQLObjectType({
@@ -608,7 +610,7 @@ describe('Subscription Publish Phase', () => {
         },
       },
     });
-    expect(await subscription.return?.()).to.deep.equal({
+    expect(await subscription.return()).to.deep.equal({
       done: true,
       value: undefined,
     });
@@ -681,7 +683,7 @@ describe('Subscription Publish Phase', () => {
     });
 
     // The client decides to disconnect.
-    expect(await subscription.return?.()).to.deep.equal({
+    expect(await subscription.return()).to.deep.equal({
       done: true,
       value: undefined,
     });
@@ -754,7 +756,7 @@ describe('Subscription Publish Phase', () => {
     // The next waited on payload will have a value.
     expectJSON(await subscription.next()).toDeepEqual(errorPayload);
 
-    expectJSON(await subscription.return?.()).toDeepEqual({
+    expectJSON(await subscription.return()).toDeepEqual({
       done: true,
       value: undefined,
     });
@@ -839,7 +841,7 @@ describe('Subscription Publish Phase', () => {
       },
     });
 
-    expectJSON(await subscription.return?.()).toDeepEqual({
+    expectJSON(await subscription.return()).toDeepEqual({
       done: true,
       value: undefined,
     });
@@ -953,7 +955,7 @@ describe('Subscription Publish Phase', () => {
     });
 
     payload = subscription.next();
-    await subscription.return?.();
+    await subscription.return();
 
     // A new email arrives!
     expect(
@@ -1019,7 +1021,7 @@ describe('Subscription Publish Phase', () => {
      * `.throw()` until after a payload is available.
      *
      * This change should have marginal effect on client use of the API, as clients should not be
-     * calling `.throw()` on the AsyncIterableIterator returned by our executor.
+     * calling `.throw()` on the AsyncGenerator returned by our executor.
      **/
 
     // payload = subscription.next();

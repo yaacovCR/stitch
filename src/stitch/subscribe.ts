@@ -16,7 +16,9 @@ import type { Subschema } from './SuperSchema.js';
 
 export function subscribe(
   args: ExecutionArgs,
-): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
+): PromiseOrValue<
+  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
+> {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);
@@ -81,13 +83,10 @@ export function subscribe(
 }
 
 function handlePossibleStream<
-  T extends ExecutionResult | AsyncIterableIterator<ExecutionResult>,
+  T extends ExecutionResult | AsyncGenerator<ExecutionResult, void, void>,
 >(result: T): PromiseOrValue<T> {
   if (isAsyncIterable(result)) {
-    return mapAsyncIterable<ExecutionResult, ExecutionResult>(
-      result,
-      (payload) => payload,
-    ) as T;
+    return mapAsyncIterable(result, (payload) => payload) as T;
   }
 
   return result;

@@ -10,7 +10,9 @@ import { subscribe as gatewaySubscribe } from '../../subscribe.js';
 
 export function subscribeWithGraphQL(
   args: ExecutionArgs,
-): PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>> {
+): PromiseOrValue<
+  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
+> {
   // casting as subscriptions cannot return incremental values
   return gatewaySubscribe({
     ...args,

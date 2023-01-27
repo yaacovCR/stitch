@@ -92,7 +92,9 @@ export type Executor = (args: {
 export type Subscriber = (args: {
   document: DocumentNode;
   variables?: { readonly [variable: string]: unknown } | undefined;
-}) => PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>>;
+}) => PromiseOrValue<
+  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
+>;
 
 export interface Subschema {
   schema: GraphQLSchema;

@@ -104,7 +104,7 @@ function handlePossibleMultiPartResults<
     ExecutionResult | InitialIncrementalExecutionResult
   > = [];
   const asyncIterators: Array<
-    AsyncIterableIterator<SubsequentIncrementalExecutionResult>
+    AsyncGenerator<SubsequentIncrementalExecutionResult>
   > = [];
 
   for (const result of results) {
@@ -164,9 +164,7 @@ function mergeInitialResults(
 }
 
 function mergeSubsequentResults(
-  asyncIterators: Array<
-    AsyncIterableIterator<SubsequentIncrementalExecutionResult>
-  >,
+  asyncIterators: Array<AsyncGenerator<SubsequentIncrementalExecutionResult>>,
 ): AsyncGenerator<SubsequentIncrementalExecutionResult> {
   const mergedAsyncIterator = Repeater.merge(asyncIterators);
 
@@ -184,5 +182,5 @@ function mergeSubsequentResults(
       };
     }
     return payload;
-  }) as AsyncGenerator<SubsequentIncrementalExecutionResult>;
+  });
 }

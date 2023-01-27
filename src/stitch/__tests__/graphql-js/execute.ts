@@ -17,7 +17,7 @@ export function executeWithGraphQL(
   args: ExecutionArgs,
 ): PromiseOrValue<
   | ExecutionResult
-  | AsyncIterableIterator<ExecutionResult>
+  | AsyncGenerator<ExecutionResult, void, void>
   | ExperimentalIncrementalExecutionResults
 > {
   return gatewayExecute({
