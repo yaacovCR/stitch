@@ -234,7 +234,6 @@ export class Plan {
     return fields[fieldName];
   }
 
-  // eslint-disable-next-line max-params
   _addInlineFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
