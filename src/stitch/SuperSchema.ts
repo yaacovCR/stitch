@@ -55,6 +55,7 @@ import {
 
 import type { ObjMap } from '../types/ObjMap';
 import type { PromiseOrValue } from '../types/PromiseOrValue';
+import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator';
 
 import { hasOwnProperty } from '../utilities/hasOwnProperty.js';
 import { inspect } from '../utilities/inspect.js';
@@ -92,9 +93,7 @@ export type Executor = (args: {
 export type Subscriber = (args: {
   document: DocumentNode;
   variables?: { readonly [variable: string]: unknown } | undefined;
-}) => PromiseOrValue<
-  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
->;
+}) => PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>>;
 
 export interface Subschema {
   schema: GraphQLSchema;

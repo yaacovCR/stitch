@@ -14,6 +14,7 @@ import {
 import { describe, it } from 'mocha';
 
 import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
+import type { SimpleAsyncGenerator } from '../../../types/SimpleAsyncGenerator.js';
 
 import { expectJSON } from '../../../__testUtils__/expectJSON.js';
 
@@ -119,7 +120,7 @@ function executeQuery(
   rootValue: unknown,
 ): PromiseOrValue<
   | ExecutionResult
-  | AsyncGenerator<ExecutionResult, void, void>
+  | SimpleAsyncGenerator<ExecutionResult>
   | ExperimentalIncrementalExecutionResults
 > {
   return execute({ schema, document: parse(query), rootValue });

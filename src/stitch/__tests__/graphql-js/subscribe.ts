@@ -5,14 +5,13 @@ import {
 } from 'graphql';
 
 import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
+import type { SimpleAsyncGenerator } from '../../../types/SimpleAsyncGenerator.js';
 
 import { subscribe as gatewaySubscribe } from '../../subscribe.js';
 
 export function subscribeWithGraphQL(
   args: ExecutionArgs,
-): PromiseOrValue<
-  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
-> {
+): PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>> {
   // casting as subscriptions cannot return incremental values
   return gatewaySubscribe({
     ...args,

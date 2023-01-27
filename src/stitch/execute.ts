@@ -9,6 +9,7 @@ import type {
 import { GraphQLError } from 'graphql';
 
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
+import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
 
 import { isPromise } from '../predicates/isPromise.js';
 
@@ -104,7 +105,7 @@ function handlePossibleMultiPartResults<
     ExecutionResult | InitialIncrementalExecutionResult
   > = [];
   const asyncIterators: Array<
-    AsyncGenerator<SubsequentIncrementalExecutionResult>
+    SimpleAsyncGenerator<SubsequentIncrementalExecutionResult>
   > = [];
 
   for (const result of results) {
@@ -165,7 +166,7 @@ function mergeInitialResults(
 
 function mergeSubsequentResults(
   asyncIterators: Array<AsyncGenerator<SubsequentIncrementalExecutionResult>>,
-): AsyncGenerator<SubsequentIncrementalExecutionResult> {
+): SimpleAsyncGenerator<SubsequentIncrementalExecutionResult> {
   const mergedAsyncIterator = Repeater.merge(asyncIterators);
 
   return mapAsyncIterable(mergedAsyncIterator, (payload) => {
