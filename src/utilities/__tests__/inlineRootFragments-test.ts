@@ -4,6 +4,7 @@ import { parse } from 'graphql';
 import { describe, it } from 'mocha';
 
 import { inlineRootFragments } from '../inlineRootFragments.js';
+import { parseSelectionSet } from '../parseSelectionSet.js';
 
 describe('inlineRootFragments', () => {
   it('works', () => {
@@ -34,22 +35,17 @@ describe('inlineRootFragments', () => {
       fragmentMap,
     );
 
-    const expectedSelectionSet = (
-      parse(
-        `
-        {
-          someField
-          ... {
-            anotherField
-          }
-          ... on Query {
-            fragmentField
-          }
+    const expectedSelectionSet = parseSelectionSet(`
+      {
+        someField
+        ... {
+          anotherField
         }
-        `,
-        { noLocation: true },
-      ).definitions[0] as OperationDefinitionNode
-    ).selectionSet;
+        ... on Query {
+          fragmentField
+        }
+      }
+    `);
 
     expect(selectionSet).to.deep.equal(expectedSelectionSet);
   });
