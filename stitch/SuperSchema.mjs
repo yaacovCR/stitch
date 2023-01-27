@@ -86,16 +86,6 @@ export class SuperSchema {
     const originalDirectives = Object.create(null);
     for (const subschema of this.subschemas) {
       const schema = subschema.schema;
-      for (const operation of operations) {
-        const rootType = schema.getRootType(operation);
-        if (rootType) {
-          if (!originalRootTypes[operation]) {
-            originalRootTypes[operation] = [rootType];
-          } else {
-            originalRootTypes[operation].push(rootType);
-          }
-        }
-      }
       for (const [name, type] of Object.entries(schema.getTypeMap())) {
         if (name.startsWith('__')) {
           continue;
@@ -109,6 +99,16 @@ export class SuperSchema {
           this._addToSubschemaSets(subschema, name, type);
         }
       }
+      for (const operation of operations) {
+        const rootType = schema.getRootType(operation);
+        if (rootType) {
+          if (!originalRootTypes[operation]) {
+            originalRootTypes[operation] = [rootType];
+          } else {
+            originalRootTypes[operation].push(rootType);
+          }
+        }
+      }
       for (const directive of schema.getDirectives()) {
         const name = directive.name;
         if (!originalDirectives[name]) {
@@ -118,10 +118,6 @@ export class SuperSchema {
         }
       }
     }
-    for (const [operation, rootTypes] of Object.entries(originalRootTypes)) {
-      this.mergedRootTypes[operation] = this._mergeObjectTypes(rootTypes);
-    }
-    const mergedRootTypes = Object.values(this.mergedRootTypes);
     for (const [typeName, types] of Object.entries(originalTypes)) {
       const firstType = types[0];
       if (firstType instanceof GraphQLScalarType) {
@@ -131,11 +127,6 @@ export class SuperSchema {
         }
         this.mergedTypes[typeName] = this._mergeScalarTypes(types);
       } else if (firstType instanceof GraphQLObjectType) {
-        const rootType = mergedRootTypes.find((type) => type.name === typeName);
-        if (rootType) {
-          this.mergedTypes[typeName] = rootType;
-          continue;
-        }
         this.mergedTypes[typeName] = this._mergeObjectTypes(types);
       } else if (firstType instanceof GraphQLInterfaceType) {
         this.mergedTypes[typeName] = this._mergeInterfaceTypes(types);
@@ -146,6 +137,9 @@ export class SuperSchema {
       } else if (firstType instanceof GraphQLEnumType) {
         this.mergedTypes[typeName] = this._mergeEnumTypes(types);
       }
+    }
+    for (const [operation, rootTypes] of Object.entries(originalRootTypes)) {
+      this.mergedRootTypes[operation] = this.getType(rootTypes[0].name);
     }
     for (const [directiveName, directives] of Object.entries(
       originalDirectives,
