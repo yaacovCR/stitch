@@ -40,7 +40,7 @@ function subscribe(args) {
     });
     return { errors: [error] };
   }
-  const [subschema, subschemaPlan] = iteration.value;
+  const [subschema, document] = iteration.value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new graphql_1.GraphQLError(
@@ -50,7 +50,7 @@ function subscribe(args) {
     return { errors: [error] };
   }
   const result = subscriber({
-    document: subschemaPlan.document,
+    document,
     variables: rawVariableValues,
   });
   if ((0, isPromise_js_1.isPromise)(result)) {

@@ -43,9 +43,9 @@ function delegateRootFields(exeContext) {
   const plan = new Plan_js_1.Plan(superSchema, operationContext);
   const results = [];
   let containsPromise = false;
-  for (const [subschema, subschemaPlan] of plan.map.entries()) {
+  for (const [subschema, document] of plan.map.entries()) {
     const result = subschema.executor({
-      document: subschemaPlan.document,
+      document,
       variables: rawVariableValues,
     });
     if ((0, isPromise_js_1.isPromise)(result)) {

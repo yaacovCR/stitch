@@ -17,10 +17,6 @@ export interface SubPlan {
   type: GraphQLOutputType;
   selectionsBySubschema: Map<Subschema, Array<SelectionNode>>;
 }
-export interface SubschemaPlan {
-  document: DocumentNode;
-  subPlans: ObjMap<SubPlan>;
-}
 /**
  * @internal
  */
@@ -28,19 +24,18 @@ export declare class Plan {
   superSchema: SuperSchema;
   operationContext: OperationContext;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, SubschemaPlan>;
+  map: Map<Subschema, DocumentNode>;
+  subPlans: ObjMap<SubPlan>;
   constructor(superSchema: SuperSchema, operationContext: OperationContext);
   _splitSelectionSet(
     parentType: GraphQLCompositeType,
     selectionSet: SelectionSetNode,
-    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>>;
   _addField(
     parentType: GraphQLObjectType | GraphQLInterfaceType,
     field: FieldNode,
     map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): void;
   _getSubschemaAndSelections(
@@ -58,7 +53,6 @@ export declare class Plan {
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
     map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): void;
 }
