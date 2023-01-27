@@ -56,9 +56,9 @@ function delegateRootFields(
     PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>
   > = [];
   let containsPromise = false;
-  for (const [subschema, subschemaPlan] of plan.map.entries()) {
+  for (const [subschema, document] of plan.map.entries()) {
     const result = subschema.executor({
-      document: subschemaPlan.document,
+      document,
       variables: rawVariableValues,
     });
     if (isPromise(result)) {

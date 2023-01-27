@@ -40,7 +40,7 @@ export function subscribe(
     });
     return { errors: [error] };
   }
-  const [subschema, subschemaPlan] = iteration.value;
+  const [subschema, document] = iteration.value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new GraphQLError(
@@ -50,7 +50,7 @@ export function subscribe(
     return { errors: [error] };
   }
   const result = subscriber({
-    document: subschemaPlan.document,
+    document,
     variables: rawVariableValues,
   });
   if (isPromise(result)) {
