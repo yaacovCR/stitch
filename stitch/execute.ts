@@ -8,6 +8,7 @@ import type {
 } from 'graphql';
 import { GraphQLError } from 'graphql';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
+import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.ts';
 import { isPromise } from '../predicates/isPromise.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
@@ -83,7 +84,7 @@ function handlePossibleMultiPartResults<
     ExecutionResult | InitialIncrementalExecutionResult
   > = [];
   const asyncIterators: Array<
-    AsyncGenerator<SubsequentIncrementalExecutionResult>
+    SimpleAsyncGenerator<SubsequentIncrementalExecutionResult>
   > = [];
   for (const result of results) {
     if ('initialResult' in result) {
@@ -136,7 +137,7 @@ function mergeInitialResults(
 }
 function mergeSubsequentResults(
   asyncIterators: Array<AsyncGenerator<SubsequentIncrementalExecutionResult>>,
-): AsyncGenerator<SubsequentIncrementalExecutionResult> {
+): SimpleAsyncGenerator<SubsequentIncrementalExecutionResult> {
   const mergedAsyncIterator = Repeater.merge(asyncIterators);
   return mapAsyncIterable(mergedAsyncIterator, (payload) => {
     const incremental: Array<IncrementalResult> = [];

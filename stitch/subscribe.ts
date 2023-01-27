@@ -1,6 +1,7 @@
 import type { ExecutionResult } from 'graphql';
 import { GraphQLError, OperationTypeNode } from 'graphql';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
+import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.ts';
 import { isAsyncIterable } from '../predicates/isAsyncIterable.ts';
 import { isPromise } from '../predicates/isPromise.ts';
 import { invariant } from '../utilities/invariant.ts';
@@ -12,9 +13,7 @@ import { Plan } from './Plan.ts';
 import type { Subschema } from './SuperSchema.ts';
 export function subscribe(
   args: ExecutionArgs,
-): PromiseOrValue<
-  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
-> {
+): PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>> {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);
@@ -64,7 +63,7 @@ export function subscribe(
   return handlePossibleStream(result);
 }
 function handlePossibleStream<
-  T extends ExecutionResult | AsyncGenerator<ExecutionResult, void, void>,
+  T extends ExecutionResult | SimpleAsyncGenerator<ExecutionResult>,
 >(result: T): PromiseOrValue<T> {
   if (isAsyncIterable(result)) {
     return mapAsyncIterable(result, (payload) => payload) as T;

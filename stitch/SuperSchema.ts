@@ -54,6 +54,7 @@ import {
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 import type { PromiseOrValue } from '../types/PromiseOrValue';
+import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator';
 import { hasOwnProperty } from '../utilities/hasOwnProperty.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { printPathArray } from '../utilities/printPathArray.ts';
@@ -106,9 +107,7 @@ export type Subscriber = (args: {
         readonly [variable: string]: unknown;
       }
     | undefined;
-}) => PromiseOrValue<
-  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
->;
+}) => PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>>;
 export interface Subschema {
   schema: GraphQLSchema;
   executor: Executor;
