@@ -16,6 +16,7 @@ import {
   Kind,
   SchemaMetaFieldDef,
   TypeMetaFieldDef,
+  TypeNameMetaFieldDef,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 import { inlineRootFragments } from '../utilities/inlineRootFragments.ts';
@@ -192,20 +193,21 @@ export class Plan {
     parentType: GraphQLObjectType | GraphQLInterfaceType,
     fieldName: string,
   ): GraphQLField<any, any> | undefined {
-    if (
-      fieldName === SchemaMetaFieldDef.name &&
-      parentType === this.superSchema.mergedSchema.getQueryType()
-    ) {
-      return SchemaMetaFieldDef;
-    }
-    if (
-      fieldName === TypeMetaFieldDef.name &&
-      parentType === this.superSchema.mergedSchema.getQueryType()
-    ) {
-      return TypeMetaFieldDef;
-    }
     const fields = parentType.getFields();
-    return fields[fieldName];
+    const field = fields[fieldName];
+    if (field) {
+      return field;
+    }
+    if (parentType === this.superSchema.mergedSchema.getQueryType()) {
+      switch (fieldName) {
+        case SchemaMetaFieldDef.name:
+          return SchemaMetaFieldDef;
+        case TypeMetaFieldDef.name:
+          return TypeMetaFieldDef;
+        case TypeNameMetaFieldDef.name:
+          return TypeNameMetaFieldDef;
+      }
+    }
   }
   _addInlineFragment(
     parentType: GraphQLCompositeType,
