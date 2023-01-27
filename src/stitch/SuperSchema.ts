@@ -183,16 +183,6 @@ export class SuperSchema {
 
     for (const subschema of this.subschemas) {
       const schema = subschema.schema;
-      for (const operation of operations) {
-        const rootType = schema.getRootType(operation);
-        if (rootType) {
-          if (!originalRootTypes[operation]) {
-            originalRootTypes[operation] = [rootType];
-          } else {
-            originalRootTypes[operation].push(rootType);
-          }
-        }
-      }
 
       for (const [name, type] of Object.entries(schema.getTypeMap())) {
         if (name.startsWith('__')) {
@@ -210,6 +200,17 @@ export class SuperSchema {
         }
       }
 
+      for (const operation of operations) {
+        const rootType = schema.getRootType(operation);
+        if (rootType) {
+          if (!originalRootTypes[operation]) {
+            originalRootTypes[operation] = [rootType];
+          } else {
+            originalRootTypes[operation].push(rootType);
+          }
+        }
+      }
+
       for (const directive of schema.getDirectives()) {
         const name = directive.name;
         if (!originalDirectives[name]) {
@@ -219,12 +220,6 @@ export class SuperSchema {
         }
       }
     }
-
-    for (const [operation, rootTypes] of Object.entries(originalRootTypes)) {
-      this.mergedRootTypes[operation] = this._mergeObjectTypes(rootTypes);
-    }
-
-    const mergedRootTypes = Object.values(this.mergedRootTypes);
 
     for (const [typeName, types] of Object.entries(originalTypes)) {
       const firstType = types[0];
@@ -239,13 +234,6 @@ export class SuperSchema {
           types as Array<GraphQLScalarType>,
         );
       } else if (firstType instanceof GraphQLObjectType) {
-        const rootType = mergedRootTypes.find((type) => type.name === typeName);
-
-        if (rootType) {
-          this.mergedTypes[typeName] = rootType;
-          continue;
-        }
-
         this.mergedTypes[typeName] = this._mergeObjectTypes(
           types as Array<GraphQLObjectType>,
         );
@@ -266,6 +254,12 @@ export class SuperSchema {
           types as Array<GraphQLEnumType>,
         );
       }
+    }
+
+    for (const [operation, rootTypes] of Object.entries(originalRootTypes)) {
+      this.mergedRootTypes[operation] = this.getType(
+        rootTypes[0].name,
+      ) as GraphQLObjectType;
     }
 
     for (const [directiveName, directives] of Object.entries(
