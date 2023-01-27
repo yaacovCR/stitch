@@ -143,20 +143,21 @@ class Plan {
     }
   }
   _getFieldDef(parentType, fieldName) {
-    if (
-      fieldName === graphql_1.SchemaMetaFieldDef.name &&
-      parentType === this.superSchema.mergedSchema.getQueryType()
-    ) {
-      return graphql_1.SchemaMetaFieldDef;
-    }
-    if (
-      fieldName === graphql_1.TypeMetaFieldDef.name &&
-      parentType === this.superSchema.mergedSchema.getQueryType()
-    ) {
-      return graphql_1.TypeMetaFieldDef;
-    }
     const fields = parentType.getFields();
-    return fields[fieldName];
+    const field = fields[fieldName];
+    if (field) {
+      return field;
+    }
+    if (parentType === this.superSchema.mergedSchema.getQueryType()) {
+      switch (fieldName) {
+        case graphql_1.SchemaMetaFieldDef.name:
+          return graphql_1.SchemaMetaFieldDef;
+        case graphql_1.TypeMetaFieldDef.name:
+          return graphql_1.TypeMetaFieldDef;
+        case graphql_1.TypeNameMetaFieldDef.name:
+          return graphql_1.TypeNameMetaFieldDef;
+      }
+    }
   }
   _addInlineFragment(parentType, fragment, map, subPlans, path) {
     const splitSelections = this._splitSelectionSet(
