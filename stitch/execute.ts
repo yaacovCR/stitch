@@ -83,7 +83,7 @@ function handlePossibleMultiPartResults<
     ExecutionResult | InitialIncrementalExecutionResult
   > = [];
   const asyncIterators: Array<
-    AsyncIterableIterator<SubsequentIncrementalExecutionResult>
+    AsyncGenerator<SubsequentIncrementalExecutionResult>
   > = [];
   for (const result of results) {
     if ('initialResult' in result) {
@@ -135,9 +135,7 @@ function mergeInitialResults(
     : { data: dataOrNull };
 }
 function mergeSubsequentResults(
-  asyncIterators: Array<
-    AsyncIterableIterator<SubsequentIncrementalExecutionResult>
-  >,
+  asyncIterators: Array<AsyncGenerator<SubsequentIncrementalExecutionResult>>,
 ): AsyncGenerator<SubsequentIncrementalExecutionResult> {
   const mergedAsyncIterator = Repeater.merge(asyncIterators);
   return mapAsyncIterable(mergedAsyncIterator, (payload) => {
@@ -152,5 +150,5 @@ function mergeSubsequentResults(
       };
     }
     return payload;
-  }) as AsyncGenerator<SubsequentIncrementalExecutionResult>;
+  });
 }

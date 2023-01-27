@@ -1,15 +1,38 @@
 import { Repeater } from '@repeaterjs/repeater';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import { isPromise } from '../predicates/isPromise.ts';
+interface CustomAsyncIterable<T, R, N> {
+  [Symbol.asyncIterator]: () => AsyncIterator<T, R, N>;
+}
+interface CustomAsyncIterableIterator<T, R, N> {
+  [Symbol.asyncIterator]: () => AsyncIterator<T, R, N>;
+  next: (...args: [] | [N]) => Promise<IteratorResult<T, R>>;
+  return?: (
+    value?: R | PromiseLike<R> | undefined,
+  ) => Promise<IteratorResult<T, R>>;
+  throw?: (e?: any) => Promise<IteratorResult<T, R>>;
+}
 /**
  * Given an AsyncIterable and a callback function, return an AsyncIterableIterator
  * which produces values mapped via calling the callback function.
+ *
+ * Provides a separate overload for AsyncGenerators which have non-optional
+ * parameters of type TReturn, whereas AsyncIterables may have iterators
+ * with optional parameters of type TReturn.
  */
-export function mapAsyncIterable<T, U>(
-  iterable: AsyncIterable<T>,
+export function mapAsyncIterable<T, U, R = undefined, N = void>(
+  iterable: AsyncGenerator<T, R, N>,
   fn: (value: T) => PromiseOrValue<U>,
-): AsyncIterableIterator<U> {
-  return new Repeater(async (push, stop) => {
+): AsyncGenerator<U, R, N>;
+export function mapAsyncIterable<T, U, R, N>(
+  iterable: CustomAsyncIterable<T, R, N>,
+  fn: (value: T) => PromiseOrValue<U>,
+): CustomAsyncIterableIterator<U, R, N>;
+export function mapAsyncIterable<T, U, R, N>(
+  iterable: CustomAsyncIterable<T, R, N>,
+  fn: (value: T) => PromiseOrValue<U>,
+): CustomAsyncIterableIterator<U, R, N> {
+  return new Repeater<U, R, N>(async (push, stop) => {
     const iter = iterable[Symbol.asyncIterator]();
     let finalIteration: PromiseOrValue<unknown>;
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -52,5 +75,6 @@ export function mapAsyncIterable<T, U>(
     if (isPromise(finalIteration)) {
       await finalIteration;
     }
+    return undefined as R;
   });
 }

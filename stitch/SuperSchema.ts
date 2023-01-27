@@ -106,7 +106,9 @@ export type Subscriber = (args: {
         readonly [variable: string]: unknown;
       }
     | undefined;
-}) => PromiseOrValue<ExecutionResult | AsyncIterableIterator<ExecutionResult>>;
+}) => PromiseOrValue<
+  ExecutionResult | AsyncGenerator<ExecutionResult, void, void>
+>;
 export interface Subschema {
   schema: GraphQLSchema;
   executor: Executor;
