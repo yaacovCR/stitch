@@ -6,6 +6,7 @@ const graphql_1 = require('graphql');
 const isPromise_js_1 = require('../predicates/isPromise.js');
 const buildExecutionContext_js_1 = require('./buildExecutionContext.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
+const Plan_js_1 = require('./Plan.js');
 function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -39,10 +40,10 @@ exports.execute = execute;
 function delegateRootFields(exeContext) {
   const { operationContext, rawVariableValues } = exeContext;
   const { superSchema } = operationContext;
-  const plan = superSchema.generatePlan(operationContext);
+  const plan = new Plan_js_1.Plan(superSchema, operationContext);
   const results = [];
   let containsPromise = false;
-  for (const [subschema, subschemaPlan] of plan.entries()) {
+  for (const [subschema, subschemaPlan] of plan.map.entries()) {
     const result = subschema.executor({
       document: subschemaPlan.document,
       variables: rawVariableValues,

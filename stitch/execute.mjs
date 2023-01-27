@@ -3,6 +3,7 @@ import { GraphQLError } from 'graphql';
 import { isPromise } from '../predicates/isPromise.mjs';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
+import { Plan } from './Plan.mjs';
 export function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -33,10 +34,10 @@ export function execute(args) {
 function delegateRootFields(exeContext) {
   const { operationContext, rawVariableValues } = exeContext;
   const { superSchema } = operationContext;
-  const plan = superSchema.generatePlan(operationContext);
+  const plan = new Plan(superSchema, operationContext);
   const results = [];
   let containsPromise = false;
-  for (const [subschema, subschemaPlan] of plan.entries()) {
+  for (const [subschema, subschemaPlan] of plan.map.entries()) {
     const result = subschema.executor({
       document: subschemaPlan.document,
       variables: rawVariableValues,

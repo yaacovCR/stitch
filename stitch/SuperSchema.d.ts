@@ -3,7 +3,6 @@ import type {
   DocumentNode,
   ExecutionResult,
   ExperimentalIncrementalExecutionResults,
-  FieldNode,
   FragmentDefinitionNode,
   GraphQLArgument,
   GraphQLArgumentConfig,
@@ -21,13 +20,10 @@ import type {
   GraphQLNamedType,
   GraphQLOutputType,
   GraphQLType,
-  InlineFragmentNode,
   ListTypeNode,
   NamedTypeNode,
   NonNullTypeNode,
   OperationDefinitionNode,
-  SelectionNode,
-  SelectionSetNode,
   TypeNode,
   VariableDefinitionNode,
 } from 'graphql';
@@ -96,14 +92,6 @@ export interface Subschema {
   schema: GraphQLSchema;
   executor: Executor;
   subscriber?: Subscriber;
-}
-export interface SubPlan {
-  type: GraphQLOutputType;
-  selectionsBySubschema: Map<Subschema, Array<SelectionNode>>;
-}
-export interface SubschemaPlan {
-  document: DocumentNode;
-  subPlans: ObjMap<SubPlan>;
 }
 /**
  * @internal
@@ -212,35 +200,5 @@ export declare class SuperSchema {
   ): {
     [variable: string]: unknown;
   };
-  generatePlan(
-    operationContext: OperationContext,
-  ): Map<Subschema, SubschemaPlan>;
-  _splitSelectionSet(
-    parentType: GraphQLCompositeType,
-    selectionSet: SelectionSetNode,
-    fragmentMap: ObjMap<FragmentDefinitionNode>,
-    subPlans: ObjMap<SubPlan>,
-    path: Array<string>,
-  ): Map<Subschema, Array<SelectionNode>>;
-  _addField(
-    parentType: GraphQLObjectType | GraphQLInterfaceType,
-    field: FieldNode,
-    fragmentMap: ObjMap<FragmentDefinitionNode>,
-    map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<SubPlan>,
-    path: Array<string>,
-  ): void;
-  _getFieldDef(
-    parentType: GraphQLObjectType | GraphQLInterfaceType,
-    fieldName: string,
-  ): GraphQLField<any, any> | undefined;
-  _addInlineFragment(
-    parentType: GraphQLCompositeType,
-    fragment: InlineFragmentNode,
-    fragmentMap: ObjMap<FragmentDefinitionNode>,
-    map: Map<Subschema, Array<SelectionNode>>,
-    subPlans: ObjMap<SubPlan>,
-    path: Array<string>,
-  ): void;
 }
 export {};

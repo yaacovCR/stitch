@@ -7,6 +7,7 @@ const isPromise_js_1 = require('../predicates/isPromise.js');
 const invariant_js_1 = require('../utilities/invariant.js');
 const buildExecutionContext_js_1 = require('./buildExecutionContext.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
+const Plan_js_1 = require('./Plan.js');
 function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -31,14 +32,14 @@ function subscribe(args) {
     return { errors: [error] };
   }
   const { operationContext, rawVariableValues } = exeContext;
-  const plan = superSchema.generatePlan(operationContext);
-  if (plan.size === 0) {
+  const plan = new Plan_js_1.Plan(superSchema, operationContext);
+  if (plan.map.size === 0) {
     const error = new graphql_1.GraphQLError('Could not route subscription.', {
       nodes: operation,
     });
     return { errors: [error] };
   }
-  const [subschema, subschemaPlan] = plan.entries().next().value;
+  const [subschema, subschemaPlan] = plan.map.entries().next().value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new graphql_1.GraphQLError(
