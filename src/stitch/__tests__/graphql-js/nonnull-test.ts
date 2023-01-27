@@ -119,7 +119,7 @@ function executeQuery(
   rootValue: unknown,
 ): PromiseOrValue<
   | ExecutionResult
-  | AsyncIterableIterator<ExecutionResult>
+  | AsyncGenerator<ExecutionResult, void, void>
   | ExperimentalIncrementalExecutionResults
 > {
   return execute({ schema, document: parse(query), rootValue });
