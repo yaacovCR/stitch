@@ -43,6 +43,13 @@ export declare class Plan {
     subPlans: ObjMap<SubPlan>,
     path: Array<string>,
   ): void;
+  _getSubschemaAndSelections(
+    subschemas: ReadonlyArray<Subschema>,
+    map: Map<Subschema, Array<SelectionNode>>,
+  ): {
+    subschema: Subschema;
+    selections: Array<SelectionNode>;
+  };
   _getFieldDef(
     parentType: GraphQLObjectType | GraphQLInterfaceType,
     fieldName: string,
