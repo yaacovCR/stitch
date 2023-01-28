@@ -13,6 +13,7 @@ import { invariant } from '../utilities/invariant.mjs';
 export class Plan {
   constructor(superSchema, parentType, selections, fragmentMap) {
     this.superSchema = superSchema;
+    this.parentType = parentType;
     this.fragmentMap = fragmentMap;
     this.subPlans = Object.create(null);
     const inlinedSelections = inlineRootFragments(selections, fragmentMap);
@@ -69,22 +70,19 @@ export class Plan {
       selections.push(field);
       return;
     }
-    const inlinedSelections = inlineRootFragments(
-      field.selectionSet.selections,
-      this.fragmentMap,
-    );
     const fieldName = field.name.value;
     const fieldDef = this._getFieldDef(parentType, fieldName);
     if (!fieldDef) {
       return;
     }
     const fieldType = fieldDef.type;
-    const splitSelections = this._splitSelections(
+    const subPlan = new Plan(
+      this.superSchema,
       getNamedType(fieldType),
-      inlinedSelections,
-      path,
+      field.selectionSet.selections,
+      this.fragmentMap,
     );
-    const filteredSelections = splitSelections.get(subschema);
+    const filteredSelections = subPlan.map.get(subschema);
     if (filteredSelections) {
       selections.push({
         ...field,
@@ -93,13 +91,10 @@ export class Plan {
           selections: filteredSelections,
         },
       });
+      subPlan.map.get(subschema);
     }
-    splitSelections.delete(subschema);
-    if (splitSelections.size > 0) {
-      this.subPlans[path.join('.')] = {
-        type: fieldType,
-        selectionsBySubschema: splitSelections,
-      };
+    if (subPlan.map.size > 0) {
+      this.subPlans[path.join('.')] = subPlan;
     }
   }
   _getSubschemaAndSelections(subschemas, map) {

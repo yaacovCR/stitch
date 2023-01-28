@@ -5,24 +5,20 @@ import type {
   GraphQLField,
   GraphQLInterfaceType,
   GraphQLObjectType,
-  GraphQLOutputType,
   InlineFragmentNode,
   SelectionNode,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 import type { Subschema, SuperSchema } from './SuperSchema';
-export interface SubPlan {
-  type: GraphQLOutputType;
-  selectionsBySubschema: Map<Subschema, Array<SelectionNode>>;
-}
 /**
  * @internal
  */
 export declare class Plan {
   superSchema: SuperSchema;
+  parentType: GraphQLCompositeType;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
   map: Map<Subschema, Array<SelectionNode>>;
-  subPlans: ObjMap<SubPlan>;
+  subPlans: ObjMap<Plan>;
   constructor(
     superSchema: SuperSchema,
     parentType: GraphQLCompositeType,
