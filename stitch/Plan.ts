@@ -1,5 +1,4 @@
 import type {
-  DocumentNode,
   FieldNode,
   FragmentDefinitionNode,
   GraphQLCompositeType,
@@ -21,7 +20,7 @@ import {
 import type { ObjMap } from '../types/ObjMap';
 import { inlineRootFragments } from '../utilities/inlineRootFragments.ts';
 import { invariant } from '../utilities/invariant.ts';
-import type { OperationContext, Subschema, SuperSchema } from './SuperSchema';
+import type { Subschema, SuperSchema } from './SuperSchema';
 export interface SubPlan {
   type: GraphQLOutputType;
   selectionsBySubschema: Map<Subschema, Array<SelectionNode>>;
@@ -31,56 +30,42 @@ export interface SubPlan {
  */
 export class Plan {
   superSchema: SuperSchema;
-  operationContext: OperationContext;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, DocumentNode>;
+  map: Map<Subschema, SelectionSetNode>;
   subPlans: ObjMap<SubPlan>;
-  constructor(superSchema: SuperSchema, operationContext: OperationContext) {
+  constructor(
+    superSchema: SuperSchema,
+    parentType: GraphQLCompositeType,
+    selectionSet: SelectionSetNode,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
+  ) {
     this.superSchema = superSchema;
-    this.operationContext = operationContext;
-    this.fragmentMap = operationContext.fragmentMap;
+    this.fragmentMap = fragmentMap;
     this.map = new Map();
     this.subPlans = Object.create(null);
-    const { operation, fragments, fragmentMap } = this.operationContext;
-    const rootType = this.superSchema.getRootType(operation.operation);
-    rootType !== undefined ||
-      invariant(
-        false,
-        `Schema is not configured to execute ${operation.operation}`,
-      );
-    const inlinedSelectionSet = inlineRootFragments(
-      operation.selectionSet,
+    const inlinedSelections = inlineRootFragments(
+      selectionSet.selections,
       fragmentMap,
     );
-    const splitSelections = this._splitSelectionSet(
-      rootType,
-      inlinedSelectionSet,
+    const splitSelections = this._splitSelections(
+      parentType,
+      inlinedSelections,
       [],
     );
     for (const [subschema, selections] of splitSelections) {
-      const document: DocumentNode = {
-        kind: Kind.DOCUMENT,
-        definitions: [
-          {
-            ...operation,
-            selectionSet: {
-              kind: Kind.SELECTION_SET,
-              selections,
-            },
-          },
-          ...fragments,
-        ],
-      };
-      this.map.set(subschema, document);
+      this.map.set(subschema, {
+        kind: Kind.SELECTION_SET,
+        selections,
+      });
     }
   }
-  _splitSelectionSet(
+  _splitSelections(
     parentType: GraphQLCompositeType,
-    selectionSet: SelectionSetNode,
+    selections: ReadonlyArray<SelectionNode>,
     path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>> {
     const map = new Map<Subschema, Array<SelectionNode>>();
-    for (const selection of selectionSet.selections) {
+    for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
           this._addField(
@@ -131,8 +116,8 @@ export class Plan {
       selections.push(field);
       return;
     }
-    const inlinedSelectionSet = inlineRootFragments(
-      field.selectionSet,
+    const inlinedSelections = inlineRootFragments(
+      field.selectionSet.selections,
       this.fragmentMap,
     );
     const fieldName = field.name.value;
@@ -141,9 +126,9 @@ export class Plan {
       return;
     }
     const fieldType = fieldDef.type;
-    const splitSelections = this._splitSelectionSet(
+    const splitSelections = this._splitSelections(
       getNamedType(fieldType) as GraphQLCompositeType,
-      inlinedSelectionSet,
+      inlinedSelections,
       path,
     );
     const filteredSelections = splitSelections.get(subschema);
@@ -209,9 +194,9 @@ export class Plan {
     map: Map<Subschema, Array<SelectionNode>>,
     path: Array<string>,
   ): void {
-    const splitSelections = this._splitSelectionSet(
+    const splitSelections = this._splitSelections(
       parentType,
-      fragment.selectionSet,
+      fragment.selectionSet.selections,
       path,
     );
     for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
