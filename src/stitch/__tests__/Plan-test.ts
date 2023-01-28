@@ -152,15 +152,15 @@ it('works to split subfields', () => {
     ).selections,
   );
 
-  const subPlan = plan.subPlans.someObject;
+  const someObjectSubPlan = plan.subPlans.someObject;
 
-  expect(subPlan.type).to.equal(superSchema.getType('SomeObject'));
+  expect(someObjectSubPlan.parentType).to.equal(
+    superSchema.getType('SomeObject'),
+  );
 
-  const iteration = subPlan.selectionsBySubschema.values().next();
-  invariant(!iteration.done);
+  const anotherSubschemaSubPlan = someObjectSubPlan.map.get(anotherSubschema);
 
-  const selections = iteration.value;
-  expect(selections).to.deep.equal(
+  expect(anotherSubschemaSubPlan).to.deep.equal(
     parseSelectionSet('{ anotherField }').selections,
   );
 
