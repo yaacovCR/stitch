@@ -1,5 +1,4 @@
 import type {
-  DocumentNode,
   FieldNode,
   FragmentDefinitionNode,
   GraphQLCompositeType,
@@ -24,7 +23,7 @@ import type { ObjMap } from '../types/ObjMap';
 import { inlineRootFragments } from '../utilities/inlineRootFragments.js';
 import { invariant } from '../utilities/invariant.js';
 
-import type { OperationContext, Subschema, SuperSchema } from './SuperSchema';
+import type { Subschema, SuperSchema } from './SuperSchema';
 
 export interface SubPlan {
   type: GraphQLOutputType;
@@ -36,52 +35,34 @@ export interface SubPlan {
  */
 export class Plan {
   superSchema: SuperSchema;
-  operationContext: OperationContext;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, DocumentNode>;
+  map: Map<Subschema, SelectionSetNode>;
   subPlans: ObjMap<SubPlan>;
 
-  constructor(superSchema: SuperSchema, operationContext: OperationContext) {
+  constructor(
+    superSchema: SuperSchema,
+    parentType: GraphQLCompositeType,
+    selectionSet: SelectionSetNode,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
+  ) {
     this.superSchema = superSchema;
-    this.operationContext = operationContext;
-    this.fragmentMap = operationContext.fragmentMap;
+    this.fragmentMap = fragmentMap;
     this.map = new Map();
     this.subPlans = Object.create(null);
 
-    const { operation, fragments, fragmentMap } = this.operationContext;
-    const rootType = this.superSchema.getRootType(operation.operation);
-    invariant(
-      rootType !== undefined,
-      `Schema is not configured to execute ${operation.operation}`,
-    );
-
-    const inlinedSelectionSet = inlineRootFragments(
-      operation.selectionSet,
-      fragmentMap,
-    );
+    const inlinedSelectionSet = inlineRootFragments(selectionSet, fragmentMap);
 
     const splitSelections = this._splitSelectionSet(
-      rootType,
+      parentType,
       inlinedSelectionSet,
       [],
     );
 
     for (const [subschema, selections] of splitSelections) {
-      const document: DocumentNode = {
-        kind: Kind.DOCUMENT,
-        definitions: [
-          {
-            ...operation,
-            selectionSet: {
-              kind: Kind.SELECTION_SET,
-              selections,
-            },
-          },
-          ...fragments,
-        ],
-      };
-
-      this.map.set(subschema, document);
+      this.map.set(subschema, {
+        kind: Kind.SELECTION_SET,
+        selections,
+      });
     }
   }
 

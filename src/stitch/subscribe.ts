@@ -1,5 +1,5 @@
-import type { ExecutionResult } from 'graphql';
-import { GraphQLError, OperationTypeNode } from 'graphql';
+import type { DocumentNode, ExecutionResult } from 'graphql';
+import { GraphQLError, Kind, OperationTypeNode } from 'graphql';
 
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
@@ -26,7 +26,8 @@ export function subscribe(
   }
 
   const {
-    operationContext: { superSchema, operation },
+    operationContext: { superSchema, operation, fragments, fragmentMap },
+    rawVariableValues,
   } = exeContext;
   invariant(operation.operation === OperationTypeNode.SUBSCRIPTION);
 
@@ -41,9 +42,12 @@ export function subscribe(
     return { errors: [error] };
   }
 
-  const { operationContext, rawVariableValues } = exeContext;
-
-  const plan = new Plan(superSchema, operationContext);
+  const plan = new Plan(
+    superSchema,
+    rootType,
+    operation.selectionSet,
+    fragmentMap,
+  );
 
   const iteration = plan.map.entries().next();
   if (iteration.done) {
@@ -54,7 +58,7 @@ export function subscribe(
     return { errors: [error] };
   }
 
-  const [subschema, document] = iteration.value;
+  const [subschema, selectionSet] = iteration.value;
 
   const subscriber = subschema.subscriber;
   if (!subscriber) {
@@ -65,6 +69,11 @@ export function subscribe(
 
     return { errors: [error] };
   }
+
+  const document: DocumentNode = {
+    kind: Kind.DOCUMENT,
+    definitions: [{ ...operation, selectionSet }, ...fragments],
+  };
 
   const result = subscriber({
     document,
