@@ -29,7 +29,12 @@ function createPlan(
 
   invariant(queryType !== undefined);
 
-  return new Plan(superSchema, queryType, operation.selectionSet, {});
+  return new Plan(
+    superSchema,
+    queryType,
+    operation.selectionSet.selections,
+    {},
+  );
 }
 
 describe('Plan', () => {
@@ -74,32 +79,32 @@ describe('Plan', () => {
     invariant(!iteration.done);
 
     const mergedSubschema = iteration.value;
-    const mergedSubschemaSelectionSet = plan.map.get(mergedSubschema);
-    expect(mergedSubschemaSelectionSet).to.deep.equal(
+    const mergedSubschemaSelections = plan.map.get(mergedSubschema);
+    expect(mergedSubschemaSelections).to.deep.equal(
       parseSelectionSet(
         `{
           __schema { queryType { name } }
           __type(name: "Query") { name }
         }`,
-      ),
+      ).selections,
     );
 
-    const someSubschemaSelectionSet = plan.map.get(someSubschema);
-    expect(someSubschemaSelectionSet).to.deep.equal(
+    const someSubschemaSelections = plan.map.get(someSubschema);
+    expect(someSubschemaSelections).to.deep.equal(
       parseSelectionSet(
         `{
           someObject { someField }
         }`,
-      ),
+      ).selections,
     );
 
-    const anotherSubschemaSelectionSet = plan.map.get(anotherSubschema);
-    expect(anotherSubschemaSelectionSet).to.deep.equal(
+    const anotherSubschemaSelections = plan.map.get(anotherSubschema);
+    expect(anotherSubschemaSelections).to.deep.equal(
       parseSelectionSet(
         `{
           anotherObject { someField }
         }`,
-      ),
+      ).selections,
     );
   });
 });
@@ -138,13 +143,13 @@ it('works to split subfields', () => {
 
   const plan = createPlan(superSchema, operation);
 
-  const someSubschemaSelectionSet = plan.map.get(someSubschema);
-  expect(someSubschemaSelectionSet).to.deep.equal(
+  const someSubschemaSelections = plan.map.get(someSubschema);
+  expect(someSubschemaSelections).to.deep.equal(
     parseSelectionSet(
       `{
         someObject { someField }
       }`,
-    ),
+    ).selections,
   );
 
   const subPlan = plan.subPlans.someObject;

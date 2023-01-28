@@ -52,7 +52,7 @@ export function execute(
   const plan = new Plan(
     superSchema,
     rootType,
-    operation.selectionSet,
+    operation.selectionSet.selections,
     fragmentMap,
   );
 
@@ -83,10 +83,19 @@ function executePlan(
   > = [];
 
   let containsPromise = false;
-  for (const [subschema, selectionSet] of plan.map.entries()) {
+  for (const [subschema, subschemaSelections] of plan.map.entries()) {
     const document: DocumentNode = {
       kind: Kind.DOCUMENT,
-      definitions: [{ ...operation, selectionSet }, ...fragments],
+      definitions: [
+        {
+          ...operation,
+          selectionSet: {
+            kind: Kind.SELECTION_SET,
+            selections: subschemaSelections,
+          },
+        },
+        ...fragments,
+      ],
     };
 
     const result = subschema.executor({

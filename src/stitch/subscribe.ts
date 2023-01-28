@@ -45,7 +45,7 @@ export function subscribe(
   const plan = new Plan(
     superSchema,
     rootType,
-    operation.selectionSet,
+    operation.selectionSet.selections,
     fragmentMap,
   );
 
@@ -58,7 +58,7 @@ export function subscribe(
     return { errors: [error] };
   }
 
-  const [subschema, selectionSet] = iteration.value;
+  const [subschema, subschemaSelections] = iteration.value;
 
   const subscriber = subschema.subscriber;
   if (!subscriber) {
@@ -72,7 +72,16 @@ export function subscribe(
 
   const document: DocumentNode = {
     kind: Kind.DOCUMENT,
-    definitions: [{ ...operation, selectionSet }, ...fragments],
+    definitions: [
+      {
+        ...operation,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: subschemaSelections,
+        },
+      },
+      ...fragments,
+    ],
   };
 
   const result = subscriber({
