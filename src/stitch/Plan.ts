@@ -5,7 +5,6 @@ import type {
   GraphQLField,
   GraphQLInterfaceType,
   GraphQLObjectType,
-  GraphQLOutputType,
   InlineFragmentNode,
   SelectionNode,
 } from 'graphql';
@@ -24,19 +23,15 @@ import { invariant } from '../utilities/invariant.js';
 
 import type { Subschema, SuperSchema } from './SuperSchema';
 
-export interface SubPlan {
-  type: GraphQLOutputType;
-  selectionsBySubschema: Map<Subschema, Array<SelectionNode>>;
-}
-
 /**
  * @internal
  */
 export class Plan {
   superSchema: SuperSchema;
+  parentType: GraphQLCompositeType;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
   map: Map<Subschema, Array<SelectionNode>>;
-  subPlans: ObjMap<SubPlan>;
+  subPlans: ObjMap<Plan>;
 
   constructor(
     superSchema: SuperSchema,
@@ -45,6 +40,7 @@ export class Plan {
     fragmentMap: ObjMap<FragmentDefinitionNode>,
   ) {
     this.superSchema = superSchema;
+    this.parentType = parentType;
     this.fragmentMap = fragmentMap;
     this.subPlans = Object.create(null);
 
@@ -121,11 +117,6 @@ export class Plan {
       return;
     }
 
-    const inlinedSelections = inlineRootFragments(
-      field.selectionSet.selections,
-      this.fragmentMap,
-    );
-
     const fieldName = field.name.value;
     const fieldDef = this._getFieldDef(parentType, fieldName);
 
@@ -135,13 +126,14 @@ export class Plan {
 
     const fieldType = fieldDef.type;
 
-    const splitSelections = this._splitSelections(
-      getNamedType(fieldType) as GraphQLCompositeType,
-      inlinedSelections,
-      path,
+    const subPlan = new Plan(
+      this.superSchema,
+      getNamedType(fieldType) as GraphQLObjectType,
+      field.selectionSet.selections,
+      this.fragmentMap,
     );
 
-    const filteredSelections = splitSelections.get(subschema);
+    const filteredSelections = subPlan.map.get(subschema);
 
     if (filteredSelections) {
       selections.push({
@@ -151,15 +143,11 @@ export class Plan {
           selections: filteredSelections,
         },
       });
+      subPlan.map.get(subschema);
     }
 
-    splitSelections.delete(subschema);
-
-    if (splitSelections.size > 0) {
-      this.subPlans[path.join('.')] = {
-        type: fieldType,
-        selectionsBySubschema: splitSelections,
-      };
+    if (subPlan.map.size > 0) {
+      this.subPlans[path.join('.')] = subPlan;
     }
   }
 
