@@ -91,7 +91,7 @@ class Plan {
           selections: filteredSelections,
         },
       });
-      subPlan.map.get(subschema);
+      subPlan.map.delete(subschema);
     }
     if (subPlan.map.size > 0) {
       this.subPlans[path.join('.')] = subPlan;
