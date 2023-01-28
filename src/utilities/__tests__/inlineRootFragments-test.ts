@@ -30,12 +30,12 @@ describe('inlineRootFragments', () => {
       SomeFragment: document.definitions[1] as FragmentDefinitionNode,
     };
 
-    const selectionSet = inlineRootFragments(
-      operation.selectionSet,
+    const selections = inlineRootFragments(
+      operation.selectionSet.selections,
       fragmentMap,
     );
 
-    const expectedSelectionSet = parseSelectionSet(`
+    const expectedSelections = parseSelectionSet(`
       {
         someField
         ... {
@@ -45,8 +45,8 @@ describe('inlineRootFragments', () => {
           fragmentField
         }
       }
-    `);
+    `).selections;
 
-    expect(selectionSet).to.deep.equal(expectedSelectionSet);
+    expect(selections).to.deep.equal(expectedSelections);
   });
 });

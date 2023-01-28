@@ -50,11 +50,14 @@ export class Plan {
     this.map = new Map();
     this.subPlans = Object.create(null);
 
-    const inlinedSelectionSet = inlineRootFragments(selectionSet, fragmentMap);
+    const inlinedSelections = inlineRootFragments(
+      selectionSet.selections,
+      fragmentMap,
+    );
 
-    const splitSelections = this._splitSelectionSet(
+    const splitSelections = this._splitSelections(
       parentType,
-      inlinedSelectionSet,
+      inlinedSelections,
       [],
     );
 
@@ -66,13 +69,13 @@ export class Plan {
     }
   }
 
-  _splitSelectionSet(
+  _splitSelections(
     parentType: GraphQLCompositeType,
-    selectionSet: SelectionSetNode,
+    selections: ReadonlyArray<SelectionNode>,
     path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>> {
     const map = new Map<Subschema, Array<SelectionNode>>();
-    for (const selection of selectionSet.selections) {
+    for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
           this._addField(
@@ -128,8 +131,8 @@ export class Plan {
       return;
     }
 
-    const inlinedSelectionSet = inlineRootFragments(
-      field.selectionSet,
+    const inlinedSelections = inlineRootFragments(
+      field.selectionSet.selections,
       this.fragmentMap,
     );
 
@@ -142,9 +145,9 @@ export class Plan {
 
     const fieldType = fieldDef.type;
 
-    const splitSelections = this._splitSelectionSet(
+    const splitSelections = this._splitSelections(
       getNamedType(fieldType) as GraphQLCompositeType,
-      inlinedSelectionSet,
+      inlinedSelections,
       path,
     );
 
@@ -221,9 +224,9 @@ export class Plan {
     map: Map<Subschema, Array<SelectionNode>>,
     path: Array<string>,
   ): void {
-    const splitSelections = this._splitSelectionSet(
+    const splitSelections = this._splitSelections(
       parentType,
-      fragment.selectionSet,
+      fragment.selectionSet.selections,
       path,
     );
     for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
