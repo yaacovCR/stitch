@@ -8,7 +8,6 @@ import type {
   GraphQLOutputType,
   InlineFragmentNode,
   SelectionNode,
-  SelectionSetNode,
 } from 'graphql';
 import {
   getNamedType,
@@ -31,33 +30,24 @@ export interface SubPlan {
 export class Plan {
   superSchema: SuperSchema;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, SelectionSetNode>;
+  map: Map<Subschema, Array<SelectionNode>>;
   subPlans: ObjMap<SubPlan>;
   constructor(
     superSchema: SuperSchema,
     parentType: GraphQLCompositeType,
-    selectionSet: SelectionSetNode,
+    selections: ReadonlyArray<SelectionNode>,
     fragmentMap: ObjMap<FragmentDefinitionNode>,
   ) {
     this.superSchema = superSchema;
     this.fragmentMap = fragmentMap;
-    this.map = new Map();
     this.subPlans = Object.create(null);
-    const inlinedSelections = inlineRootFragments(
-      selectionSet.selections,
-      fragmentMap,
-    );
+    const inlinedSelections = inlineRootFragments(selections, fragmentMap);
     const splitSelections = this._splitSelections(
       parentType,
       inlinedSelections,
       [],
     );
-    for (const [subschema, selections] of splitSelections) {
-      this.map.set(subschema, {
-        kind: Kind.SELECTION_SET,
-        selections,
-      });
-    }
+    this.map = splitSelections;
   }
   _splitSelections(
     parentType: GraphQLCompositeType,
