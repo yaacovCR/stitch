@@ -1,5 +1,4 @@
 import type {
-  DocumentNode,
   FieldNode,
   FragmentDefinitionNode,
   GraphQLCompositeType,
@@ -12,7 +11,7 @@ import type {
   SelectionSetNode,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
-import type { OperationContext, Subschema, SuperSchema } from './SuperSchema';
+import type { Subschema, SuperSchema } from './SuperSchema';
 export interface SubPlan {
   type: GraphQLOutputType;
   selectionsBySubschema: Map<Subschema, Array<SelectionNode>>;
@@ -22,14 +21,18 @@ export interface SubPlan {
  */
 export declare class Plan {
   superSchema: SuperSchema;
-  operationContext: OperationContext;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, DocumentNode>;
+  map: Map<Subschema, SelectionSetNode>;
   subPlans: ObjMap<SubPlan>;
-  constructor(superSchema: SuperSchema, operationContext: OperationContext);
-  _splitSelectionSet(
+  constructor(
+    superSchema: SuperSchema,
     parentType: GraphQLCompositeType,
     selectionSet: SelectionSetNode,
+    fragmentMap: ObjMap<FragmentDefinitionNode>,
+  );
+  _splitSelections(
+    parentType: GraphQLCompositeType,
+    selections: ReadonlyArray<SelectionNode>,
     path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>>;
   _addField(

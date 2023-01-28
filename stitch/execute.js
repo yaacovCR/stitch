@@ -18,7 +18,8 @@ function execute(args) {
     return { errors: exeContext };
   }
   const {
-    operationContext: { superSchema, operation },
+    operationContext: { superSchema, operation, fragments, fragmentMap },
+    rawVariableValues,
   } = exeContext;
   const rootType = superSchema.getRootType(operation.operation);
   if (rootType == null) {
@@ -28,7 +29,13 @@ function execute(args) {
     );
     return { data: null, errors: [error] };
   }
-  const results = delegateRootFields(exeContext);
+  const plan = new Plan_js_1.Plan(
+    superSchema,
+    rootType,
+    operation.selectionSet,
+    fragmentMap,
+  );
+  const results = executePlan(plan, operation, fragments, rawVariableValues);
   if ((0, isPromise_js_1.isPromise)(results)) {
     return results.then((resolvedResults) =>
       handlePossibleMultiPartResults(resolvedResults),
@@ -37,13 +44,14 @@ function execute(args) {
   return handlePossibleMultiPartResults(results);
 }
 exports.execute = execute;
-function delegateRootFields(exeContext) {
-  const { operationContext, rawVariableValues } = exeContext;
-  const { superSchema } = operationContext;
-  const plan = new Plan_js_1.Plan(superSchema, operationContext);
+function executePlan(plan, operation, fragments, rawVariableValues) {
   const results = [];
   let containsPromise = false;
-  for (const [subschema, document] of plan.map.entries()) {
+  for (const [subschema, selectionSet] of plan.map.entries()) {
+    const document = {
+      kind: graphql_1.Kind.DOCUMENT,
+      definitions: [{ ...operation, selectionSet }, ...fragments],
+    };
     const result = subschema.executor({
       document,
       variables: rawVariableValues,

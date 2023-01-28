@@ -1,5 +1,5 @@
 import { Repeater } from '@repeaterjs/repeater';
-import { GraphQLError } from 'graphql';
+import { GraphQLError, Kind } from 'graphql';
 import { isPromise } from '../predicates/isPromise.mjs';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
@@ -13,7 +13,8 @@ export function execute(args) {
     return { errors: exeContext };
   }
   const {
-    operationContext: { superSchema, operation },
+    operationContext: { superSchema, operation, fragments, fragmentMap },
+    rawVariableValues,
   } = exeContext;
   const rootType = superSchema.getRootType(operation.operation);
   if (rootType == null) {
@@ -23,7 +24,13 @@ export function execute(args) {
     );
     return { data: null, errors: [error] };
   }
-  const results = delegateRootFields(exeContext);
+  const plan = new Plan(
+    superSchema,
+    rootType,
+    operation.selectionSet,
+    fragmentMap,
+  );
+  const results = executePlan(plan, operation, fragments, rawVariableValues);
   if (isPromise(results)) {
     return results.then((resolvedResults) =>
       handlePossibleMultiPartResults(resolvedResults),
@@ -31,13 +38,14 @@ export function execute(args) {
   }
   return handlePossibleMultiPartResults(results);
 }
-function delegateRootFields(exeContext) {
-  const { operationContext, rawVariableValues } = exeContext;
-  const { superSchema } = operationContext;
-  const plan = new Plan(superSchema, operationContext);
+function executePlan(plan, operation, fragments, rawVariableValues) {
   const results = [];
   let containsPromise = false;
-  for (const [subschema, document] of plan.map.entries()) {
+  for (const [subschema, selectionSet] of plan.map.entries()) {
+    const document = {
+      kind: Kind.DOCUMENT,
+      definitions: [{ ...operation, selectionSet }, ...fragments],
+    };
     const result = subschema.executor({
       document,
       variables: rawVariableValues,

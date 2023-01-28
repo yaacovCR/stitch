@@ -19,7 +19,8 @@ function subscribe(args) {
     return { errors: exeContext };
   }
   const {
-    operationContext: { superSchema, operation },
+    operationContext: { superSchema, operation, fragments, fragmentMap },
+    rawVariableValues,
   } = exeContext;
   operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION ||
     (0, invariant_js_1.invariant)(false);
@@ -31,8 +32,12 @@ function subscribe(args) {
     );
     return { errors: [error] };
   }
-  const { operationContext, rawVariableValues } = exeContext;
-  const plan = new Plan_js_1.Plan(superSchema, operationContext);
+  const plan = new Plan_js_1.Plan(
+    superSchema,
+    rootType,
+    operation.selectionSet,
+    fragmentMap,
+  );
   const iteration = plan.map.entries().next();
   if (iteration.done) {
     const error = new graphql_1.GraphQLError('Could not route subscription.', {
@@ -40,7 +45,7 @@ function subscribe(args) {
     });
     return { errors: [error] };
   }
-  const [subschema, document] = iteration.value;
+  const [subschema, selectionSet] = iteration.value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new graphql_1.GraphQLError(
@@ -49,6 +54,10 @@ function subscribe(args) {
     );
     return { errors: [error] };
   }
+  const document = {
+    kind: graphql_1.Kind.DOCUMENT,
+    definitions: [{ ...operation, selectionSet }, ...fragments],
+  };
   const result = subscriber({
     document,
     variables: rawVariableValues,

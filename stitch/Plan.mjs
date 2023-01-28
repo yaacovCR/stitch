@@ -11,48 +11,30 @@ import { invariant } from '../utilities/invariant.mjs';
  * @internal
  */
 export class Plan {
-  constructor(superSchema, operationContext) {
+  constructor(superSchema, parentType, selectionSet, fragmentMap) {
     this.superSchema = superSchema;
-    this.operationContext = operationContext;
-    this.fragmentMap = operationContext.fragmentMap;
+    this.fragmentMap = fragmentMap;
     this.map = new Map();
     this.subPlans = Object.create(null);
-    const { operation, fragments, fragmentMap } = this.operationContext;
-    const rootType = this.superSchema.getRootType(operation.operation);
-    rootType !== undefined ||
-      invariant(
-        false,
-        `Schema is not configured to execute ${operation.operation}`,
-      );
-    const inlinedSelectionSet = inlineRootFragments(
-      operation.selectionSet,
+    const inlinedSelections = inlineRootFragments(
+      selectionSet.selections,
       fragmentMap,
     );
-    const splitSelections = this._splitSelectionSet(
-      rootType,
-      inlinedSelectionSet,
+    const splitSelections = this._splitSelections(
+      parentType,
+      inlinedSelections,
       [],
     );
     for (const [subschema, selections] of splitSelections) {
-      const document = {
-        kind: Kind.DOCUMENT,
-        definitions: [
-          {
-            ...operation,
-            selectionSet: {
-              kind: Kind.SELECTION_SET,
-              selections,
-            },
-          },
-          ...fragments,
-        ],
-      };
-      this.map.set(subschema, document);
+      this.map.set(subschema, {
+        kind: Kind.SELECTION_SET,
+        selections,
+      });
     }
   }
-  _splitSelectionSet(parentType, selectionSet, path) {
+  _splitSelections(parentType, selections, path) {
     const map = new Map();
-    for (const selection of selectionSet.selections) {
+    for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
           this._addField(parentType, selection, map, [
@@ -96,8 +78,8 @@ export class Plan {
       selections.push(field);
       return;
     }
-    const inlinedSelectionSet = inlineRootFragments(
-      field.selectionSet,
+    const inlinedSelections = inlineRootFragments(
+      field.selectionSet.selections,
       this.fragmentMap,
     );
     const fieldName = field.name.value;
@@ -106,9 +88,9 @@ export class Plan {
       return;
     }
     const fieldType = fieldDef.type;
-    const splitSelections = this._splitSelectionSet(
+    const splitSelections = this._splitSelections(
       getNamedType(fieldType),
-      inlinedSelectionSet,
+      inlinedSelections,
       path,
     );
     const filteredSelections = splitSelections.get(subschema);
@@ -160,9 +142,9 @@ export class Plan {
     }
   }
   _addInlineFragment(parentType, fragment, map, path) {
-    const splitSelections = this._splitSelectionSet(
+    const splitSelections = this._splitSelections(
       parentType,
-      fragment.selectionSet,
+      fragment.selectionSet.selections,
       path,
     );
     for (const [fragmentSubschema, fragmentSelections] of splitSelections) {

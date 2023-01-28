@@ -1,4 +1,4 @@
-import { GraphQLError, OperationTypeNode } from 'graphql';
+import { GraphQLError, Kind, OperationTypeNode } from 'graphql';
 import { isAsyncIterable } from '../predicates/isAsyncIterable.mjs';
 import { isPromise } from '../predicates/isPromise.mjs';
 import { invariant } from '../utilities/invariant.mjs';
@@ -14,7 +14,8 @@ export function subscribe(args) {
     return { errors: exeContext };
   }
   const {
-    operationContext: { superSchema, operation },
+    operationContext: { superSchema, operation, fragments, fragmentMap },
+    rawVariableValues,
   } = exeContext;
   operation.operation === OperationTypeNode.SUBSCRIPTION || invariant(false);
   const rootType = superSchema.getRootType(operation.operation);
@@ -25,8 +26,12 @@ export function subscribe(args) {
     );
     return { errors: [error] };
   }
-  const { operationContext, rawVariableValues } = exeContext;
-  const plan = new Plan(superSchema, operationContext);
+  const plan = new Plan(
+    superSchema,
+    rootType,
+    operation.selectionSet,
+    fragmentMap,
+  );
   const iteration = plan.map.entries().next();
   if (iteration.done) {
     const error = new GraphQLError('Could not route subscription.', {
@@ -34,7 +39,7 @@ export function subscribe(args) {
     });
     return { errors: [error] };
   }
-  const [subschema, document] = iteration.value;
+  const [subschema, selectionSet] = iteration.value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new GraphQLError(
@@ -43,6 +48,10 @@ export function subscribe(args) {
     );
     return { errors: [error] };
   }
+  const document = {
+    kind: Kind.DOCUMENT,
+    definitions: [{ ...operation, selectionSet }, ...fragments],
+  };
   const result = subscriber({
     document,
     variables: rawVariableValues,
