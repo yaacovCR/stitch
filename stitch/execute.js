@@ -32,7 +32,7 @@ function execute(args) {
   const plan = new Plan_js_1.Plan(
     superSchema,
     rootType,
-    operation.selectionSet,
+    operation.selectionSet.selections,
     fragmentMap,
   );
   const results = executePlan(plan, operation, fragments, rawVariableValues);
@@ -47,10 +47,19 @@ exports.execute = execute;
 function executePlan(plan, operation, fragments, rawVariableValues) {
   const results = [];
   let containsPromise = false;
-  for (const [subschema, selectionSet] of plan.map.entries()) {
+  for (const [subschema, subschemaSelections] of plan.map.entries()) {
     const document = {
       kind: graphql_1.Kind.DOCUMENT,
-      definitions: [{ ...operation, selectionSet }, ...fragments],
+      definitions: [
+        {
+          ...operation,
+          selectionSet: {
+            kind: graphql_1.Kind.SELECTION_SET,
+            selections: subschemaSelections,
+          },
+        },
+        ...fragments,
+      ],
     };
     const result = subschema.executor({
       document,

@@ -11,26 +11,17 @@ import { invariant } from '../utilities/invariant.mjs';
  * @internal
  */
 export class Plan {
-  constructor(superSchema, parentType, selectionSet, fragmentMap) {
+  constructor(superSchema, parentType, selections, fragmentMap) {
     this.superSchema = superSchema;
     this.fragmentMap = fragmentMap;
-    this.map = new Map();
     this.subPlans = Object.create(null);
-    const inlinedSelections = inlineRootFragments(
-      selectionSet.selections,
-      fragmentMap,
-    );
+    const inlinedSelections = inlineRootFragments(selections, fragmentMap);
     const splitSelections = this._splitSelections(
       parentType,
       inlinedSelections,
       [],
     );
-    for (const [subschema, selections] of splitSelections) {
-      this.map.set(subschema, {
-        kind: Kind.SELECTION_SET,
-        selections,
-      });
-    }
+    this.map = splitSelections;
   }
   _splitSelections(parentType, selections, path) {
     const map = new Map();

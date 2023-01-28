@@ -8,7 +8,6 @@ import type {
   GraphQLOutputType,
   InlineFragmentNode,
   SelectionNode,
-  SelectionSetNode,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 import type { Subschema, SuperSchema } from './SuperSchema';
@@ -22,12 +21,12 @@ export interface SubPlan {
 export declare class Plan {
   superSchema: SuperSchema;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, SelectionSetNode>;
+  map: Map<Subschema, Array<SelectionNode>>;
   subPlans: ObjMap<SubPlan>;
   constructor(
     superSchema: SuperSchema,
     parentType: GraphQLCompositeType,
-    selectionSet: SelectionSetNode,
+    selections: ReadonlyArray<SelectionNode>,
     fragmentMap: ObjMap<FragmentDefinitionNode>,
   );
   _splitSelections(

@@ -29,7 +29,7 @@ export function subscribe(args) {
   const plan = new Plan(
     superSchema,
     rootType,
-    operation.selectionSet,
+    operation.selectionSet.selections,
     fragmentMap,
   );
   const iteration = plan.map.entries().next();
@@ -39,7 +39,7 @@ export function subscribe(args) {
     });
     return { errors: [error] };
   }
-  const [subschema, selectionSet] = iteration.value;
+  const [subschema, subschemaSelections] = iteration.value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new GraphQLError(
@@ -50,7 +50,16 @@ export function subscribe(args) {
   }
   const document = {
     kind: Kind.DOCUMENT,
-    definitions: [{ ...operation, selectionSet }, ...fragments],
+    definitions: [
+      {
+        ...operation,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: subschemaSelections,
+        },
+      },
+      ...fragments,
+    ],
   };
   const result = subscriber({
     document,

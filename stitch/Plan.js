@@ -8,13 +8,12 @@ const invariant_js_1 = require('../utilities/invariant.js');
  * @internal
  */
 class Plan {
-  constructor(superSchema, parentType, selectionSet, fragmentMap) {
+  constructor(superSchema, parentType, selections, fragmentMap) {
     this.superSchema = superSchema;
     this.fragmentMap = fragmentMap;
-    this.map = new Map();
     this.subPlans = Object.create(null);
     const inlinedSelections = (0, inlineRootFragments_js_1.inlineRootFragments)(
-      selectionSet.selections,
+      selections,
       fragmentMap,
     );
     const splitSelections = this._splitSelections(
@@ -22,12 +21,7 @@ class Plan {
       inlinedSelections,
       [],
     );
-    for (const [subschema, selections] of splitSelections) {
-      this.map.set(subschema, {
-        kind: graphql_1.Kind.SELECTION_SET,
-        selections,
-      });
-    }
+    this.map = splitSelections;
   }
   _splitSelections(parentType, selections, path) {
     const map = new Map();
