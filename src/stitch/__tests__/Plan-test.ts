@@ -1,13 +1,13 @@
 import { expect } from 'chai';
 import type { GraphQLSchema, OperationDefinitionNode } from 'graphql';
-import { buildSchema, execute, parse } from 'graphql';
+import { buildSchema, execute, OperationTypeNode, parse } from 'graphql';
 import { describe, it } from 'mocha';
 
 import { invariant } from '../../utilities/invariant.js';
 import { parseSelectionSet } from '../../utilities/parseSelectionSet.js';
 
 import { Plan } from '../Plan.js';
-import type { OperationContext, Subschema } from '../SuperSchema.js';
+import type { Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
 function getSubschema(schema: GraphQLSchema): Subschema {
@@ -21,17 +21,15 @@ function getSubschema(schema: GraphQLSchema): Subschema {
   };
 }
 
-function createOperationContext(
+function createPlan(
   superSchema: SuperSchema,
   operation: OperationDefinitionNode,
-): OperationContext {
-  return {
-    superSchema,
-    operation,
-    fragments: [],
-    fragmentMap: {},
-    variableDefinitions: [],
-  };
+): Plan {
+  const queryType = superSchema.getRootType(OperationTypeNode.QUERY);
+
+  invariant(queryType !== undefined);
+
+  return new Plan(superSchema, queryType, operation.selectionSet, {});
 }
 
 describe('Plan', () => {
@@ -68,48 +66,39 @@ describe('Plan', () => {
         anotherObject { someField }
       }`,
       { noLocation: true },
-    );
+    ).definitions[0] as OperationDefinitionNode;
 
-    const plan = new Plan(
-      superSchema,
-      createOperationContext(
-        superSchema,
-        operation.definitions[0] as OperationDefinitionNode,
-      ),
-    );
+    const plan = createPlan(superSchema, operation);
 
     const iteration = plan.map.keys().next();
     invariant(!iteration.done);
 
     const mergedSubschema = iteration.value;
-    const mergedSubschemaDocument = plan.map.get(mergedSubschema);
-    expect(mergedSubschemaDocument).to.deep.equal(
-      parse(
+    const mergedSubschemaSelectionSet = plan.map.get(mergedSubschema);
+    expect(mergedSubschemaSelectionSet).to.deep.equal(
+      parseSelectionSet(
         `{
           __schema { queryType { name } }
           __type(name: "Query") { name }
         }`,
-        { noLocation: true },
       ),
     );
 
-    const someSubschemaDocument = plan.map.get(someSubschema);
-    expect(someSubschemaDocument).to.deep.equal(
-      parse(
+    const someSubschemaSelectionSet = plan.map.get(someSubschema);
+    expect(someSubschemaSelectionSet).to.deep.equal(
+      parseSelectionSet(
         `{
           someObject { someField }
         }`,
-        { noLocation: true },
       ),
     );
 
-    const anotherSubschemaDocument = plan.map.get(anotherSubschema);
-    expect(anotherSubschemaDocument).to.deep.equal(
-      parse(
+    const anotherSubschemaSelectionSet = plan.map.get(anotherSubschema);
+    expect(anotherSubschemaSelectionSet).to.deep.equal(
+      parseSelectionSet(
         `{
           anotherObject { someField }
         }`,
-        { noLocation: true },
       ),
     );
   });
@@ -145,23 +134,16 @@ it('works to split subfields', () => {
       someObject { someField anotherField }
     }`,
     { noLocation: true },
-  );
+  ).definitions[0] as OperationDefinitionNode;
 
-  const plan = new Plan(
-    superSchema,
-    createOperationContext(
-      superSchema,
-      operation.definitions[0] as OperationDefinitionNode,
-    ),
-  );
+  const plan = createPlan(superSchema, operation);
 
-  const someSubschemaDocument = plan.map.get(someSubschema);
-  expect(someSubschemaDocument).to.deep.equal(
-    parse(
+  const someSubschemaSelectionSet = plan.map.get(someSubschema);
+  expect(someSubschemaSelectionSet).to.deep.equal(
+    parseSelectionSet(
       `{
         someObject { someField }
       }`,
-      { noLocation: true },
     ),
   );
 

@@ -1,31 +1,30 @@
-import type {
-  FragmentDefinitionNode,
-  SelectionNode,
-  SelectionSetNode,
-} from 'graphql';
+import type { FragmentDefinitionNode, SelectionNode } from 'graphql';
 import { Kind } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap';
 
 export function inlineRootFragments(
-  selectionSet: SelectionSetNode,
+  selections: ReadonlyArray<SelectionNode>,
   fragmentMap: ObjMap<FragmentDefinitionNode>,
   visitedFragments: Set<string> = new Set(),
-): SelectionSetNode {
-  const selections: Array<SelectionNode> = [];
-  for (const selection of selectionSet.selections) {
+): Array<SelectionNode> {
+  const newSelections: Array<SelectionNode> = [];
+  for (const selection of selections) {
     switch (selection.kind) {
       case Kind.FIELD:
-        selections.push(selection);
+        newSelections.push(selection);
         break;
       case Kind.INLINE_FRAGMENT:
-        selections.push({
+        newSelections.push({
           ...selection,
-          selectionSet: inlineRootFragments(
-            selection.selectionSet,
-            fragmentMap,
-            visitedFragments,
-          ),
+          selectionSet: {
+            kind: Kind.SELECTION_SET,
+            selections: inlineRootFragments(
+              selection.selectionSet.selections,
+              fragmentMap,
+              visitedFragments,
+            ),
+          },
         });
         break;
       case Kind.FRAGMENT_SPREAD: {
@@ -35,23 +34,23 @@ export function inlineRootFragments(
         visitedFragments.add(selection.name.value);
         const fragment = fragmentMap[selection.name.value];
         if (fragment) {
-          selections.push({
+          newSelections.push({
             kind: Kind.INLINE_FRAGMENT,
             directives: selection.directives,
             typeCondition: fragment.typeCondition,
-            selectionSet: inlineRootFragments(
-              fragment.selectionSet,
-              fragmentMap,
-              visitedFragments,
-            ),
+            selectionSet: {
+              kind: Kind.SELECTION_SET,
+              selections: inlineRootFragments(
+                fragment.selectionSet.selections,
+                fragmentMap,
+                visitedFragments,
+              ),
+            },
           });
         }
       }
     }
   }
 
-  return {
-    kind: Kind.SELECTION_SET,
-    selections,
-  };
+  return newSelections;
 }

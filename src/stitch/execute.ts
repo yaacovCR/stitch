@@ -1,12 +1,15 @@
 import { Repeater } from '@repeaterjs/repeater';
 import type {
+  DocumentNode,
   ExecutionResult,
   ExperimentalIncrementalExecutionResults,
+  FragmentDefinitionNode,
   IncrementalResult,
   InitialIncrementalExecutionResult,
+  OperationDefinitionNode,
   SubsequentIncrementalExecutionResult,
 } from 'graphql';
-import { GraphQLError } from 'graphql';
+import { GraphQLError, Kind } from 'graphql';
 
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
@@ -17,7 +20,6 @@ import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
 import { Plan } from './Plan.js';
-import type { ExecutionContext } from './SuperSchema.js';
 
 export function execute(
   args: ExecutionArgs,
@@ -32,7 +34,8 @@ export function execute(
   }
 
   const {
-    operationContext: { superSchema, operation },
+    operationContext: { superSchema, operation, fragments, fragmentMap },
+    rawVariableValues,
   } = exeContext;
 
   const rootType = superSchema.getRootType(operation.operation);
@@ -46,7 +49,14 @@ export function execute(
     return { data: null, errors: [error] };
   }
 
-  const results = delegateRootFields(exeContext);
+  const plan = new Plan(
+    superSchema,
+    rootType,
+    operation.selectionSet,
+    fragmentMap,
+  );
+
+  const results = executePlan(plan, operation, fragments, rawVariableValues);
 
   if (isPromise(results)) {
     return results.then((resolvedResults) =>
@@ -56,23 +66,29 @@ export function execute(
   return handlePossibleMultiPartResults(results);
 }
 
-function delegateRootFields(
-  exeContext: ExecutionContext,
+function executePlan(
+  plan: Plan,
+  operation: OperationDefinitionNode,
+  fragments: ReadonlyArray<FragmentDefinitionNode>,
+  rawVariableValues:
+    | {
+        readonly [variable: string]: unknown;
+      }
+    | undefined,
 ): PromiseOrValue<
   Array<ExecutionResult | ExperimentalIncrementalExecutionResults>
 > {
-  const { operationContext, rawVariableValues } = exeContext;
-
-  const { superSchema } = operationContext;
-
-  const plan = new Plan(superSchema, operationContext);
-
   const results: Array<
     PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>
   > = [];
 
   let containsPromise = false;
-  for (const [subschema, document] of plan.map.entries()) {
+  for (const [subschema, selectionSet] of plan.map.entries()) {
+    const document: DocumentNode = {
+      kind: Kind.DOCUMENT,
+      definitions: [{ ...operation, selectionSet }, ...fragments],
+    };
+
     const result = subschema.executor({
       document,
       variables: rawVariableValues,
