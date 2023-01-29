@@ -93,6 +93,9 @@ class Plan {
       });
       subPlan.map.delete(subschema);
     }
+    for (const [fieldPath, fieldSubPlan] of Object.entries(subPlan.subPlans)) {
+      this.subPlans[[...path, fieldPath].join('.')] = fieldSubPlan;
+    }
     if (subPlan.map.size > 0) {
       this.subPlans[path.join('.')] = subPlan;
     }
