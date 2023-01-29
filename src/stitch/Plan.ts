@@ -226,50 +226,72 @@ export class Plan {
   }
 
   print(indent = 0): string {
-    let result = '';
-    const spaces = new Array(indent).fill(' ', 0, indent).join('');
-
-    const mapEntries = Array.from(this.map.entries()).map(
-      ([subschema, selections]) => {
-        let mapEntry = '';
-        mapEntry += `${spaces}Subschema ${this.superSchema.getSubschemaId(
-          subschema,
-        )}:\n`;
-
-        mapEntry += this._printSelectionSet(
-          {
-            kind: Kind.SELECTION_SET,
-            selections,
-          },
-          indent,
-        );
-        return mapEntry;
-      },
-    );
-
-    if (mapEntries.length > 0) {
-      result += `${spaces}Map:\n`;
+    const entries = [];
+    if (this.map.size > 0) {
+      entries.push(this._printMap(indent));
     }
 
-    const subPlanEntries = Array.from(Object.entries(this.subPlans)).map(
-      ([responseKey, plan]) => {
-        let subPlanEntry = '';
-        subPlanEntry += `${spaces}SubPlan for '${responseKey}':\n`;
-        subPlanEntry += plan.print(indent + 2);
-        return subPlanEntry;
-      },
-    );
+    const subPlans = Array.from(Object.entries(this.subPlans));
+    if (subPlans.length > 0) {
+      entries.push(this._printSubPlans(subPlans, indent));
+    }
 
-    result += [...mapEntries, ...subPlanEntries].join('\n');
+    return entries.join('\n');
+  }
 
+  _printMap(indent: number): string {
+    const spaces = new Array(indent).fill(' ', 0, indent).join('');
+    let result = `${spaces}Map:\n`;
+    result += Array.from(this.map.entries())
+      .map(([subschema, selections]) =>
+        this._printSubschemaSelections(subschema, selections, indent + 2),
+      )
+      .join('\n');
     return result;
+  }
+
+  _printSubschemaSelections(
+    subschema: Subschema,
+    selections: ReadonlyArray<SelectionNode>,
+    indent: number,
+  ): string {
+    const spaces = new Array(indent).fill(' ', 0, indent).join('');
+    let result = '';
+    result += `${spaces}Subschema ${this.superSchema.getSubschemaId(
+      subschema,
+    )}:\n`;
+    result += `${spaces}  `;
+    result += this._printSelectionSet(
+      {
+        kind: Kind.SELECTION_SET,
+        selections,
+      },
+      indent + 2,
+    );
+    return result;
+  }
+
+  _printSubPlans(
+    subPlans: ReadonlyArray<[string, Plan]>,
+    indent: number,
+  ): string {
+    return subPlans
+      .map(([responseKey, subPlan]) =>
+        this._printSubPlan(responseKey, subPlan, indent),
+      )
+      .join('\n');
+  }
+
+  _printSubPlan(responseKey: string, subPlan: Plan, indent: number): string {
+    const spaces = new Array(indent).fill(' ', 0, indent).join('');
+    let subPlanEntry = '';
+    subPlanEntry += `${spaces}SubPlan for '${responseKey}':\n`;
+    subPlanEntry += subPlan.print(indent + 2);
+    return subPlanEntry;
   }
 
   _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string {
     const spaces = new Array(indent).fill(' ', 0, indent).join('');
-    return print(selectionSet)
-      .split('\n')
-      .map((line) => `${spaces}${line}`)
-      .join('\n');
+    return print(selectionSet).split('\n').join(`\n${spaces}`);
   }
 }

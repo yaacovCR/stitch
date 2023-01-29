@@ -78,29 +78,29 @@ describe('Plan', () => {
 
     expect(plan.print()).to.equal(dedent`
       Map:
-      Subschema 0:
-      {
-        __schema {
-          queryType {
-            name
+        Subschema 0:
+          {
+            __schema {
+              queryType {
+                name
+              }
+            }
+            __type(name: "Query") {
+              name
+            }
           }
-        }
-        __type(name: "Query") {
-          name
-        }
-      }
-      Subschema 1:
-      {
-        someObject {
-          someField
-        }
-      }
-      Subschema 2:
-      {
-        anotherObject {
-          someField
-        }
-      }
+        Subschema 1:
+          {
+            someObject {
+              someField
+            }
+          }
+        Subschema 2:
+          {
+            anotherObject {
+              someField
+            }
+          }
     `);
   });
 
@@ -140,18 +140,18 @@ describe('Plan', () => {
 
     expect(plan.print()).to.equal(dedent`
       Map:
-      Subschema 0:
-      {
-        someObject {
-          someField
-        }
-      }
+        Subschema 0:
+          {
+            someObject {
+              someField
+            }
+          }
       SubPlan for 'someObject':
         Map:
-        Subschema 1:
-        {
-          anotherField
-        }
+          Subschema 1:
+            {
+              anotherField
+            }
     `);
   });
 
@@ -199,21 +199,21 @@ describe('Plan', () => {
 
     expect(plan.print()).to.equal(dedent`
       Map:
-      Subschema 0:
-      {
-        someObject {
-          someField {
-            someNestedField
+        Subschema 0:
+          {
+            someObject {
+              someField {
+                someNestedField
+              }
+            }
           }
-        }
-      }
       SubPlan for 'someObject':
         SubPlan for 'someField':
           Map:
-          Subschema 1:
-          {
-            anotherNestedField
-          }
+            Subschema 1:
+              {
+                anotherNestedField
+              }
     `);
   });
 });
