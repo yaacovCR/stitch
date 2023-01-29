@@ -3,8 +3,9 @@ import type { GraphQLSchema, OperationDefinitionNode } from 'graphql';
 import { buildSchema, execute, OperationTypeNode, parse } from 'graphql';
 import { describe, it } from 'mocha';
 
+import { dedent } from '../../__testUtils__/dedent.js';
+
 import { invariant } from '../../utilities/invariant.js';
-import { parseSelectionSet } from '../../utilities/parseSelectionSet.js';
 
 import { Plan } from '../Plan.js';
 import type { Subschema } from '../SuperSchema.js';
@@ -75,37 +76,32 @@ describe('Plan', () => {
 
     const plan = createPlan(superSchema, operation);
 
-    const iteration = plan.map.keys().next();
-    invariant(!iteration.done);
-
-    const mergedSubschema = iteration.value;
-    const mergedSubschemaSelections = plan.map.get(mergedSubschema);
-    expect(mergedSubschemaSelections).to.deep.equal(
-      parseSelectionSet(
-        `{
-          __schema { queryType { name } }
-          __type(name: "Query") { name }
-        }`,
-      ).selections,
-    );
-
-    const someSubschemaSelections = plan.map.get(someSubschema);
-    expect(someSubschemaSelections).to.deep.equal(
-      parseSelectionSet(
-        `{
-          someObject { someField }
-        }`,
-      ).selections,
-    );
-
-    const anotherSubschemaSelections = plan.map.get(anotherSubschema);
-    expect(anotherSubschemaSelections).to.deep.equal(
-      parseSelectionSet(
-        `{
-          anotherObject { someField }
-        }`,
-      ).selections,
-    );
+    expect(plan.print()).to.equal(dedent`
+      Map:
+      Subschema 0:
+      {
+        __schema {
+          queryType {
+            name
+          }
+        }
+        __type(name: "Query") {
+          name
+        }
+      }
+      Subschema 1:
+      {
+        someObject {
+          someField
+        }
+      }
+      Subschema 2:
+      {
+        anotherObject {
+          someField
+        }
+      }
+    `);
   });
 
   it('works to split subfields', () => {
@@ -142,29 +138,21 @@ describe('Plan', () => {
 
     const plan = createPlan(superSchema, operation);
 
-    const someSubschemaSelections = plan.map.get(someSubschema);
-    expect(someSubschemaSelections).to.deep.equal(
-      parseSelectionSet(
-        `{
-          someObject { someField }
-        }`,
-      ).selections,
-    );
-
-    const someObjectSubPlan = plan.subPlans.someObject;
-
-    expect(someObjectSubPlan.parentType).to.equal(
-      superSchema.getType('SomeObject'),
-    );
-
-    const anotherSubschemaSubPlan = someObjectSubPlan.map.get(anotherSubschema);
-
-    expect(anotherSubschemaSubPlan).to.deep.equal(
-      parseSelectionSet('{ anotherField }').selections,
-    );
-
-    const anotherSubschemaPlan = plan.map.get(anotherSubschema);
-    expect(anotherSubschemaPlan).to.equal(undefined);
+    expect(plan.print()).to.equal(dedent`
+      Map:
+      Subschema 0:
+      {
+        someObject {
+          someField
+        }
+      }
+      SubPlan for 'someObject':
+        Map:
+        Subschema 0:
+        {
+          anotherField
+        }
+    `);
   });
 
   it('works to split sub-subfields', () => {
@@ -209,29 +197,23 @@ describe('Plan', () => {
 
     const plan = createPlan(superSchema, operation);
 
-    const someSubschemaSelections = plan.map.get(someSubschema);
-    expect(someSubschemaSelections).to.deep.equal(
-      parseSelectionSet(
-        `{
-          someObject { someField { someNestedField } }
-        }`,
-      ).selections,
-    );
-
-    const someNestedObjectSubPlan = plan.subPlans.someObject.subPlans.someField;
-
-    expect(someNestedObjectSubPlan.parentType).to.equal(
-      superSchema.getType('SomeNestedObject'),
-    );
-
-    const anotherSubschemaSubPlan =
-      someNestedObjectSubPlan.map.get(anotherSubschema);
-
-    expect(anotherSubschemaSubPlan).to.deep.equal(
-      parseSelectionSet('{ anotherNestedField }').selections,
-    );
-
-    const anotherSubschemaPlan = plan.map.get(anotherSubschema);
-    expect(anotherSubschemaPlan).to.equal(undefined);
+    expect(plan.print()).to.equal(dedent`
+      Map:
+      Subschema 0:
+      {
+        someObject {
+          someField {
+            someNestedField
+          }
+        }
+      }
+      SubPlan for 'someObject':
+        SubPlan for 'someField':
+          Map:
+          Subschema 0:
+          {
+            anotherNestedField
+          }
+    `);
   });
 });

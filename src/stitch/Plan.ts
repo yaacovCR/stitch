@@ -7,10 +7,12 @@ import type {
   GraphQLObjectType,
   InlineFragmentNode,
   SelectionNode,
+  SelectionSetNode,
 } from 'graphql';
 import {
   getNamedType,
   Kind,
+  print,
   SchemaMetaFieldDef,
   TypeMetaFieldDef,
   TypeNameMetaFieldDef,
@@ -221,5 +223,49 @@ export class Plan {
         map.set(fragmentSubschema, [splitFragment]);
       }
     }
+  }
+
+  print(indent = 0): string {
+    let result = '';
+    const spaces = new Array(indent).fill(' ', 0, indent).join('');
+
+    const mapEntries = Array.from(this.map.values()).map((selections, i) => {
+      let mapEntry = '';
+      mapEntry += `${spaces}Subschema ${i}:\n`;
+
+      mapEntry += this._printSelectionSet(
+        {
+          kind: Kind.SELECTION_SET,
+          selections,
+        },
+        indent,
+      );
+      return mapEntry;
+    });
+
+    if (mapEntries.length > 0) {
+      result += `${spaces}Map:\n`;
+    }
+
+    const subPlanEntries = Array.from(Object.entries(this.subPlans)).map(
+      ([responseKey, plan]) => {
+        let subPlanEntry = '';
+        subPlanEntry += `${spaces}SubPlan for '${responseKey}':\n`;
+        subPlanEntry += plan.print(indent + 2);
+        return subPlanEntry;
+      },
+    );
+
+    result += [...mapEntries, ...subPlanEntries].join('\n');
+
+    return result;
+  }
+
+  _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string {
+    const spaces = new Array(indent).fill(' ', 0, indent).join('');
+    return print(selectionSet)
+      .split('\n')
+      .map((line) => `${spaces}${line}`)
+      .join('\n');
   }
 }
