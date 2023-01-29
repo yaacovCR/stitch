@@ -110,24 +110,24 @@ describe('Plan', () => {
 
   it('works to split subfields', () => {
     const someSchema = buildSchema(`
-    type Query {
-      someObject: SomeObject
-    }
+      type Query {
+        someObject: SomeObject
+      }
 
-    type SomeObject {
-      someField: String
-    }
-  `);
+      type SomeObject {
+        someField: String
+      }
+    `);
 
     const anotherSchema = buildSchema(`
-    type Query {
-      someObject: SomeObject
-    }
+      type Query {
+        someObject: SomeObject
+      }
 
-    type SomeObject {
-      anotherField: String
-    }
-  `);
+      type SomeObject {
+        anotherField: String
+      }
+    `);
 
     const someSubschema = getSubschema(someSchema);
     const anotherSubschema = getSubschema(anotherSchema);
@@ -135,8 +135,8 @@ describe('Plan', () => {
 
     const operation = parse(
       `{
-      someObject { someField anotherField }
-    }`,
+        someObject { someField anotherField }
+      }`,
       { noLocation: true },
     ).definitions[0] as OperationDefinitionNode;
 
@@ -146,8 +146,8 @@ describe('Plan', () => {
     expect(someSubschemaSelections).to.deep.equal(
       parseSelectionSet(
         `{
-        someObject { someField }
-      }`,
+          someObject { someField }
+        }`,
       ).selections,
     );
 
