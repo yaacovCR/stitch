@@ -107,63 +107,63 @@ describe('Plan', () => {
       ).selections,
     );
   });
-});
 
-it('works to split subfields', () => {
-  const someSchema = buildSchema(`
-    type Query {
-      someObject: SomeObject
-    }
+  it('works to split subfields', () => {
+    const someSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
 
-    type SomeObject {
-      someField: String
-    }
-  `);
+      type SomeObject {
+        someField: String
+      }
+    `);
 
-  const anotherSchema = buildSchema(`
-    type Query {
-      someObject: SomeObject
-    }
+    const anotherSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
 
-    type SomeObject {
-      anotherField: String
-    }
-  `);
+      type SomeObject {
+        anotherField: String
+      }
+    `);
 
-  const someSubschema = getSubschema(someSchema);
-  const anotherSubschema = getSubschema(anotherSchema);
-  const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
 
-  const operation = parse(
-    `{
-      someObject { someField anotherField }
-    }`,
-    { noLocation: true },
-  ).definitions[0] as OperationDefinitionNode;
-
-  const plan = createPlan(superSchema, operation);
-
-  const someSubschemaSelections = plan.map.get(someSubschema);
-  expect(someSubschemaSelections).to.deep.equal(
-    parseSelectionSet(
+    const operation = parse(
       `{
-        someObject { someField }
+        someObject { someField anotherField }
       }`,
-    ).selections,
-  );
+      { noLocation: true },
+    ).definitions[0] as OperationDefinitionNode;
 
-  const someObjectSubPlan = plan.subPlans.someObject;
+    const plan = createPlan(superSchema, operation);
 
-  expect(someObjectSubPlan.parentType).to.equal(
-    superSchema.getType('SomeObject'),
-  );
+    const someSubschemaSelections = plan.map.get(someSubschema);
+    expect(someSubschemaSelections).to.deep.equal(
+      parseSelectionSet(
+        `{
+          someObject { someField }
+        }`,
+      ).selections,
+    );
 
-  const anotherSubschemaSubPlan = someObjectSubPlan.map.get(anotherSubschema);
+    const someObjectSubPlan = plan.subPlans.someObject;
 
-  expect(anotherSubschemaSubPlan).to.deep.equal(
-    parseSelectionSet('{ anotherField }').selections,
-  );
+    expect(someObjectSubPlan.parentType).to.equal(
+      superSchema.getType('SomeObject'),
+    );
 
-  const anotherSubschemaPlan = plan.map.get(anotherSubschema);
-  expect(anotherSubschemaPlan).to.equal(undefined);
+    const anotherSubschemaSubPlan = someObjectSubPlan.map.get(anotherSubschema);
+
+    expect(anotherSubschemaSubPlan).to.deep.equal(
+      parseSelectionSet('{ anotherField }').selections,
+    );
+
+    const anotherSubschemaPlan = plan.map.get(anotherSubschema);
+    expect(anotherSubschemaPlan).to.equal(undefined);
+  });
 });
