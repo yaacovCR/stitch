@@ -166,4 +166,71 @@ describe('Plan', () => {
     const anotherSubschemaPlan = plan.map.get(anotherSubschema);
     expect(anotherSubschemaPlan).to.equal(undefined);
   });
+
+  it('works to split sub-subfields', () => {
+    const someSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        someField: SomeNestedObject
+      }
+
+      type SomeNestedObject {
+        someNestedField: String
+      }
+    `);
+
+    const anotherSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        someField: SomeNestedObject
+      }
+
+      type SomeNestedObject {
+        anotherNestedField: String
+      }
+    `);
+
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+
+    const operation = parse(
+      `{
+        someObject { someField { someNestedField anotherNestedField } }
+      }`,
+      { noLocation: true },
+    ).definitions[0] as OperationDefinitionNode;
+
+    const plan = createPlan(superSchema, operation);
+
+    const someSubschemaSelections = plan.map.get(someSubschema);
+    expect(someSubschemaSelections).to.deep.equal(
+      parseSelectionSet(
+        `{
+          someObject { someField { someNestedField } }
+        }`,
+      ).selections,
+    );
+
+    const someObjectSubPlan = plan.subPlans['someObject.someField'];
+
+    expect(someObjectSubPlan.parentType).to.equal(
+      superSchema.getType('SomeNestedObject'),
+    );
+
+    const anotherSubschemaSubPlan = someObjectSubPlan.map.get(anotherSubschema);
+
+    expect(anotherSubschemaSubPlan).to.deep.equal(
+      parseSelectionSet('{ anotherNestedField }').selections,
+    );
+
+    const anotherSubschemaPlan = plan.map.get(anotherSubschema);
+    expect(anotherSubschemaPlan).to.equal(undefined);
+  });
 });
