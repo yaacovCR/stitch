@@ -218,13 +218,14 @@ describe('Plan', () => {
       ).selections,
     );
 
-    const someObjectSubPlan = plan.subPlans['someObject.someField'];
+    const someNestedObjectSubPlan = plan.subPlans.someObject.subPlans.someField;
 
-    expect(someObjectSubPlan.parentType).to.equal(
+    expect(someNestedObjectSubPlan.parentType).to.equal(
       superSchema.getType('SomeNestedObject'),
     );
 
-    const anotherSubschemaSubPlan = someObjectSubPlan.map.get(anotherSubschema);
+    const anotherSubschemaSubPlan =
+      someNestedObjectSubPlan.map.get(anotherSubschema);
 
     expect(anotherSubschemaSubPlan).to.deep.equal(
       parseSelectionSet('{ anotherNestedField }').selections,
