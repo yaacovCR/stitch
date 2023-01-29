@@ -142,9 +142,14 @@ export class Plan {
       fieldPlan.map.delete(subschema);
     }
 
-    const responseKey = field.alias?.value ?? field.name.value;
+    if (
+      fieldPlan.map.size > 0 ||
+      Object.values(fieldPlan.subPlans).length > 0
+    ) {
+      const responseKey = field.alias?.value ?? field.name.value;
 
-    this.subPlans[responseKey] = fieldPlan;
+      this.subPlans[responseKey] = fieldPlan;
+    }
   }
 
   _getSubschemaAndSelections(
