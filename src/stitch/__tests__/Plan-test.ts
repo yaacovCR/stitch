@@ -148,7 +148,7 @@ describe('Plan', () => {
       }
       SubPlan for 'someObject':
         Map:
-        Subschema 0:
+        Subschema 1:
         {
           anotherField
         }
@@ -210,7 +210,7 @@ describe('Plan', () => {
       SubPlan for 'someObject':
         SubPlan for 'someField':
           Map:
-          Subschema 0:
+          Subschema 1:
           {
             anotherNestedField
           }

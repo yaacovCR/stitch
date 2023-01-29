@@ -229,19 +229,23 @@ export class Plan {
     let result = '';
     const spaces = new Array(indent).fill(' ', 0, indent).join('');
 
-    const mapEntries = Array.from(this.map.values()).map((selections, i) => {
-      let mapEntry = '';
-      mapEntry += `${spaces}Subschema ${i}:\n`;
+    const mapEntries = Array.from(this.map.entries()).map(
+      ([subschema, selections]) => {
+        let mapEntry = '';
+        mapEntry += `${spaces}Subschema ${this.superSchema.getSubschemaId(
+          subschema,
+        )}:\n`;
 
-      mapEntry += this._printSelectionSet(
-        {
-          kind: Kind.SELECTION_SET,
-          selections,
-        },
-        indent,
-      );
-      return mapEntry;
-    });
+        mapEntry += this._printSelectionSet(
+          {
+            kind: Kind.SELECTION_SET,
+            selections,
+          },
+          indent,
+        );
+        return mapEntry;
+      },
+    );
 
     if (mapEntries.length > 0) {
       result += `${spaces}Map:\n`;
