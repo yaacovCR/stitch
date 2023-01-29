@@ -20,19 +20,15 @@ export class Plan {
     const splitSelections = this._splitSelections(
       parentType,
       inlinedSelections,
-      [],
     );
     this.map = splitSelections;
   }
-  _splitSelections(parentType, selections, path) {
+  _splitSelections(parentType, selections) {
     const map = new Map();
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addField(parentType, selection, map, [
-            ...path,
-            selection.name.value,
-          ]);
+          this._addField(parentType, selection, map);
           break;
         }
         case Kind.INLINE_FRAGMENT: {
@@ -40,7 +36,7 @@ export class Plan {
           const refinedType = typeName
             ? this.superSchema.getType(typeName)
             : parentType;
-          this._addInlineFragment(refinedType, selection, map, path);
+          this._addInlineFragment(refinedType, selection, map);
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -55,7 +51,7 @@ export class Plan {
     }
     return map;
   }
-  _addField(parentType, field, map, path) {
+  _addField(parentType, field, map) {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
     const subschemaSets = subschemaSetsByField[field.name.value];
@@ -76,13 +72,13 @@ export class Plan {
       return;
     }
     const fieldType = fieldDef.type;
-    const subPlan = new Plan(
+    const fieldPlan = new Plan(
       this.superSchema,
       getNamedType(fieldType),
       field.selectionSet.selections,
       this.fragmentMap,
     );
-    const filteredSelections = subPlan.map.get(subschema);
+    const filteredSelections = fieldPlan.map.get(subschema);
     if (filteredSelections) {
       selections.push({
         ...field,
@@ -91,14 +87,10 @@ export class Plan {
           selections: filteredSelections,
         },
       });
-      subPlan.map.delete(subschema);
+      fieldPlan.map.delete(subschema);
     }
-    for (const [fieldPath, fieldSubPlan] of Object.entries(subPlan.subPlans)) {
-      this.subPlans[[...path, fieldPath].join('.')] = fieldSubPlan;
-    }
-    if (subPlan.map.size > 0) {
-      this.subPlans[path.join('.')] = subPlan;
-    }
+    const responseKey = field.alias?.value ?? field.name.value;
+    this.subPlans[responseKey] = fieldPlan;
   }
   _getSubschemaAndSelections(subschemas, map) {
     let selections;
@@ -130,11 +122,10 @@ export class Plan {
       }
     }
   }
-  _addInlineFragment(parentType, fragment, map, path) {
+  _addInlineFragment(parentType, fragment, map) {
     const splitSelections = this._splitSelections(
       parentType,
       fragment.selectionSet.selections,
-      path,
     );
     for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
       const splitFragment = {

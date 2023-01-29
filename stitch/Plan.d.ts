@@ -28,13 +28,11 @@ export declare class Plan {
   _splitSelections(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-    path: Array<string>,
   ): Map<Subschema, Array<SelectionNode>>;
   _addField(
     parentType: GraphQLObjectType | GraphQLInterfaceType,
     field: FieldNode,
     map: Map<Subschema, Array<SelectionNode>>,
-    path: Array<string>,
   ): void;
   _getSubschemaAndSelections(
     subschemas: ReadonlyArray<Subschema>,
@@ -51,6 +49,5 @@ export declare class Plan {
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
     map: Map<Subschema, Array<SelectionNode>>,
-    path: Array<string>,
   ): void;
 }
