@@ -7,6 +7,7 @@ import type {
   GraphQLObjectType,
   InlineFragmentNode,
   SelectionNode,
+  SelectionSetNode,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 import type { Subschema, SuperSchema } from './SuperSchema';
@@ -50,4 +51,6 @@ export declare class Plan {
     fragment: InlineFragmentNode,
     map: Map<Subschema, Array<SelectionNode>>,
   ): void;
+  print(indent?: number): string;
+  _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string;
 }

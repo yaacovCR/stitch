@@ -14,13 +14,13 @@ const operations = [
  * @internal
  */
 class SuperSchema {
-  constructor(schemas) {
-    this.subschemas = schemas;
+  constructor(subschemas) {
+    this.subschemaIds = new Map();
     this.subschemaSetsByTypeAndField = Object.create(null);
     this.mergedRootTypes = Object.create(null);
     this.mergedTypes = Object.create(null);
     this.mergedDirectives = Object.create(null);
-    this._createMergedElements();
+    this._createMergedElements(subschemas);
     this.mergedSchema = new graphql_1.GraphQLSchema({
       query: this.mergedRootTypes[graphql_1.OperationTypeNode.QUERY],
       mutation: this.mergedRootTypes[graphql_1.OperationTypeNode.MUTATION],
@@ -30,36 +30,37 @@ class SuperSchema {
       directives: Object.values(this.mergedDirectives),
     });
     const queryType = this.mergedSchema.getQueryType();
-    if (queryType) {
-      const introspectionSubschema = {
-        schema: this.mergedSchema,
-        executor: (args) =>
-          (0, graphql_1.execute)({
-            ...args,
-            schema: this.mergedSchema,
-          }),
-      };
-      for (const [name, type] of Object.entries(
-        this.mergedSchema.getTypeMap(),
-      )) {
-        if (!name.startsWith('__')) {
-          continue;
-        }
-        if ((0, graphql_1.isCompositeType)(type)) {
-          this._addToSubschemaSets(introspectionSubschema, name, type);
-        }
-      }
-      const subSchemaSetsByField =
-        this.subschemaSetsByTypeAndField[queryType.name];
-      subSchemaSetsByField.__schema = new Set([introspectionSubschema]);
-      subSchemaSetsByField.__type = new Set([introspectionSubschema]);
+    if (!queryType) {
+      this.subschemas = subschemas;
+      return;
     }
+    const introspectionSubschema = {
+      schema: this.mergedSchema,
+      executor: (args) =>
+        (0, graphql_1.execute)({
+          ...args,
+          schema: this.mergedSchema,
+        }),
+    };
+    for (const [name, type] of Object.entries(this.mergedSchema.getTypeMap())) {
+      if (!name.startsWith('__')) {
+        continue;
+      }
+      if ((0, graphql_1.isCompositeType)(type)) {
+        this._addToSubschemaSets(introspectionSubschema, name, type);
+      }
+    }
+    const subSchemaSetsByField =
+      this.subschemaSetsByTypeAndField[queryType.name];
+    subSchemaSetsByField.__schema = new Set([introspectionSubschema]);
+    subSchemaSetsByField.__type = new Set([introspectionSubschema]);
+    this.subschemas = [introspectionSubschema, ...subschemas];
   }
-  _createMergedElements() {
+  _createMergedElements(subschemas) {
     const originalRootTypes = Object.create(null);
     const originalTypes = Object.create(null);
     const originalDirectives = Object.create(null);
-    for (const subschema of this.subschemas) {
+    for (const subschema of subschemas) {
       const schema = subschema.schema;
       for (const [name, type] of Object.entries(schema.getTypeMap())) {
         if (name.startsWith('__')) {
@@ -448,6 +449,14 @@ class SuperSchema {
       );
     }
     return coercedValues;
+  }
+  getSubschemaId(subschema) {
+    let subschemaId = this.subschemaIds.get(subschema);
+    if (subschemaId === undefined) {
+      subschemaId = this.subschemaIds.size.toString();
+      this.subschemaIds.set(subschema, subschemaId);
+    }
+    return subschemaId;
   }
 }
 exports.SuperSchema = SuperSchema;

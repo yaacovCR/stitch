@@ -99,13 +99,14 @@ export interface Subschema {
  */
 export declare class SuperSchema {
   subschemas: ReadonlyArray<Subschema>;
+  subschemaIds: Map<Subschema, string>;
   subschemaSetsByTypeAndField: ObjMap<ObjMap<Set<Subschema>>>;
   mergedRootTypes: ObjMap<GraphQLObjectType>;
   mergedTypes: ObjMap<GraphQLNamedType>;
   mergedDirectives: ObjMap<GraphQLDirective>;
   mergedSchema: GraphQLSchema;
-  constructor(schemas: ReadonlyArray<Subschema>);
-  _createMergedElements(): void;
+  constructor(subschemas: ReadonlyArray<Subschema>);
+  _createMergedElements(subschemas: ReadonlyArray<Subschema>): void;
   _addToSubschemaSets(
     subschema: Subschema,
     name: string,
@@ -201,5 +202,6 @@ export declare class SuperSchema {
   ): {
     [variable: string]: unknown;
   };
+  getSubschemaId(subschema: Subschema): string;
 }
 export {};

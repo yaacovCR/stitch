@@ -148,5 +148,45 @@ class Plan {
       }
     }
   }
+  print(indent = 0) {
+    let result = '';
+    const spaces = new Array(indent).fill(' ', 0, indent).join('');
+    const mapEntries = Array.from(this.map.entries()).map(
+      ([subschema, selections]) => {
+        let mapEntry = '';
+        mapEntry += `${spaces}Subschema ${this.superSchema.getSubschemaId(
+          subschema,
+        )}:\n`;
+        mapEntry += this._printSelectionSet(
+          {
+            kind: graphql_1.Kind.SELECTION_SET,
+            selections,
+          },
+          indent,
+        );
+        return mapEntry;
+      },
+    );
+    if (mapEntries.length > 0) {
+      result += `${spaces}Map:\n`;
+    }
+    const subPlanEntries = Array.from(Object.entries(this.subPlans)).map(
+      ([responseKey, plan]) => {
+        let subPlanEntry = '';
+        subPlanEntry += `${spaces}SubPlan for '${responseKey}':\n`;
+        subPlanEntry += plan.print(indent + 2);
+        return subPlanEntry;
+      },
+    );
+    result += [...mapEntries, ...subPlanEntries].join('\n');
+    return result;
+  }
+  _printSelectionSet(selectionSet, indent) {
+    const spaces = new Array(indent).fill(' ', 0, indent).join('');
+    return (0, graphql_1.print)(selectionSet)
+      .split('\n')
+      .map((line) => `${spaces}${line}`)
+      .join('\n');
+  }
 }
 exports.Plan = Plan;
