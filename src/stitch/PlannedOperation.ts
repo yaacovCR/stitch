@@ -181,20 +181,6 @@ export class PlannedOperation {
       : { data: dataOrNull };
   }
 
-  _handleAsyncPossibleMultiPartResult<
-    T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(
-    path: Array<number | string>,
-    promiseContext: PromiseContext,
-    result: T,
-  ): void {
-    promiseContext.promiseCount--;
-    this._handlePossibleMultiPartResult(path, result);
-    if (promiseContext.promiseCount === 0) {
-      promiseContext.trigger();
-    }
-  }
-
   _handleMaybeAsyncPossibleMultiPartResult<
     T extends PromiseOrValue<
       ExecutionResult | ExperimentalIncrementalExecutionResults
@@ -217,6 +203,20 @@ export class PlannedOperation {
       );
     } else {
       this._handlePossibleMultiPartResult(path, result);
+    }
+  }
+
+  _handleAsyncPossibleMultiPartResult<
+    T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
+  >(
+    path: Array<number | string>,
+    promiseContext: PromiseContext,
+    result: T,
+  ): void {
+    promiseContext.promiseCount--;
+    this._handlePossibleMultiPartResult(path, result);
+    if (promiseContext.promiseCount === 0) {
+      promiseContext.trigger();
     }
   }
 
