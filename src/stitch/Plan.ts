@@ -3,7 +3,6 @@ import type {
   FragmentDefinitionNode,
   GraphQLCompositeType,
   GraphQLField,
-  GraphQLInterfaceType,
   GraphQLObjectType,
   InlineFragmentNode,
   SelectionNode,
@@ -11,6 +10,9 @@ import type {
 } from 'graphql';
 import {
   getNamedType,
+  isCompositeType,
+  isInterfaceType,
+  isObjectType,
   Kind,
   print,
   SchemaMetaFieldDef,
@@ -21,6 +23,7 @@ import {
 import type { ObjMap } from '../types/ObjMap';
 
 import { inlineRootFragments } from '../utilities/inlineRootFragments.js';
+import { inspect } from '../utilities/inspect.js';
 import { invariant } from '../utilities/invariant.js';
 
 import type { Subschema, SuperSchema } from './SuperSchema';
@@ -64,18 +67,20 @@ export class Plan {
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addField(
-            parentType as GraphQLObjectType | GraphQLInterfaceType,
-            selection,
-            map,
-          );
+          this._addField(parentType, selection, map);
           break;
         }
         case Kind.INLINE_FRAGMENT: {
           const typeName = selection.typeCondition?.name.value;
           const refinedType = typeName
-            ? (this.superSchema.getType(typeName) as GraphQLCompositeType)
+            ? this.superSchema.getType(typeName)
             : parentType;
+
+          invariant(
+            isCompositeType(refinedType),
+            `Invalid type condition ${inspect(refinedType)}`,
+          );
+
           this._addInlineFragment(refinedType, selection, map);
           break;
         }
@@ -92,7 +97,7 @@ export class Plan {
   }
 
   _addField(
-    parentType: GraphQLObjectType | GraphQLInterfaceType,
+    parentType: GraphQLCompositeType,
     field: FieldNode,
     map: Map<Subschema, Array<SelectionNode>>,
   ): void {
@@ -176,9 +181,18 @@ export class Plan {
   }
 
   _getFieldDef(
-    parentType: GraphQLObjectType | GraphQLInterfaceType,
+    parentType: GraphQLCompositeType,
     fieldName: string,
   ): GraphQLField<any, any> | undefined {
+    if (fieldName === '__typename') {
+      return TypeNameMetaFieldDef;
+    }
+
+    invariant(
+      isObjectType(parentType) || isInterfaceType(parentType),
+      `Invalid parent type ${inspect(parentType)}.`,
+    );
+
     const fields = parentType.getFields();
 
     const field = fields[fieldName];
@@ -193,8 +207,6 @@ export class Plan {
           return SchemaMetaFieldDef;
         case TypeMetaFieldDef.name:
           return TypeMetaFieldDef;
-        case TypeNameMetaFieldDef.name:
-          return TypeNameMetaFieldDef;
       }
     }
   }
