@@ -204,9 +204,10 @@ export class PlanResult {
       this._handleSingleResult(result.initialResult);
 
       if (this._consolidator === undefined) {
-        this._consolidator = new Consolidator<SubsequentIncrementalExecutionResult>([
-          result.subsequentResults,
-        ]);
+        this._consolidator =
+          new Consolidator<SubsequentIncrementalExecutionResult>([
+            result.subsequentResults,
+          ]);
       } else {
         this._consolidator.add(result.subsequentResults);
       }

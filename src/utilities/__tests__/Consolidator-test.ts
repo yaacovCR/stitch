@@ -190,7 +190,9 @@ describe('Consolidator', () => {
   });
 
   it('deferred generator vs later generator', async () => {
-    const consolidator = new Consolidator([deferredGen([10, 20, 30, 40, 50], 60)]);
+    const consolidator = new Consolidator([
+      deferredGen([10, 20, 30, 40, 50], 60),
+    ]);
 
     consolidator.add(gen([1, 2, 3, 4, 5], 6));
     consolidator.close();
