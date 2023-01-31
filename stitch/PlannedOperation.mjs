@@ -1,5 +1,6 @@
 import { GraphQLError, Kind } from 'graphql';
 import { isAsyncIterable } from '../predicates/isAsyncIterable.mjs';
+import { isObjectLike } from '../predicates/isObjectLike.mjs';
 import { isPromise } from '../predicates/isPromise.mjs';
 import { Consolidator } from '../utilities/Consolidator.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
@@ -18,28 +19,30 @@ export class PlannedOperation {
   }
   execute() {
     for (const [subschema, subschemaSelections] of this.plan.map.entries()) {
-      const document = {
-        kind: Kind.DOCUMENT,
-        definitions: [
-          {
-            ...this.operation,
-            selectionSet: {
-              kind: Kind.SELECTION_SET,
-              selections: subschemaSelections,
-            },
-          },
-          ...this.fragments,
-        ],
-      };
       const result = subschema.executor({
-        document,
+        document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult(result);
+      this._handleMaybeAsyncPossibleMultiPartResult([], result);
     }
     return this._promiseContext !== undefined
       ? this._promiseContext.promise.then(() => this._return())
       : this._return();
+  }
+  _createDocument(selections) {
+    return {
+      kind: Kind.DOCUMENT,
+      definitions: [
+        {
+          ...this.operation,
+          selectionSet: {
+            kind: Kind.SELECTION_SET,
+            selections,
+          },
+        },
+        ...this.fragments,
+      ],
+    };
   }
   _incrementPromiseContext() {
     if (this._promiseContext) {
@@ -76,19 +79,7 @@ export class PlannedOperation {
       );
       return { errors: [error] };
     }
-    const document = {
-      kind: Kind.DOCUMENT,
-      definitions: [
-        {
-          ...this.operation,
-          selectionSet: {
-            kind: Kind.SELECTION_SET,
-            selections: subschemaSelections,
-          },
-        },
-        ...this.fragments,
-      ],
-    };
+    const document = this._createDocument(subschemaSelections);
     const result = subscriber({
       document,
       variables: this.rawVariableValues,
@@ -115,42 +106,46 @@ export class PlannedOperation {
       ? { data: dataOrNull, errors: this._errors }
       : { data: dataOrNull };
   }
-  _handleAsyncPossibleMultiPartResult(promiseContext, result) {
+  _handleAsyncPossibleMultiPartResult(path, promiseContext, result) {
     promiseContext.promiseCount--;
-    this._handlePossibleMultiPartResult(result);
+    this._handlePossibleMultiPartResult(path, result);
     if (promiseContext.promiseCount === 0) {
       promiseContext.trigger();
     }
   }
-  _handleMaybeAsyncPossibleMultiPartResult(result) {
+  _handleMaybeAsyncPossibleMultiPartResult(path, result) {
     if (isPromise(result)) {
       const promiseContext = this._incrementPromiseContext();
       result.then(
         (resolved) =>
-          this._handleAsyncPossibleMultiPartResult(promiseContext, resolved),
+          this._handleAsyncPossibleMultiPartResult(
+            path,
+            promiseContext,
+            resolved,
+          ),
         (err) =>
-          this._handleAsyncPossibleMultiPartResult(promiseContext, {
+          this._handleAsyncPossibleMultiPartResult(path, promiseContext, {
             data: null,
             errors: [new GraphQLError(err.message, { originalError: err })],
           }),
       );
     } else {
-      this._handlePossibleMultiPartResult(result);
+      this._handlePossibleMultiPartResult(path, result);
     }
   }
-  _handlePossibleMultiPartResult(result) {
+  _handlePossibleMultiPartResult(path, result) {
     if ('initialResult' in result) {
-      this._handleSingleResult(result.initialResult);
+      this._handleSingleResult(path, result.initialResult);
       if (this._consolidator === undefined) {
         this._consolidator = new Consolidator([result.subsequentResults]);
       } else {
         this._consolidator.add(result.subsequentResults);
       }
     } else {
-      this._handleSingleResult(result);
+      this._handleSingleResult(path, result);
     }
   }
-  _handleSingleResult(result) {
+  _handleSingleResult(path, result) {
     if (result.errors != null) {
       this._errors.push(...result.errors);
     }
@@ -161,7 +156,46 @@ export class PlannedOperation {
       this._nullData = true;
       return;
     }
-    Object.assign(this._data, result.data);
+    const parent = this._getParentAtPath(path, this._data);
+    for (const [key, value] of Object.entries(result.data)) {
+      this._deepMerge(parent, key, value);
+      const subPlan = this.plan.subPlans[key];
+      if (subPlan && value) {
+        this._executeSubPlan(subPlan, [...path, key]);
+      }
+    }
+  }
+  _getParentAtPath(path, data) {
+    if (path.length === 0) {
+      return data;
+    }
+    const [key, ...rest] = path;
+    return this._getParentAtPath(rest, data[key]);
+  }
+  _executeSubPlan(subPlan, path) {
+    for (const [subschema, subschemaSelections] of subPlan.map.entries()) {
+      const result = subschema.executor({
+        document: this._createDocument(subschemaSelections),
+        variables: this.rawVariableValues,
+      });
+      this._handleMaybeAsyncPossibleMultiPartResult(path, result);
+    }
+  }
+  _deepMerge(parent, key, value) {
+    if (!isObjectLike(parent[key]) || !isObjectLike(value)) {
+      parent[key] = value;
+      return;
+    }
+    if (Array.isArray(value)) {
+      const parentArray = parent[key];
+      for (let i = 0; i < value.length; i++) {
+        this._deepMerge(parentArray, i, value[i]);
+      }
+    }
+    for (const [subKey, subValue] of Object.entries(value)) {
+      const parentObjMap = parent[key];
+      this._deepMerge(parentObjMap, subKey, subValue);
+    }
   }
   _handlePossibleStream(result) {
     if (isAsyncIterable(result)) {

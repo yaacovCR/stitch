@@ -1,9 +1,11 @@
 import type {
+  DocumentNode,
   ExecutionResult,
   ExperimentalIncrementalExecutionResults,
   FragmentDefinitionNode,
   InitialIncrementalExecutionResult,
   OperationDefinitionNode,
+  SelectionNode,
   SubsequentIncrementalExecutionResult,
 } from 'graphql';
 import { GraphQLError } from 'graphql';
@@ -47,6 +49,7 @@ export declare class PlannedOperation {
   execute(): PromiseOrValue<
     ExecutionResult | ExperimentalIncrementalExecutionResults
   >;
+  _createDocument(selections: Array<SelectionNode>): DocumentNode;
   _incrementPromiseContext(): PromiseContext;
   subscribe(): PromiseOrValue<
     ExecutionResult | SimpleAsyncGenerator<ExecutionResult>
@@ -56,17 +59,32 @@ export declare class PlannedOperation {
   >;
   _handleAsyncPossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(promiseContext: PromiseContext, result: T): void;
+  >(
+    path: Array<number | string>,
+    promiseContext: PromiseContext,
+    result: T,
+  ): void;
   _handleMaybeAsyncPossibleMultiPartResult<
     T extends PromiseOrValue<
       ExecutionResult | ExperimentalIncrementalExecutionResults
     >,
-  >(result: T): void;
+  >(path: Array<string | number>, result: T): void;
   _handlePossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(result: T): void;
+  >(path: Array<string | number>, result: T): void;
   _handleSingleResult(
+    path: Array<string | number>,
     result: ExecutionResult | InitialIncrementalExecutionResult,
+  ): void;
+  _getParentAtPath<P>(
+    path: Array<string | number>,
+    data: P,
+  ): ObjMap<unknown> | Array<unknown>;
+  _executeSubPlan(subPlan: Plan, path: Array<string | number>): void;
+  _deepMerge<P extends ObjMap<unknown> | Array<unknown>>(
+    parent: P,
+    key: keyof P,
+    value: unknown,
   ): void;
   _handlePossibleStream<
     T extends ExecutionResult | SimpleAsyncGenerator<ExecutionResult>,
