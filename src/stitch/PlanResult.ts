@@ -90,25 +90,14 @@ export class PlanResult {
 
       if (isPromise(result)) {
         const promiseContext = this._incrementPromiseContext();
-
         result.then(
-          (resolved) => {
-            promiseContext.promiseCount--;
-            this._handlePossibleMultiPartResult(resolved);
-            if (promiseContext.promiseCount === 0) {
-              promiseContext.trigger();
-            }
-          },
-          (err) => {
-            promiseContext.promiseCount--;
-            this._handlePossibleMultiPartResult({
+          (resolved) =>
+            this._handleAsyncPossibleMultiPartResult(promiseContext, resolved),
+          (err) =>
+            this._handleAsyncPossibleMultiPartResult(promiseContext, {
               data: null,
               errors: [new GraphQLError(err.message, { originalError: err })],
-            });
-            if (promiseContext.promiseCount === 0) {
-              promiseContext.trigger();
-            }
-          },
+            }),
         );
       } else {
         this._handlePossibleMultiPartResult(result);
@@ -211,6 +200,16 @@ export class PlanResult {
     return this._errors.length > 0
       ? { data: dataOrNull, errors: this._errors }
       : { data: dataOrNull };
+  }
+
+  _handleAsyncPossibleMultiPartResult<
+    T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
+  >(promiseContext: PromiseContext, result: T): void {
+    promiseContext.promiseCount--;
+    this._handlePossibleMultiPartResult(result);
+    if (promiseContext.promiseCount === 0) {
+      promiseContext.trigger();
+    }
   }
 
   _handlePossibleMultiPartResult<
