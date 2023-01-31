@@ -6,7 +6,7 @@ import { invariant } from '../utilities/invariant.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
 import { Plan } from './Plan.ts';
-import { PlanResult } from './PlanResult.ts';
+import { PlannedOperation } from './PlannedOperation.ts';
 export function subscribe(
   args: ExecutionArgs,
 ): PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>> {
@@ -36,11 +36,11 @@ export function subscribe(
     operation.selectionSet.selections,
     fragmentMap,
   );
-  const planResult = new PlanResult(
+  const plannedOperation = new PlannedOperation(
     plan,
     operation,
     fragments,
     rawVariableValues,
   );
-  return planResult.subscribe();
+  return plannedOperation.subscribe();
 }

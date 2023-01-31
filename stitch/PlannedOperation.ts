@@ -24,7 +24,7 @@ interface PromiseContext {
 /**
  * @internal
  */
-export class PlanResult {
+export class PlannedOperation {
   plan: Plan;
   operation: OperationDefinitionNode;
   fragments: ReadonlyArray<FragmentDefinitionNode>;

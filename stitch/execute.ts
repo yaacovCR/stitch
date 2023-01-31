@@ -7,7 +7,7 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
 import { Plan } from './Plan.ts';
-import { PlanResult } from './PlanResult.ts';
+import { PlannedOperation } from './PlannedOperation.ts';
 export function execute(
   args: ExecutionArgs,
 ): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults> {
@@ -36,11 +36,11 @@ export function execute(
     operation.selectionSet.selections,
     fragmentMap,
   );
-  const planResult = new PlanResult(
+  const plannedOperation = new PlannedOperation(
     plan,
     operation,
     fragments,
     rawVariableValues,
   );
-  return planResult.execute();
+  return plannedOperation.execute();
 }
