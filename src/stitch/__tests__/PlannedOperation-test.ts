@@ -80,9 +80,9 @@ describe('PlannedOperation', () => {
       { noLocation: true },
     ).definitions[0] as OperationDefinitionNode;
 
-    const plannedOperaton = createPlannedOperation(superSchema, operation);
+    const plannedOperation = createPlannedOperation(superSchema, operation);
 
-    expect(plannedOperaton.execute()).to.deep.equal({
+    expect(plannedOperation.execute()).to.deep.equal({
       data: {
         __schema: {
           queryType: {
