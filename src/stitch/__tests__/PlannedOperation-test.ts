@@ -150,4 +150,63 @@ describe('PlannedOperation', () => {
       },
     });
   });
+
+  it('works to stitch sub-subfields', () => {
+    const someSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        someField: SomeNestedObject
+      }
+
+      type SomeNestedObject {
+        someNestedField: String
+      }
+    `);
+
+    const anotherSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+        anotherNestedField: String
+      }
+
+      type SomeObject {
+        someField: SomeNestedObject
+      }
+
+      type SomeNestedObject {
+        anotherNestedField: String
+      }
+    `);
+
+    const someSubschema = getSubschema(someSchema, {
+      someObject: { someField: { someNestedField: 'someNestedField' } },
+    });
+    const anotherSubschema = getSubschema(anotherSchema, {
+      anotherNestedField: 'anotherNestedField',
+    });
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+
+    const operation = parse(
+      `{
+        someObject { someField { someNestedField anotherNestedField } }
+      }`,
+      { noLocation: true },
+    ).definitions[0] as OperationDefinitionNode;
+
+    const plannedOperation = createPlannedOperation(superSchema, operation);
+
+    expect(plannedOperation.execute()).to.deep.equal({
+      data: {
+        someObject: {
+          someField: {
+            someNestedField: 'someNestedField',
+            anotherNestedField: 'anotherNestedField',
+          },
+        },
+      },
+    });
+  });
 });
