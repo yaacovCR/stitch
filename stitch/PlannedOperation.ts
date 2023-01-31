@@ -66,7 +66,7 @@ export class PlannedOperation {
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult([], result);
+      this._handleMaybeAsyncPossibleMultiPartResult(this._data, result);
     }
     return this._promiseContext !== undefined
       ? this._promiseContext.promise.then(() => this._return())
@@ -157,44 +157,40 @@ export class PlannedOperation {
     T extends PromiseOrValue<
       ExecutionResult | ExperimentalIncrementalExecutionResults
     >,
-  >(path: Array<string | number>, result: T): void {
+  >(parent: ObjMap<unknown>, result: T): void {
     if (isPromise(result)) {
       const promiseContext = this._incrementPromiseContext();
       result.then(
         (resolved) =>
           this._handleAsyncPossibleMultiPartResult(
-            path,
+            parent,
             promiseContext,
             resolved,
           ),
         (err) =>
-          this._handleAsyncPossibleMultiPartResult(path, promiseContext, {
+          this._handleAsyncPossibleMultiPartResult(parent, promiseContext, {
             data: null,
             errors: [new GraphQLError(err.message, { originalError: err })],
           }),
       );
     } else {
-      this._handlePossibleMultiPartResult(path, result);
+      this._handlePossibleMultiPartResult(parent, result);
     }
   }
   _handleAsyncPossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(
-    path: Array<number | string>,
-    promiseContext: PromiseContext,
-    result: T,
-  ): void {
+  >(parent: ObjMap<unknown>, promiseContext: PromiseContext, result: T): void {
     promiseContext.promiseCount--;
-    this._handlePossibleMultiPartResult(path, result);
+    this._handlePossibleMultiPartResult(parent, result);
     if (promiseContext.promiseCount === 0) {
       promiseContext.trigger();
     }
   }
   _handlePossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(path: Array<string | number>, result: T): void {
+  >(parent: ObjMap<unknown>, result: T): void {
     if ('initialResult' in result) {
-      this._handleSingleResult(path, result.initialResult);
+      this._handleSingleResult(parent, result.initialResult);
       if (this._consolidator === undefined) {
         this._consolidator =
           new Consolidator<SubsequentIncrementalExecutionResult>([
@@ -204,11 +200,11 @@ export class PlannedOperation {
         this._consolidator.add(result.subsequentResults);
       }
     } else {
-      this._handleSingleResult(path, result);
+      this._handleSingleResult(parent, result);
     }
   }
   _handleSingleResult(
-    path: Array<string | number>,
+    parent: ObjMap<unknown>,
     result: ExecutionResult | InitialIncrementalExecutionResult,
   ): void {
     if (result.errors != null) {
@@ -221,48 +217,31 @@ export class PlannedOperation {
       this._nullData = true;
       return;
     }
-    const parent = this._getParentAtPath(path, this._data);
     for (const [key, value] of Object.entries(result.data)) {
-      this._deepMerge(parent, key as keyof typeof parent, value);
+      this._deepMerge(parent, key, value);
       const subPlan = this.plan.subPlans[key];
       if (subPlan && value) {
-        this._executeSubPlan(subPlan, [...path, key]);
+        this._executeSubPlan(parent[key] as ObjMap<unknown>, subPlan);
       }
     }
   }
-  _getParentAtPath<P>(
-    path: Array<string | number>,
-    data: P,
-  ): ObjMap<unknown> | Array<unknown> {
-    if (path.length === 0) {
-      return data as ObjMap<unknown> | Array<unknown>;
-    }
-    const [key, ...rest] = path;
-    return this._getParentAtPath(rest, data[key as keyof P]);
-  }
-  _executeSubPlan(subPlan: Plan, path: Array<string | number>): void {
+  _executeSubPlan(parent: ObjMap<unknown>, subPlan: Plan): void {
     for (const [subschema, subschemaSelections] of subPlan.map.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult(path, result);
+      this._handleMaybeAsyncPossibleMultiPartResult(parent, result);
     }
   }
-  _deepMerge<P extends ObjMap<unknown> | Array<unknown>>(
-    parent: P,
-    key: keyof P,
-    value: unknown,
-  ): void {
-    if (!isObjectLike(parent[key]) || !isObjectLike(value)) {
-      parent[key] = value as P[keyof P];
+  _deepMerge(parent: ObjMap<unknown>, key: string, value: unknown): void {
+    if (
+      !isObjectLike(parent[key]) ||
+      !isObjectLike(value) ||
+      Array.isArray(value)
+    ) {
+      parent[key] = value;
       return;
-    }
-    if (Array.isArray(value)) {
-      const parentArray = parent[key] as Array<unknown>;
-      for (let i = 0; i < value.length; i++) {
-        this._deepMerge(parentArray, i, value[i]);
-      }
     }
     for (const [subKey, subValue] of Object.entries(value)) {
       const parentObjMap = parent[key] as ObjMap<unknown>;
