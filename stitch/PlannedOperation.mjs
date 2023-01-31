@@ -158,20 +158,25 @@ export class PlannedOperation {
     }
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(parent, key, value);
-      const subPlan = this.plan.subPlans[key];
-      if (subPlan && value) {
-        this._executeSubPlan(parent[key], subPlan);
+    }
+    this._executeSubPlans(result.data, this.plan.subPlans);
+  }
+  _executeSubPlans(data, subPlans) {
+    for (const [key, subPlan] of Object.entries(subPlans)) {
+      if (data[key]) {
+        this._executeSubPlan(data[key], subPlan);
       }
     }
   }
-  _executeSubPlan(parent, subPlan) {
-    for (const [subschema, subschemaSelections] of subPlan.map.entries()) {
+  _executeSubPlan(parent, plan) {
+    for (const [subschema, subschemaSelections] of plan.map.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
       this._handleMaybeAsyncPossibleMultiPartResult(parent, result);
     }
+    this._executeSubPlans(parent, plan.subPlans);
   }
   _deepMerge(parent, key, value) {
     if (
