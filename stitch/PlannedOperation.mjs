@@ -1,15 +1,12 @@
-'use strict';
-Object.defineProperty(exports, '__esModule', { value: true });
-exports.PlanResult = void 0;
-const graphql_1 = require('graphql');
-const isAsyncIterable_js_1 = require('../predicates/isAsyncIterable.js');
-const isPromise_js_1 = require('../predicates/isPromise.js');
-const Consolidator_js_1 = require('../utilities/Consolidator.js');
-const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
+import { GraphQLError, Kind } from 'graphql';
+import { isAsyncIterable } from '../predicates/isAsyncIterable.mjs';
+import { isPromise } from '../predicates/isPromise.mjs';
+import { Consolidator } from '../utilities/Consolidator.mjs';
+import { mapAsyncIterable } from './mapAsyncIterable.mjs';
 /**
  * @internal
  */
-class PlanResult {
+export class PlannedOperation {
   constructor(plan, operation, fragments, rawVariableValues) {
     this.plan = plan;
     this.operation = operation;
@@ -22,12 +19,12 @@ class PlanResult {
   execute() {
     for (const [subschema, subschemaSelections] of this.plan.map.entries()) {
       const document = {
-        kind: graphql_1.Kind.DOCUMENT,
+        kind: Kind.DOCUMENT,
         definitions: [
           {
             ...this.operation,
             selectionSet: {
-              kind: graphql_1.Kind.SELECTION_SET,
+              kind: Kind.SELECTION_SET,
               selections: subschemaSelections,
             },
           },
@@ -65,30 +62,27 @@ class PlanResult {
   subscribe() {
     const iteration = this.plan.map.entries().next();
     if (iteration.done) {
-      const error = new graphql_1.GraphQLError(
-        'Could not route subscription.',
-        {
-          nodes: this.operation,
-        },
-      );
+      const error = new GraphQLError('Could not route subscription.', {
+        nodes: this.operation,
+      });
       return { errors: [error] };
     }
     const [subschema, subschemaSelections] = iteration.value;
     const subscriber = subschema.subscriber;
     if (!subscriber) {
-      const error = new graphql_1.GraphQLError(
+      const error = new GraphQLError(
         'Subschema is not configured to execute subscription operation.',
         { nodes: this.operation },
       );
       return { errors: [error] };
     }
     const document = {
-      kind: graphql_1.Kind.DOCUMENT,
+      kind: Kind.DOCUMENT,
       definitions: [
         {
           ...this.operation,
           selectionSet: {
-            kind: graphql_1.Kind.SELECTION_SET,
+            kind: Kind.SELECTION_SET,
             selections: subschemaSelections,
           },
         },
@@ -99,7 +93,7 @@ class PlanResult {
       document,
       variables: this.rawVariableValues,
     });
-    if ((0, isPromise_js_1.isPromise)(result)) {
+    if (isPromise(result)) {
       return result.then((resolved) => this._handlePossibleStream(resolved));
     }
     return this._handlePossibleStream(result);
@@ -129,7 +123,7 @@ class PlanResult {
     }
   }
   _handleMaybeAsyncPossibleMultiPartResult(result) {
-    if ((0, isPromise_js_1.isPromise)(result)) {
+    if (isPromise(result)) {
       const promiseContext = this._incrementPromiseContext();
       result.then(
         (resolved) =>
@@ -137,9 +131,7 @@ class PlanResult {
         (err) =>
           this._handleAsyncPossibleMultiPartResult(promiseContext, {
             data: null,
-            errors: [
-              new graphql_1.GraphQLError(err.message, { originalError: err }),
-            ],
+            errors: [new GraphQLError(err.message, { originalError: err })],
           }),
       );
     } else {
@@ -150,9 +142,7 @@ class PlanResult {
     if ('initialResult' in result) {
       this._handleSingleResult(result.initialResult);
       if (this._consolidator === undefined) {
-        this._consolidator = new Consolidator_js_1.Consolidator([
-          result.subsequentResults,
-        ]);
+        this._consolidator = new Consolidator([result.subsequentResults]);
       } else {
         this._consolidator.add(result.subsequentResults);
       }
@@ -174,13 +164,9 @@ class PlanResult {
     Object.assign(this._data, result.data);
   }
   _handlePossibleStream(result) {
-    if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
-      return (0, mapAsyncIterable_js_1.mapAsyncIterable)(
-        result,
-        (payload) => payload,
-      );
+    if (isAsyncIterable(result)) {
+      return mapAsyncIterable(result, (payload) => payload);
     }
     return result;
   }
 }
-exports.PlanResult = PlanResult;

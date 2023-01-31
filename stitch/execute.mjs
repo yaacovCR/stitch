@@ -1,7 +1,7 @@
 import { GraphQLError } from 'graphql';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
 import { Plan } from './Plan.mjs';
-import { PlanResult } from './PlanResult.mjs';
+import { PlannedOperation } from './PlannedOperation.mjs';
 export function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -28,11 +28,11 @@ export function execute(args) {
     operation.selectionSet.selections,
     fragmentMap,
   );
-  const planResult = new PlanResult(
+  const plannedOperation = new PlannedOperation(
     plan,
     operation,
     fragments,
     rawVariableValues,
   );
-  return planResult.execute();
+  return plannedOperation.execute();
 }
