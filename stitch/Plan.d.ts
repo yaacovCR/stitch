@@ -52,5 +52,16 @@ export declare class Plan {
     map: Map<Subschema, Array<SelectionNode>>,
   ): void;
   print(indent?: number): string;
+  _printMap(indent: number): string;
+  _printSubschemaSelections(
+    subschema: Subschema,
+    selections: ReadonlyArray<SelectionNode>,
+    indent: number,
+  ): string;
+  _printSubPlans(
+    subPlans: ReadonlyArray<[string, Plan]>,
+    indent: number,
+  ): string;
+  _printSubPlan(responseKey: string, subPlan: Plan, indent: number): string;
   _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string;
 }
