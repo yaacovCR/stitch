@@ -57,6 +57,11 @@ export declare class PlannedOperation {
   _return(): PromiseOrValue<
     ExecutionResult | ExperimentalIncrementalExecutionResults
   >;
+  _handleMaybeAsyncPossibleMultiPartResult<
+    T extends PromiseOrValue<
+      ExecutionResult | ExperimentalIncrementalExecutionResults
+    >,
+  >(path: Array<string | number>, result: T): void;
   _handleAsyncPossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
   >(
@@ -64,11 +69,6 @@ export declare class PlannedOperation {
     promiseContext: PromiseContext,
     result: T,
   ): void;
-  _handleMaybeAsyncPossibleMultiPartResult<
-    T extends PromiseOrValue<
-      ExecutionResult | ExperimentalIncrementalExecutionResults
-    >,
-  >(path: Array<string | number>, result: T): void;
   _handlePossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
   >(path: Array<string | number>, result: T): void;
