@@ -38,19 +38,7 @@ class PlanResult {
         document,
         variables: this.rawVariableValues,
       });
-      if ((0, isPromise_js_1.isPromise)(result)) {
-        const promiseContext = this._incrementPromiseContext();
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        result.then((resolved) => {
-          promiseContext.promiseCount--;
-          this._handlePossibleMultiPartResult(resolved);
-          if (promiseContext.promiseCount === 0) {
-            promiseContext.trigger();
-          }
-        });
-      } else {
-        this._handlePossibleMultiPartResult(result);
-      }
+      this._handleMaybeAsyncPossibleMultiPartResult(result);
     }
     return this._promiseContext !== undefined
       ? this._promiseContext.promise.then(() => this._return())
@@ -132,6 +120,31 @@ class PlanResult {
     return this._errors.length > 0
       ? { data: dataOrNull, errors: this._errors }
       : { data: dataOrNull };
+  }
+  _handleAsyncPossibleMultiPartResult(promiseContext, result) {
+    promiseContext.promiseCount--;
+    this._handlePossibleMultiPartResult(result);
+    if (promiseContext.promiseCount === 0) {
+      promiseContext.trigger();
+    }
+  }
+  _handleMaybeAsyncPossibleMultiPartResult(result) {
+    if ((0, isPromise_js_1.isPromise)(result)) {
+      const promiseContext = this._incrementPromiseContext();
+      result.then(
+        (resolved) =>
+          this._handleAsyncPossibleMultiPartResult(promiseContext, resolved),
+        (err) =>
+          this._handleAsyncPossibleMultiPartResult(promiseContext, {
+            data: null,
+            errors: [
+              new graphql_1.GraphQLError(err.message, { originalError: err }),
+            ],
+          }),
+      );
+    } else {
+      this._handlePossibleMultiPartResult(result);
+    }
   }
   _handlePossibleMultiPartResult(result) {
     if ('initialResult' in result) {

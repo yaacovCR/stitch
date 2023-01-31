@@ -54,6 +54,14 @@ export declare class PlanResult {
   _return(): PromiseOrValue<
     ExecutionResult | ExperimentalIncrementalExecutionResults
   >;
+  _handleAsyncPossibleMultiPartResult<
+    T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
+  >(promiseContext: PromiseContext, result: T): void;
+  _handleMaybeAsyncPossibleMultiPartResult<
+    T extends PromiseOrValue<
+      ExecutionResult | ExperimentalIncrementalExecutionResults
+    >,
+  >(result: T): void;
   _handlePossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
   >(result: T): void;
