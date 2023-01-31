@@ -1,17 +1,15 @@
-import type { DocumentNode, ExecutionResult } from 'graphql';
-import { GraphQLError, Kind, OperationTypeNode } from 'graphql';
+import type { ExecutionResult } from 'graphql';
+import { GraphQLError, OperationTypeNode } from 'graphql';
 
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
 
-import { isAsyncIterable } from '../predicates/isAsyncIterable.js';
-import { isPromise } from '../predicates/isPromise.js';
 import { invariant } from '../utilities/invariant.js';
 
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
-import { mapAsyncIterable } from './mapAsyncIterable.js';
 import { Plan } from './Plan.js';
+import { PlanResult } from './PlanResult.js';
 
 export function subscribe(
   args: ExecutionArgs,
@@ -49,58 +47,12 @@ export function subscribe(
     fragmentMap,
   );
 
-  const iteration = plan.map.entries().next();
-  if (iteration.done) {
-    const error = new GraphQLError('Could not route subscription.', {
-      nodes: operation,
-    });
+  const planResult = new PlanResult(
+    plan,
+    operation,
+    fragments,
+    rawVariableValues,
+  );
 
-    return { errors: [error] };
-  }
-
-  const [subschema, subschemaSelections] = iteration.value;
-
-  const subscriber = subschema.subscriber;
-  if (!subscriber) {
-    const error = new GraphQLError(
-      'Subschema is not configured to execute subscription operation.',
-      { nodes: operation },
-    );
-
-    return { errors: [error] };
-  }
-
-  const document: DocumentNode = {
-    kind: Kind.DOCUMENT,
-    definitions: [
-      {
-        ...operation,
-        selectionSet: {
-          kind: Kind.SELECTION_SET,
-          selections: subschemaSelections,
-        },
-      },
-      ...fragments,
-    ],
-  };
-
-  const result = subscriber({
-    document,
-    variables: rawVariableValues,
-  });
-
-  if (isPromise(result)) {
-    return result.then((resolved) => handlePossibleStream(resolved));
-  }
-  return handlePossibleStream(result);
-}
-
-function handlePossibleStream<
-  T extends ExecutionResult | SimpleAsyncGenerator<ExecutionResult>,
->(result: T): PromiseOrValue<T> {
-  if (isAsyncIterable(result)) {
-    return mapAsyncIterable(result, (payload) => payload) as T;
-  }
-
-  return result;
+  return planResult.subscribe();
 }
