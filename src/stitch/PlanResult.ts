@@ -89,25 +89,10 @@ export class PlanResult {
       });
 
       if (isPromise(result)) {
-        if (this._promiseContext) {
-          this._promiseContext.promiseCount++;
-        } else {
-          let trigger: (() => void) | undefined;
-          const promiseContext: PromiseContext = {
-            promiseCount: 1,
-            promise: new Promise((resolve) => {
-              trigger = resolve;
-            }),
-          } as PromiseContext;
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          promiseContext.trigger = trigger!;
-          this._promiseContext = promiseContext;
-        }
+        const promiseContext = this._incrementPromiseContext();
 
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         result.then((resolved) => {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const promiseContext = this._promiseContext!;
           promiseContext.promiseCount--;
           this._handlePossibleMultiPartResult(resolved);
           if (promiseContext.promiseCount === 0) {
@@ -122,6 +107,26 @@ export class PlanResult {
     return this._promiseContext !== undefined
       ? this._promiseContext.promise.then(() => this._return())
       : this._return();
+  }
+
+  _incrementPromiseContext(): PromiseContext {
+    if (this._promiseContext) {
+      this._promiseContext.promiseCount++;
+      return this._promiseContext;
+    }
+
+    let trigger!: () => void;
+    const promiseCount = 1;
+    const promise = new Promise<void>((resolve) => {
+      trigger = resolve;
+    });
+    const promiseContext: PromiseContext = {
+      promiseCount,
+      promise,
+      trigger,
+    };
+    this._promiseContext = promiseContext;
+    return promiseContext;
   }
 
   subscribe(): PromiseOrValue<
