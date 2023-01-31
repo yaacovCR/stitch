@@ -47,6 +47,7 @@ export declare class PlanResult {
   execute(): PromiseOrValue<
     ExecutionResult | ExperimentalIncrementalExecutionResults
   >;
+  _incrementPromiseContext(): PromiseContext;
   subscribe(): PromiseOrValue<
     ExecutionResult | SimpleAsyncGenerator<ExecutionResult>
   >;

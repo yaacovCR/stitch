@@ -39,24 +39,9 @@ class PlanResult {
         variables: this.rawVariableValues,
       });
       if ((0, isPromise_js_1.isPromise)(result)) {
-        if (this._promiseContext) {
-          this._promiseContext.promiseCount++;
-        } else {
-          let trigger;
-          const promiseContext = {
-            promiseCount: 1,
-            promise: new Promise((resolve) => {
-              trigger = resolve;
-            }),
-          };
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          promiseContext.trigger = trigger;
-          this._promiseContext = promiseContext;
-        }
+        const promiseContext = this._incrementPromiseContext();
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         result.then((resolved) => {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const promiseContext = this._promiseContext;
           promiseContext.promiseCount--;
           this._handlePossibleMultiPartResult(resolved);
           if (promiseContext.promiseCount === 0) {
@@ -70,6 +55,24 @@ class PlanResult {
     return this._promiseContext !== undefined
       ? this._promiseContext.promise.then(() => this._return())
       : this._return();
+  }
+  _incrementPromiseContext() {
+    if (this._promiseContext) {
+      this._promiseContext.promiseCount++;
+      return this._promiseContext;
+    }
+    let trigger;
+    const promiseCount = 1;
+    const promise = new Promise((resolve) => {
+      trigger = resolve;
+    });
+    const promiseContext = {
+      promiseCount,
+      promise,
+      trigger,
+    };
+    this._promiseContext = promiseContext;
+    return promiseContext;
   }
   subscribe() {
     const iteration = this.plan.map.entries().next();
