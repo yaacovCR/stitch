@@ -9,7 +9,7 @@ import { invariant } from '../utilities/invariant.js';
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
 import { Plan } from './Plan.js';
-import { PlanResult } from './PlanResult.js';
+import { PlannedOperation } from './PlannedOperation.js';
 
 export function subscribe(
   args: ExecutionArgs,
@@ -47,12 +47,12 @@ export function subscribe(
     fragmentMap,
   );
 
-  const planResult = new PlanResult(
+  const plannedOperation = new PlannedOperation(
     plan,
     operation,
     fragments,
     rawVariableValues,
   );
 
-  return planResult.subscribe();
+  return plannedOperation.subscribe();
 }
