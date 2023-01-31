@@ -88,20 +88,7 @@ export class PlanResult {
         variables: this.rawVariableValues,
       });
 
-      if (isPromise(result)) {
-        const promiseContext = this._incrementPromiseContext();
-        result.then(
-          (resolved) =>
-            this._handleAsyncPossibleMultiPartResult(promiseContext, resolved),
-          (err) =>
-            this._handleAsyncPossibleMultiPartResult(promiseContext, {
-              data: null,
-              errors: [new GraphQLError(err.message, { originalError: err })],
-            }),
-        );
-      } else {
-        this._handlePossibleMultiPartResult(result);
-      }
+      this._handleMaybeAsyncPossibleMultiPartResult(result);
     }
 
     return this._promiseContext !== undefined
@@ -209,6 +196,27 @@ export class PlanResult {
     this._handlePossibleMultiPartResult(result);
     if (promiseContext.promiseCount === 0) {
       promiseContext.trigger();
+    }
+  }
+
+  _handleMaybeAsyncPossibleMultiPartResult<
+    T extends PromiseOrValue<
+      ExecutionResult | ExperimentalIncrementalExecutionResults
+    >,
+  >(result: T): void {
+    if (isPromise(result)) {
+      const promiseContext = this._incrementPromiseContext();
+      result.then(
+        (resolved) =>
+          this._handleAsyncPossibleMultiPartResult(promiseContext, resolved),
+        (err) =>
+          this._handleAsyncPossibleMultiPartResult(promiseContext, {
+            data: null,
+            errors: [new GraphQLError(err.message, { originalError: err })],
+          }),
+      );
+    } else {
+      this._handlePossibleMultiPartResult(result);
     }
   }
 
