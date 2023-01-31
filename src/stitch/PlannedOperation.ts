@@ -252,15 +252,21 @@ export class PlannedOperation {
 
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(parent, key, value);
-      const subPlan = this.plan.subPlans[key];
-      if (subPlan && value) {
-        this._executeSubPlan(parent[key] as ObjMap<unknown>, subPlan);
+    }
+
+    this._executeSubPlans(result.data, this.plan.subPlans);
+  }
+
+  _executeSubPlans(data: ObjMap<unknown>, subPlans: ObjMap<Plan>): void {
+    for (const [key, subPlan] of Object.entries(subPlans)) {
+      if (data[key]) {
+        this._executeSubPlan(data[key] as ObjMap<unknown>, subPlan);
       }
     }
   }
 
-  _executeSubPlan(parent: ObjMap<unknown>, subPlan: Plan): void {
-    for (const [subschema, subschemaSelections] of subPlan.map.entries()) {
+  _executeSubPlan(parent: ObjMap<unknown>, plan: Plan): void {
+    for (const [subschema, subschemaSelections] of plan.map.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
@@ -268,6 +274,8 @@ export class PlannedOperation {
 
       this._handleMaybeAsyncPossibleMultiPartResult(parent, result);
     }
+
+    this._executeSubPlans(parent, plan.subPlans);
   }
 
   _deepMerge(parent: ObjMap<unknown>, key: string, value: unknown): void {
