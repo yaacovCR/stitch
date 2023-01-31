@@ -61,31 +61,19 @@ export declare class PlannedOperation {
     T extends PromiseOrValue<
       ExecutionResult | ExperimentalIncrementalExecutionResults
     >,
-  >(path: Array<string | number>, result: T): void;
+  >(parent: ObjMap<unknown>, result: T): void;
   _handleAsyncPossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(
-    path: Array<number | string>,
-    promiseContext: PromiseContext,
-    result: T,
-  ): void;
+  >(parent: ObjMap<unknown>, promiseContext: PromiseContext, result: T): void;
   _handlePossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(path: Array<string | number>, result: T): void;
+  >(parent: ObjMap<unknown>, result: T): void;
   _handleSingleResult(
-    path: Array<string | number>,
+    parent: ObjMap<unknown>,
     result: ExecutionResult | InitialIncrementalExecutionResult,
   ): void;
-  _getParentAtPath<P>(
-    path: Array<string | number>,
-    data: P,
-  ): ObjMap<unknown> | Array<unknown>;
-  _executeSubPlan(subPlan: Plan, path: Array<string | number>): void;
-  _deepMerge<P extends ObjMap<unknown> | Array<unknown>>(
-    parent: P,
-    key: keyof P,
-    value: unknown,
-  ): void;
+  _executeSubPlan(parent: ObjMap<unknown>, subPlan: Plan): void;
+  _deepMerge(parent: ObjMap<unknown>, key: string, value: unknown): void;
   _handlePossibleStream<
     T extends ExecutionResult | SimpleAsyncGenerator<ExecutionResult>,
   >(result: T): PromiseOrValue<T>;

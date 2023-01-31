@@ -23,7 +23,7 @@ export class PlannedOperation {
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult([], result);
+      this._handleMaybeAsyncPossibleMultiPartResult(this._data, result);
     }
     return this._promiseContext !== undefined
       ? this._promiseContext.promise.then(() => this._return())
@@ -106,46 +106,46 @@ export class PlannedOperation {
       ? { data: dataOrNull, errors: this._errors }
       : { data: dataOrNull };
   }
-  _handleMaybeAsyncPossibleMultiPartResult(path, result) {
+  _handleMaybeAsyncPossibleMultiPartResult(parent, result) {
     if (isPromise(result)) {
       const promiseContext = this._incrementPromiseContext();
       result.then(
         (resolved) =>
           this._handleAsyncPossibleMultiPartResult(
-            path,
+            parent,
             promiseContext,
             resolved,
           ),
         (err) =>
-          this._handleAsyncPossibleMultiPartResult(path, promiseContext, {
+          this._handleAsyncPossibleMultiPartResult(parent, promiseContext, {
             data: null,
             errors: [new GraphQLError(err.message, { originalError: err })],
           }),
       );
     } else {
-      this._handlePossibleMultiPartResult(path, result);
+      this._handlePossibleMultiPartResult(parent, result);
     }
   }
-  _handleAsyncPossibleMultiPartResult(path, promiseContext, result) {
+  _handleAsyncPossibleMultiPartResult(parent, promiseContext, result) {
     promiseContext.promiseCount--;
-    this._handlePossibleMultiPartResult(path, result);
+    this._handlePossibleMultiPartResult(parent, result);
     if (promiseContext.promiseCount === 0) {
       promiseContext.trigger();
     }
   }
-  _handlePossibleMultiPartResult(path, result) {
+  _handlePossibleMultiPartResult(parent, result) {
     if ('initialResult' in result) {
-      this._handleSingleResult(path, result.initialResult);
+      this._handleSingleResult(parent, result.initialResult);
       if (this._consolidator === undefined) {
         this._consolidator = new Consolidator([result.subsequentResults]);
       } else {
         this._consolidator.add(result.subsequentResults);
       }
     } else {
-      this._handleSingleResult(path, result);
+      this._handleSingleResult(parent, result);
     }
   }
-  _handleSingleResult(path, result) {
+  _handleSingleResult(parent, result) {
     if (result.errors != null) {
       this._errors.push(...result.errors);
     }
@@ -156,41 +156,31 @@ export class PlannedOperation {
       this._nullData = true;
       return;
     }
-    const parent = this._getParentAtPath(path, this._data);
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(parent, key, value);
       const subPlan = this.plan.subPlans[key];
       if (subPlan && value) {
-        this._executeSubPlan(subPlan, [...path, key]);
+        this._executeSubPlan(parent[key], subPlan);
       }
     }
   }
-  _getParentAtPath(path, data) {
-    if (path.length === 0) {
-      return data;
-    }
-    const [key, ...rest] = path;
-    return this._getParentAtPath(rest, data[key]);
-  }
-  _executeSubPlan(subPlan, path) {
+  _executeSubPlan(parent, subPlan) {
     for (const [subschema, subschemaSelections] of subPlan.map.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult(path, result);
+      this._handleMaybeAsyncPossibleMultiPartResult(parent, result);
     }
   }
   _deepMerge(parent, key, value) {
-    if (!isObjectLike(parent[key]) || !isObjectLike(value)) {
+    if (
+      !isObjectLike(parent[key]) ||
+      !isObjectLike(value) ||
+      Array.isArray(value)
+    ) {
       parent[key] = value;
       return;
-    }
-    if (Array.isArray(value)) {
-      const parentArray = parent[key];
-      for (let i = 0; i < value.length; i++) {
-        this._deepMerge(parentArray, i, value[i]);
-      }
     }
     for (const [subKey, subValue] of Object.entries(value)) {
       const parentObjMap = parent[key];
