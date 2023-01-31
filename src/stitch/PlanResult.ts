@@ -91,14 +91,25 @@ export class PlanResult {
       if (isPromise(result)) {
         const promiseContext = this._incrementPromiseContext();
 
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        result.then((resolved) => {
-          promiseContext.promiseCount--;
-          this._handlePossibleMultiPartResult(resolved);
-          if (promiseContext.promiseCount === 0) {
-            promiseContext.trigger();
-          }
-        });
+        result.then(
+          (resolved) => {
+            promiseContext.promiseCount--;
+            this._handlePossibleMultiPartResult(resolved);
+            if (promiseContext.promiseCount === 0) {
+              promiseContext.trigger();
+            }
+          },
+          (err) => {
+            promiseContext.promiseCount--;
+            this._handlePossibleMultiPartResult({
+              data: null,
+              errors: [new GraphQLError(err.message, { originalError: err })],
+            });
+            if (promiseContext.promiseCount === 0) {
+              promiseContext.trigger();
+            }
+          },
+        );
       } else {
         this._handlePossibleMultiPartResult(result);
       }
