@@ -5,7 +5,6 @@ import type {
   FragmentDefinitionNode,
   InitialIncrementalExecutionResult,
   OperationDefinitionNode,
-  SelectionNode,
   SubsequentIncrementalExecutionResult,
 } from 'graphql';
 import { GraphQLError, Kind } from 'graphql';
@@ -20,7 +19,7 @@ import { isPromise } from '../predicates/isPromise.js';
 import { Consolidator } from '../utilities/Consolidator.js';
 
 import { mapAsyncIterable } from './mapAsyncIterable.js';
-import type { Plan } from './Plan.js';
+import type { OperationPartial, Plan } from './Plan.js';
 
 interface PromiseContext {
   promiseCount: number;
@@ -70,9 +69,12 @@ export class PlannedOperation {
   execute(): PromiseOrValue<
     ExecutionResult | ExperimentalIncrementalExecutionResults
   > {
-    for (const [subschema, subschemaSelections] of this.plan.map.entries()) {
+    for (const [
+      subschema,
+      operationPartial,
+    ] of this.plan.operationPartials.entries()) {
       const result = subschema.executor({
-        document: this._createDocument(subschemaSelections),
+        document: this._createDocument(operationPartial),
         variables: this.rawVariableValues,
       });
 
@@ -84,7 +86,7 @@ export class PlannedOperation {
       : this._return();
   }
 
-  _createDocument(selections: Array<SelectionNode>): DocumentNode {
+  _createDocument(operationPartial: OperationPartial): DocumentNode {
     return {
       kind: Kind.DOCUMENT,
       definitions: [
@@ -92,7 +94,7 @@ export class PlannedOperation {
           ...this.operation,
           selectionSet: {
             kind: Kind.SELECTION_SET,
-            selections,
+            selections: operationPartial.selections,
           },
         },
         ...this.fragments,
@@ -123,7 +125,7 @@ export class PlannedOperation {
   subscribe(): PromiseOrValue<
     ExecutionResult | SimpleAsyncGenerator<ExecutionResult>
   > {
-    const iteration = this.plan.map.entries().next();
+    const iteration = this.plan.operationPartials.entries().next();
     if (iteration.done) {
       const error = new GraphQLError('Could not route subscription.', {
         nodes: this.operation,
@@ -132,7 +134,7 @@ export class PlannedOperation {
       return { errors: [error] };
     }
 
-    const [subschema, subschemaSelections] = iteration.value;
+    const [subschema, operationPartial] = iteration.value;
 
     const subscriber = subschema.subscriber;
     if (!subscriber) {
@@ -144,7 +146,7 @@ export class PlannedOperation {
       return { errors: [error] };
     }
 
-    const document = this._createDocument(subschemaSelections);
+    const document = this._createDocument(operationPartial);
 
     const result = subscriber({
       document,
@@ -283,9 +285,12 @@ export class PlannedOperation {
   }
 
   _executeSubPlan(parent: ObjMap<unknown>, plan: Plan): void {
-    for (const [subschema, subschemaSelections] of plan.map.entries()) {
+    for (const [
+      subschema,
+      operationPartial,
+    ] of plan.operationPartials.entries()) {
       const result = subschema.executor({
-        document: this._createDocument(subschemaSelections),
+        document: this._createDocument(operationPartial),
         variables: this.rawVariableValues,
       });
 

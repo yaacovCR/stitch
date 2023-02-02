@@ -28,6 +28,11 @@ import { invariant } from '../utilities/invariant.js';
 
 import type { Subschema, SuperSchema } from './SuperSchema';
 
+export interface OperationPartial {
+  selections: Array<SelectionNode>;
+  fragmentMap: ObjMap<FragmentDefinitionNode>;
+}
+
 /**
  * @internal
  */
@@ -35,7 +40,7 @@ export class Plan {
   superSchema: SuperSchema;
   parentType: GraphQLCompositeType;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, Array<SelectionNode>>;
+  operationPartials: Map<Subschema, OperationPartial>;
   subPlans: ObjMap<Plan>;
 
   constructor(
@@ -51,23 +56,21 @@ export class Plan {
 
     const inlinedSelections = inlineRootFragments(selections, fragmentMap);
 
-    const splitSelections = this._splitSelections(
+    this.operationPartials = this._getSplitOperationPartials(
       parentType,
       inlinedSelections,
     );
-
-    this.map = splitSelections;
   }
 
-  _splitSelections(
+  _getSplitOperationPartials(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-  ): Map<Subschema, Array<SelectionNode>> {
-    const map = new Map<Subschema, Array<SelectionNode>>();
+  ): Map<Subschema, OperationPartial> {
+    const operationPartials = new Map<Subschema, OperationPartial>();
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addField(parentType, selection, map);
+          this._addField(parentType, selection, operationPartials);
           break;
         }
         case Kind.INLINE_FRAGMENT: {
@@ -81,7 +84,7 @@ export class Plan {
             `Invalid type condition ${inspect(refinedType)}`,
           );
 
-          this._addInlineFragment(refinedType, selection, map);
+          this._addInlineFragment(refinedType, selection, operationPartials);
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -93,13 +96,13 @@ export class Plan {
         }
       }
     }
-    return map;
+    return operationPartials;
   }
 
   _addField(
     parentType: GraphQLCompositeType,
     field: FieldNode,
-    map: Map<Subschema, Array<SelectionNode>>,
+    operationPartials: Map<Subschema, OperationPartial>,
   ): void {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
@@ -110,13 +113,13 @@ export class Plan {
       return;
     }
 
-    const { subschema, selections } = this._getSubschemaAndSelections(
+    const { subschema, operationPartial } = this._getSubschemaAndSelections(
       Array.from(subschemaSets),
-      map,
+      operationPartials,
     );
 
     if (!field.selectionSet) {
-      selections.push(field);
+      operationPartial.selections.push(field);
       return;
     }
 
@@ -136,21 +139,22 @@ export class Plan {
       this.fragmentMap,
     );
 
-    const filteredSelections = fieldPlan.map.get(subschema);
+    const filteredOperationPartials =
+      fieldPlan.operationPartials.get(subschema);
 
-    if (filteredSelections) {
-      selections.push({
+    if (filteredOperationPartials) {
+      operationPartial.selections.push({
         ...field,
         selectionSet: {
           kind: Kind.SELECTION_SET,
-          selections: filteredSelections,
+          selections: filteredOperationPartials.selections,
         },
       });
-      fieldPlan.map.delete(subschema);
+      fieldPlan.operationPartials.delete(subschema);
     }
 
     if (
-      fieldPlan.map.size > 0 ||
+      fieldPlan.operationPartials.size > 0 ||
       Object.values(fieldPlan.subPlans).length > 0
     ) {
       const responseKey = field.alias?.value ?? field.name.value;
@@ -161,23 +165,23 @@ export class Plan {
 
   _getSubschemaAndSelections(
     subschemas: ReadonlyArray<Subschema>,
-    map: Map<Subschema, Array<SelectionNode>>,
+    operationPartials: Map<Subschema, OperationPartial>,
   ): {
     subschema: Subschema;
-    selections: Array<SelectionNode>;
+    operationPartial: OperationPartial;
   } {
-    let selections: Array<SelectionNode> | undefined;
+    let operationPartial: OperationPartial | undefined;
     for (const subschema of subschemas) {
-      selections = map.get(subschema);
-      if (selections) {
-        return { subschema, selections };
+      operationPartial = operationPartials.get(subschema);
+      if (operationPartial) {
+        return { subschema, operationPartial };
       }
     }
 
-    selections = [];
+    operationPartial = { selections: [], fragmentMap: Object.create(null) };
     const subschema = subschemas[0];
-    map.set(subschema, selections);
-    return { subschema, selections };
+    operationPartials.set(subschema, operationPartial);
+    return { subschema, operationPartial };
   }
 
   _getFieldDef(
@@ -214,32 +218,38 @@ export class Plan {
   _addInlineFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
-    map: Map<Subschema, Array<SelectionNode>>,
+    operationPartials: Map<Subschema, OperationPartial>,
   ): void {
-    const splitSelections = this._splitSelections(
+    const splitOperationPartials = this._getSplitOperationPartials(
       parentType,
       fragment.selectionSet.selections,
     );
-    for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
+    for (const [
+      fragmentSubschema,
+      fragmentOperationPartial,
+    ] of splitOperationPartials) {
       const splitFragment: InlineFragmentNode = {
         ...fragment,
         selectionSet: {
           kind: Kind.SELECTION_SET,
-          selections: fragmentSelections,
+          selections: fragmentOperationPartial.selections,
         },
       };
-      const selections = map.get(fragmentSubschema);
-      if (selections) {
-        selections.push(splitFragment);
+      const operationPartial = operationPartials.get(fragmentSubschema);
+      if (operationPartial) {
+        operationPartial.selections.push(splitFragment);
       } else {
-        map.set(fragmentSubschema, [splitFragment]);
+        operationPartials.set(fragmentSubschema, {
+          selections: [splitFragment],
+          fragmentMap: Object.create(null),
+        });
       }
     }
   }
 
   print(indent = 0): string {
     const entries = [];
-    if (this.map.size > 0) {
+    if (this.operationPartials.size > 0) {
       entries.push(this._printMap(indent));
     }
 
@@ -254,9 +264,13 @@ export class Plan {
   _printMap(indent: number): string {
     const spaces = new Array(indent).fill(' ', 0, indent).join('');
     let result = `${spaces}Map:\n`;
-    result += Array.from(this.map.entries())
-      .map(([subschema, selections]) =>
-        this._printSubschemaSelections(subschema, selections, indent + 2),
+    result += Array.from(this.operationPartials.entries())
+      .map(([subschema, operationPartials]) =>
+        this._printSubschemaSelections(
+          subschema,
+          operationPartials.selections,
+          indent + 2,
+        ),
       )
       .join('\n');
     return result;
