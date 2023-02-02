@@ -4,9 +4,10 @@ import { Repeater } from '@repeaterjs/repeater';
 /**
  * @internal
  */
-export class Consolidator<T> extends Repeater<T> {
+export class Consolidator<T, U> extends Repeater<U> {
   _asyncIterators: Set<AsyncIterator<T>>;
-  _push: Push<T> | undefined;
+  _processor: (value: T) => U | undefined;
+  _push: Push<U> | undefined;
   _stop: Stop | undefined;
   _started: boolean;
   _stopped: boolean;
@@ -19,7 +20,11 @@ export class Consolidator<T> extends Repeater<T> {
     (value?: IteratorResult<unknown>) => unknown
   >;
 
-  constructor(asyncIterables?: Array<AsyncIterable<T>>) {
+  constructor(
+    asyncIterables?: Array<AsyncIterable<T>>,
+    processor: (value: T) => U | undefined = (value: T) =>
+      value as unknown as U,
+  ) {
     super(async (push, stop) => {
       this._push = push;
       this._stop = stop;
@@ -55,6 +60,7 @@ export class Consolidator<T> extends Repeater<T> {
         this._signal = this._resetSignal();
       }
     });
+    this._processor = processor;
 
     this._asyncIterators = new Set();
     if (asyncIterables) {
@@ -115,8 +121,12 @@ export class Consolidator<T> extends Repeater<T> {
             return;
           }
 
-          // eslint-disable-next-line no-await-in-loop, @typescript-eslint/no-non-null-assertion
-          await this._push!(iteration.value as T);
+          const processed = this._processor(iteration.value as T);
+
+          if (processed !== undefined) {
+            // eslint-disable-next-line no-await-in-loop, @typescript-eslint/no-non-null-assertion
+            await this._push!(processed);
+          }
         }
       }
     } finally {
