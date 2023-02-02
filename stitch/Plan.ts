@@ -3,7 +3,6 @@ import type {
   FragmentDefinitionNode,
   GraphQLCompositeType,
   GraphQLField,
-  GraphQLInterfaceType,
   GraphQLObjectType,
   InlineFragmentNode,
   SelectionNode,
@@ -11,6 +10,9 @@ import type {
 } from 'graphql';
 import {
   getNamedType,
+  isCompositeType,
+  isInterfaceType,
+  isObjectType,
   Kind,
   print,
   SchemaMetaFieldDef,
@@ -19,6 +21,7 @@ import {
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
 import { inlineRootFragments } from '../utilities/inlineRootFragments.ts';
+import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
 import type { Subschema, SuperSchema } from './SuperSchema';
 /**
@@ -55,18 +58,16 @@ export class Plan {
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addField(
-            parentType as GraphQLObjectType | GraphQLInterfaceType,
-            selection,
-            map,
-          );
+          this._addField(parentType, selection, map);
           break;
         }
         case Kind.INLINE_FRAGMENT: {
           const typeName = selection.typeCondition?.name.value;
           const refinedType = typeName
-            ? (this.superSchema.getType(typeName) as GraphQLCompositeType)
+            ? this.superSchema.getType(typeName)
             : parentType;
+          isCompositeType(refinedType) ||
+            invariant(false, `Invalid type condition ${inspect(refinedType)}`);
           this._addInlineFragment(refinedType, selection, map);
           break;
         }
@@ -83,7 +84,7 @@ export class Plan {
     return map;
   }
   _addField(
-    parentType: GraphQLObjectType | GraphQLInterfaceType,
+    parentType: GraphQLCompositeType,
     field: FieldNode,
     map: Map<Subschema, Array<SelectionNode>>,
   ): void {
@@ -152,9 +153,15 @@ export class Plan {
     return { subschema, selections };
   }
   _getFieldDef(
-    parentType: GraphQLObjectType | GraphQLInterfaceType,
+    parentType: GraphQLCompositeType,
     fieldName: string,
   ): GraphQLField<any, any> | undefined {
+    if (fieldName === '__typename') {
+      return TypeNameMetaFieldDef;
+    }
+    isObjectType(parentType) ||
+      isInterfaceType(parentType) ||
+      invariant(false, `Invalid parent type ${inspect(parentType)}.`);
     const fields = parentType.getFields();
     const field = fields[fieldName];
     if (field) {
@@ -166,8 +173,6 @@ export class Plan {
           return SchemaMetaFieldDef;
         case TypeMetaFieldDef.name:
           return TypeMetaFieldDef;
-        case TypeNameMetaFieldDef.name:
-          return TypeNameMetaFieldDef;
       }
     }
   }
