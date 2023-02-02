@@ -3,6 +3,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 exports.Plan = void 0;
 const graphql_1 = require('graphql');
 const inlineRootFragments_js_1 = require('../utilities/inlineRootFragments.js');
+const inspect_js_1 = require('../utilities/inspect.js');
 const invariant_js_1 = require('../utilities/invariant.js');
 /**
  * @internal
@@ -36,6 +37,13 @@ class Plan {
           const refinedType = typeName
             ? this.superSchema.getType(typeName)
             : parentType;
+          (0, graphql_1.isCompositeType)(refinedType) ||
+            (0, invariant_js_1.invariant)(
+              false,
+              `Invalid type condition ${(0, inspect_js_1.inspect)(
+                refinedType,
+              )}`,
+            );
           this._addInlineFragment(refinedType, selection, map);
           break;
         }
@@ -111,6 +119,15 @@ class Plan {
     return { subschema, selections };
   }
   _getFieldDef(parentType, fieldName) {
+    if (fieldName === '__typename') {
+      return graphql_1.TypeNameMetaFieldDef;
+    }
+    (0, graphql_1.isObjectType)(parentType) ||
+      (0, graphql_1.isInterfaceType)(parentType) ||
+      (0, invariant_js_1.invariant)(
+        false,
+        `Invalid parent type ${(0, inspect_js_1.inspect)(parentType)}.`,
+      );
     const fields = parentType.getFields();
     const field = fields[fieldName];
     if (field) {
@@ -122,8 +139,6 @@ class Plan {
           return graphql_1.SchemaMetaFieldDef;
         case graphql_1.TypeMetaFieldDef.name:
           return graphql_1.TypeMetaFieldDef;
-        case graphql_1.TypeNameMetaFieldDef.name:
-          return graphql_1.TypeNameMetaFieldDef;
       }
     }
   }

@@ -1,5 +1,8 @@
 import {
   getNamedType,
+  isCompositeType,
+  isInterfaceType,
+  isObjectType,
   Kind,
   print,
   SchemaMetaFieldDef,
@@ -7,6 +10,7 @@ import {
   TypeNameMetaFieldDef,
 } from 'graphql';
 import { inlineRootFragments } from '../utilities/inlineRootFragments.mjs';
+import { inspect } from '../utilities/inspect.mjs';
 import { invariant } from '../utilities/invariant.mjs';
 /**
  * @internal
@@ -37,6 +41,8 @@ export class Plan {
           const refinedType = typeName
             ? this.superSchema.getType(typeName)
             : parentType;
+          isCompositeType(refinedType) ||
+            invariant(false, `Invalid type condition ${inspect(refinedType)}`);
           this._addInlineFragment(refinedType, selection, map);
           break;
         }
@@ -112,6 +118,12 @@ export class Plan {
     return { subschema, selections };
   }
   _getFieldDef(parentType, fieldName) {
+    if (fieldName === '__typename') {
+      return TypeNameMetaFieldDef;
+    }
+    isObjectType(parentType) ||
+      isInterfaceType(parentType) ||
+      invariant(false, `Invalid parent type ${inspect(parentType)}.`);
     const fields = parentType.getFields();
     const field = fields[fieldName];
     if (field) {
@@ -123,8 +135,6 @@ export class Plan {
           return SchemaMetaFieldDef;
         case TypeMetaFieldDef.name:
           return TypeMetaFieldDef;
-        case TypeNameMetaFieldDef.name:
-          return TypeNameMetaFieldDef;
       }
     }
   }

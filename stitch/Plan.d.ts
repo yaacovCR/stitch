@@ -3,8 +3,6 @@ import type {
   FragmentDefinitionNode,
   GraphQLCompositeType,
   GraphQLField,
-  GraphQLInterfaceType,
-  GraphQLObjectType,
   InlineFragmentNode,
   SelectionNode,
   SelectionSetNode,
@@ -31,7 +29,7 @@ export declare class Plan {
     selections: ReadonlyArray<SelectionNode>,
   ): Map<Subschema, Array<SelectionNode>>;
   _addField(
-    parentType: GraphQLObjectType | GraphQLInterfaceType,
+    parentType: GraphQLCompositeType,
     field: FieldNode,
     map: Map<Subschema, Array<SelectionNode>>,
   ): void;
@@ -43,7 +41,7 @@ export declare class Plan {
     selections: Array<SelectionNode>;
   };
   _getFieldDef(
-    parentType: GraphQLObjectType | GraphQLInterfaceType,
+    parentType: GraphQLCompositeType,
     fieldName: string,
   ): GraphQLField<any, any> | undefined;
   _addInlineFragment(
