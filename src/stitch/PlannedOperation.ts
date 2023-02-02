@@ -260,9 +260,26 @@ export class PlannedOperation {
   _executeSubPlans(data: ObjMap<unknown>, subPlans: ObjMap<Plan>): void {
     for (const [key, subPlan] of Object.entries(subPlans)) {
       if (data[key]) {
-        this._executeSubPlan(data[key] as ObjMap<unknown>, subPlan);
+        this._executePossibleListSubPlan(
+          data[key] as ObjMap<unknown> | Array<unknown>,
+          subPlan,
+        );
       }
     }
+  }
+
+  _executePossibleListSubPlan(
+    parent: ObjMap<unknown> | Array<unknown>,
+    plan: Plan,
+  ): void {
+    if (Array.isArray(parent)) {
+      for (const item of parent) {
+        this._executePossibleListSubPlan(item, plan);
+      }
+      return;
+    }
+
+    this._executeSubPlan(parent, plan);
   }
 
   _executeSubPlan(parent: ObjMap<unknown>, plan: Plan): void {
