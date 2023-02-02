@@ -164,9 +164,18 @@ export class PlannedOperation {
   _executeSubPlans(data, subPlans) {
     for (const [key, subPlan] of Object.entries(subPlans)) {
       if (data[key]) {
-        this._executeSubPlan(data[key], subPlan);
+        this._executePossibleListSubPlan(data[key], subPlan);
       }
     }
+  }
+  _executePossibleListSubPlan(parent, plan) {
+    if (Array.isArray(parent)) {
+      for (const item of parent) {
+        this._executePossibleListSubPlan(item, plan);
+      }
+      return;
+    }
+    this._executeSubPlan(parent, plan);
   }
   _executeSubPlan(parent, plan) {
     for (const [subschema, subschemaSelections] of plan.map.entries()) {

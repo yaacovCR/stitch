@@ -73,6 +73,10 @@ export declare class PlannedOperation {
     result: ExecutionResult | InitialIncrementalExecutionResult,
   ): void;
   _executeSubPlans(data: ObjMap<unknown>, subPlans: ObjMap<Plan>): void;
+  _executePossibleListSubPlan(
+    parent: ObjMap<unknown> | Array<unknown>,
+    plan: Plan,
+  ): void;
   _executeSubPlan(parent: ObjMap<unknown>, plan: Plan): void;
   _deepMerge(parent: ObjMap<unknown>, key: string, value: unknown): void;
   _handlePossibleStream<
