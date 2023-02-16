@@ -1,22 +1,8 @@
 import { expect } from 'chai';
-import type {
-  ExecutionResult,
-  ExperimentalIncrementalExecutionResults,
-  GraphQLSchema,
-  InitialIncrementalExecutionResult,
-  OperationDefinitionNode,
-  SubsequentIncrementalExecutionResult,
-} from 'graphql';
-import {
-  buildSchema,
-  experimentalExecuteIncrementally,
-  OperationTypeNode,
-  parse,
-} from 'graphql';
-import type { PromiseOrValue } from 'graphql/jsutils/PromiseOrValue.js';
+import type { GraphQLSchema, OperationDefinitionNode } from 'graphql';
+import { buildSchema, execute, OperationTypeNode, parse } from 'graphql';
 import { describe, it } from 'mocha';
 
-import { isPromise } from '../../predicates/isPromise.js';
 import { invariant } from '../../utilities/invariant.js';
 
 import { Plan } from '../Plan.js';
@@ -28,7 +14,7 @@ function getSubschema(schema: GraphQLSchema, rootValue: unknown): Subschema {
   return {
     schema,
     executor: (args) =>
-      experimentalExecuteIncrementally({
+      execute({
         ...args,
         schema,
         rootValue,
@@ -52,31 +38,6 @@ function createPlannedOperation(
   );
 
   return new PlannedOperation(plan, operation, [], undefined);
-}
-
-async function complete(
-  maybePromisedResult: PromiseOrValue<
-    ExecutionResult | ExperimentalIncrementalExecutionResults
-  >,
-): Promise<
-  | ExecutionResult
-  | Array<
-      InitialIncrementalExecutionResult | SubsequentIncrementalExecutionResult
-    >
-> {
-  const result = isPromise(maybePromisedResult)
-    ? await maybePromisedResult
-    : maybePromisedResult;
-  if ('initialResult' in result) {
-    const results: Array<
-      InitialIncrementalExecutionResult | SubsequentIncrementalExecutionResult
-    > = [result.initialResult];
-    for await (const subsequentResult of result.subsequentResults) {
-      results.push(subsequentResult);
-    }
-    return results;
-  }
-  return result;
 }
 
 describe('PlannedOperation', () => {
@@ -442,79 +403,6 @@ describe('PlannedOperation', () => {
           ],
         },
       });
-    });
-  });
-
-  describe('stitching with defer', () => {
-    it('works to stitch subfields', async () => {
-      const someSchema = buildSchema(`
-        type Query {
-          someObject: [SomeObject]
-        }
-
-        type SomeObject {
-          someField: [String]
-        }
-    `);
-
-      const anotherSchema = buildSchema(`
-        type Query {
-          someObject: [SomeObject]
-          anotherField: [String]
-        }
-
-        type SomeObject {
-          anotherField: [String]
-        }
-      `);
-
-      const someSubschema = getSubschema(someSchema, {
-        someObject: [
-          { someField: ['someFieldA'] },
-          { someField: ['someFieldB'] },
-        ],
-      });
-      const anotherSubschema = getSubschema(anotherSchema, {
-        anotherField: ['anotherField'],
-      });
-      const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
-
-      const operation = parse(
-        '{ someObject { ... @defer { someField anotherField } } }',
-        {
-          noLocation: true,
-        },
-      ).definitions[0] as OperationDefinitionNode;
-
-      const plannedOperation = createPlannedOperation(superSchema, operation);
-
-      expect(await complete(plannedOperation.execute())).to.deep.equal([
-        {
-          data: { someObject: [{}, {}] },
-          hasNext: true,
-        },
-        {
-          incremental: [
-            {
-              data: {
-                someField: ['someFieldA'],
-                anotherField: ['anotherField'],
-              },
-
-              path: ['someObject', 0],
-            },
-            {
-              data: {
-                someField: ['someFieldB'],
-                anotherField: ['anotherField'],
-              },
-
-              path: ['someObject', 1],
-            },
-          ],
-          hasNext: false,
-        },
-      ]);
     });
   });
 });
