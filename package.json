@@ -42,7 +42,7 @@
     "test": "npm run lint && npm run check && npm run testonly && npm run prettier:check && npm run check:spelling",
     "lint": "eslint --rulesdir resources/eslint-internal-rules --cache --max-warnings 0 .",
     "check": "tsc --pretty",
-    "testonly": "mocha --full-trace src/**/__tests__/**/*-test.ts",
+    "testonly": "mocha --full-trace 'src/**/__tests__/**/*-test.ts'",
     "testonly:cover": "c8 npm run testonly",
     "testonly:watch": "npm run testonly -- --watch",
     "prettier": "prettier --cache --cache-strategy metadata --write --list-different .",
