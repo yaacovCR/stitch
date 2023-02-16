@@ -1,6 +1,6 @@
 import {
   coerceInputValue,
-  experimentalExecuteIncrementally,
+  execute,
   GraphQLDirective,
   GraphQLEnumType,
   GraphQLError,
@@ -57,7 +57,7 @@ export class SuperSchema {
     const introspectionSubschema = {
       schema: this.mergedSchema,
       executor: (args) =>
-        experimentalExecuteIncrementally({
+        execute({
           ...args,
           schema: this.mergedSchema,
         }),
