@@ -1,6 +1,6 @@
 'use strict';
 /**
- * big-schema/stitch provides a set of tools for stitching GraphQL schemas.
+ * stitch provides a set of tools for stitching GraphQL schemas.
  *
  * @packageDocumentation
  */

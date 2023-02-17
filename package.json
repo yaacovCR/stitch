@@ -1,5 +1,5 @@
 {
-  "name": "@big-schema/stitch",
+  "name": "@yaacovcr/stitch",
   "version": "0.0.0-alpha.0",
   "description": "Tools for Stitching GraphQL Schemas.",
   "license": "MIT",
@@ -16,13 +16,13 @@
     }
   },
   "sideEffects": false,
-  "homepage": "https://github.com/BigSchema/stitch",
+  "homepage": "https://github.com/yaacovCR/stitch",
   "bugs": {
-    "url": "https://github.com/BigSchema/stitch/issues"
+    "url": "https://github.com/yaacovCR/stitch/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/BigSchema/stitch.git"
+    "url": "https://github.com/yaacovCR/stitch.git"
   },
   "keywords": [
     "graphql",
