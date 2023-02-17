@@ -12,7 +12,7 @@ import {
 } from './utils.js';
 
 const LOCAL = 'local';
-const { tmpDirPath } = makeTmpDir('big-schema-stitch-npm-diff');
+const { tmpDirPath } = makeTmpDir('stitch-npm-diff');
 
 const args = process.argv.slice(2);
 let [fromRevision, toRevision] = args;

@@ -45,7 +45,7 @@ function buildPackage(outDir: string, isESMOnly: boolean): void {
   fs.writeFileSync(
     path.join(outDir, notSupportedTSVersionFile),
     // Provoke syntax error to show this message
-    `"Package '@big-schema/stitch' support only TS versions that are ${supportedTSVersions[0]}".`,
+    `"Package 'stitch' support only TS versions that are ${supportedTSVersions[0]}".`,
   );
 
   packageJSON.typesVersions = {

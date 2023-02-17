@@ -99,11 +99,11 @@ jobs:
 
             const replyMessage = `
             The latest changes of this PR are available on NPM as
-            [@big-schema/stitch@${packageJSON.version}](https://www.npmjs.com/package/@big-schema/stitch/v/${packageJSON.version})
+            [@yaacovcr/stitch@${packageJSON.version}](https://www.npmjs.com/package/@yaacovcr/stitch/v/${packageJSON.version})
             **Note: no gurantees provided so please use your own discretion.**
 
             Also you can depend on latest version built from this PR:
-            \`npm install --save @big-schema/stitch@${packageJSON.publishConfig.tag}\`
+            \`npm install --save @yaacovcr/stitch@${packageJSON.publishConfig.tag}\`
             `;
             fs.writeFileSync('./replyMessage.txt', replyMessage.trim());
 

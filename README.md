@@ -1,11 +1,11 @@
-# big-schema/stitch
+# @yaacovcr/stitch
 
-- big-schema/stitch provides a set of tools for stitching GraphQL schemas.
+- @yaacovcr/stitch provides a set of tools for stitching GraphQL schemas.
 
 ### Changelog
 
-Changes are tracked as [GitHub releases](https://github.com/BigSchema/stitch/releases).
+Changes are tracked as [GitHub releases](https://github.com/yaacovCR/stitch/releases).
 
 ### License
 
-big-schema/stitch is [MIT-licensed](./LICENSE).
+@yaacovcr/stitch is [MIT-licensed](./LICENSE).
