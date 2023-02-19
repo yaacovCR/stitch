@@ -82,6 +82,8 @@ function buildPackage(outDir: string, isESMOnly: boolean): void {
   }
 
   if (isESMOnly) {
+    packageJSON.publishConfig.directory = 'npmEsmDist';
+
     packageJSON.exports = {};
 
     const { emittedTSFiles } = emitTSFiles({
@@ -104,6 +106,8 @@ function buildPackage(outDir: string, isESMOnly: boolean): void {
     packageJSON.publishConfig.tag += '-esm';
     packageJSON.version += '+esm';
   } else {
+    packageJSON.publishConfig.directory = 'npmDist';
+
     delete packageJSON.type;
     packageJSON.main = 'index';
     packageJSON.module = 'index.mjs';
