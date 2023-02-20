@@ -1,6 +1,6 @@
 {
   "name": "@yaacovcr/stitch",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Tools for Stitching GraphQL Schemas.",
   "license": "MIT",
   "private": true,
@@ -82,6 +82,7 @@
   },
   "publishConfig": {
     "tag": "alpha",
+    "access": "public",
     "directory": "npmDist"
   },
   "dependencies": {
