@@ -33,7 +33,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build NPM package
-        run: npm run build:npm
+        run: npm run build:npm:dual
 
       - name: Upload npmDist package
         uses: actions/upload-artifact@v3

@@ -82,7 +82,7 @@ function generateReport(diffString: string): string {
 
 function prepareNPMPackage(revision: string): string {
   if (revision === LOCAL) {
-    npm({ cwd: localRepoPath(), quiet: true }).run('build:npm');
+    npm({ cwd: localRepoPath(), quiet: true }).run('build:npm:dual');
     return localRepoPath('npmDist');
   }
 
@@ -95,6 +95,6 @@ function prepareNPMPackage(revision: string): string {
   fs.mkdirSync(repoDir);
   childProcess.execSync(`git archive "${hash}" | tar -xC "${repoDir}"`);
   npm({ cwd: repoDir, quiet: true }).ci('--ignore-scripts');
-  npm({ cwd: repoDir, quiet: true }).run('build:npm');
+  npm({ cwd: repoDir, quiet: true }).run('build:npm:dual');
   return path.join(repoDir, 'npmDist');
 }
