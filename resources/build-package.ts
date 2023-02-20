@@ -6,22 +6,9 @@ import ts from 'typescript';
 
 import { changeExtensionInImportPaths } from './change-extension-in-import-paths.js';
 import { inlineInvariant } from './inline-invariant.js';
-import {
-  readPackageJSON,
-  readTSConfig,
-  showDirStats,
-  writeGeneratedFile,
-} from './utils.js';
+import { readPackageJSON, readTSConfig, writeGeneratedFile } from './utils.js';
 
-console.log('\n./npmDist');
-buildPackage('./npmDist', false);
-showDirStats('./npmDist');
-
-console.log('\n./npmEsmDist');
-buildPackage('./npmEsmDist', true);
-showDirStats('./npmEsmDist');
-
-function buildPackage(outDir: string, isESMOnly: boolean): void {
+export function buildPackage(outDir: string, isESMOnly: boolean): void {
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir);
 
@@ -82,8 +69,6 @@ function buildPackage(outDir: string, isESMOnly: boolean): void {
   }
 
   if (isESMOnly) {
-    packageJSON.publishConfig.directory = 'npmEsmDist';
-
     packageJSON.exports = {};
 
     const { emittedTSFiles } = emitTSFiles({
@@ -106,8 +91,6 @@ function buildPackage(outDir: string, isESMOnly: boolean): void {
     packageJSON.publishConfig.tag += '-esm';
     packageJSON.version += '+esm';
   } else {
-    packageJSON.publishConfig.directory = 'npmDist';
-
     delete packageJSON.type;
     packageJSON.main = 'index';
     packageJSON.module = 'index.mjs';
