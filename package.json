@@ -50,8 +50,6 @@
     "build:npm:esm-only": "ts-node resources/build-npm-esm-only.ts",
     "build:deno": "ts-node resources/build-deno.ts",
     "diff:npm": "ts-node resources/diff-npm-package.ts",
-    "gitpublish:npm": "bash ./resources/gitpublish.sh npm npmDist",
-    "gitpublish:deno": "bash ./resources/gitpublish.sh deno denoDist",
     "changeset": "changeset add",
     "changeset:version": "changeset version && npm install --package-lock-only",
     "changeset:publish": "npm run build:npm:dual && changeset publish"
