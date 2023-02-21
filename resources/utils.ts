@@ -210,7 +210,8 @@ interface PackageJSON {
   types?: string;
   typesVersions: { [ranges: string]: { [path: string]: Array<string> } };
   devDependencies?: { [name: string]: string };
-  publishConfig: { tag: string; directory: string };
+  publishConfig: { tag: string; access?: string };
+  workspaces?: Array<string>;
 
   // TODO: remove after we drop CJS support
   main?: string;

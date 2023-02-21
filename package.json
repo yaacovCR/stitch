@@ -2,6 +2,7 @@
   "name": "@yaacovcr/stitch",
   "version": "0.0.1",
   "description": "Tools for Stitching GraphQL Schemas.",
+  "private": true,
   "license": "MIT",
   "type": "module",
   "typesVersions": {
@@ -52,7 +53,7 @@
     "diff:npm": "ts-node resources/diff-npm-package.ts",
     "changeset": "changeset add",
     "changeset:version": "changeset version && npm install --package-lock-only",
-    "changeset:publish": "npm run build:npm:dual && changeset publish"
+    "changeset:publish": "ts-node resources/prepare-for-publish.ts && cd publishWorkspaceConfig && changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.26.0",
@@ -78,9 +79,7 @@
     "typescript": "4.9.3"
   },
   "publishConfig": {
-    "tag": "alpha",
-    "access": "public",
-    "directory": "npmDist"
+    "tag": "alpha"
   },
   "dependencies": {
     "@repeaterjs/repeater": "^3.0.4",

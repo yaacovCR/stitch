@@ -2,6 +2,7 @@
 /.eslintcache
 /node_modules
 /reports
+/publishWorkspaceConfig
 /npmDist
 /npmEsmDist
 /denoDist
