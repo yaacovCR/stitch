@@ -40,9 +40,7 @@
     "node": "^14.19.0 || ^16.10.0 || ^18.0.0 || >=19.0.0"
   },
   "publishConfig": {
-    "tag": "alpha",
-    "access": "public",
-    "directory": "npmDist"
+    "tag": "alpha"
   },
   "dependencies": {
     "@repeaterjs/repeater": "^3.0.4",
