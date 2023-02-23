@@ -271,6 +271,6 @@ describe('Plan', () => {
                 __identifier__0__2: __typename
               }
             }
-`);
+    `);
   });
 });
