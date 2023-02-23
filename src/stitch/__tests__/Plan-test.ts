@@ -217,15 +217,15 @@ describe('Plan', () => {
     `);
   });
 
-  it('works with defer', () => {
+  it('works with @defer directive on merged types', () => {
     const someSchema = buildSchema(`
-        type Query {
-          someObject: [SomeObject]
-        }
+      type Query {
+        someObject: [SomeObject]
+      }
 
-        type SomeObject {
-          someField: [String]
-        }
+      type SomeObject {
+        someField: [String]
+      }
     `);
 
     const anotherSchema = buildSchema(`
