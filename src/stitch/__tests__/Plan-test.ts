@@ -257,8 +257,8 @@ describe('Plan', () => {
           {
             someObject {
               ... @defer {
-                someField
                 __identifier__0__2: __typename
+                someField
               }
             }
           }
@@ -267,8 +267,8 @@ describe('Plan', () => {
           Subschema 1:
             {
               ... @defer {
-                anotherField
                 __identifier__0__2: __typename
+                anotherField
               }
             }
     `);
