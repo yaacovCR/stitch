@@ -6,7 +6,7 @@ const repeater_1 = require('@repeaterjs/repeater');
  * @internal
  */
 class Consolidator extends repeater_1.Repeater {
-  constructor(asyncIterables) {
+  constructor(asyncIterables, processor = (value) => value) {
     super(async (push, stop) => {
       this._push = push;
       this._stop = stop;
@@ -37,6 +37,7 @@ class Consolidator extends repeater_1.Repeater {
         this._signal = this._resetSignal();
       }
     });
+    this._processor = processor;
     this._asyncIterators = new Set();
     if (asyncIterables) {
       for (const asyncIterable of asyncIterables) {
@@ -88,8 +89,11 @@ class Consolidator extends repeater_1.Repeater {
             this._finalIteration = iteration;
             return;
           }
-          // eslint-disable-next-line no-await-in-loop, @typescript-eslint/no-non-null-assertion
-          await this._push(iteration.value);
+          const processed = this._processor(iteration.value);
+          if (processed !== undefined) {
+            // eslint-disable-next-line no-await-in-loop, @typescript-eslint/no-non-null-assertion
+            await this._push(processed);
+          }
         }
       }
     } finally {

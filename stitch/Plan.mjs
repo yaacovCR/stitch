@@ -9,9 +9,11 @@ import {
   TypeMetaFieldDef,
   TypeNameMetaFieldDef,
 } from 'graphql';
+import { AccumulatorMap } from '../utilities/AccumulatorMap.mjs';
 import { inlineRootFragments } from '../utilities/inlineRootFragments.mjs';
 import { inspect } from '../utilities/inspect.mjs';
 import { invariant } from '../utilities/invariant.mjs';
+import { UniqueId } from '../utilities/UniqueId.mjs';
 /**
  * @internal
  */
@@ -21,6 +23,7 @@ export class Plan {
     this.parentType = parentType;
     this.fragmentMap = fragmentMap;
     this.subPlans = Object.create(null);
+    this.uniqueId = new UniqueId();
     const inlinedSelections = inlineRootFragments(selections, fragmentMap);
     const splitSelections = this._splitSelections(
       parentType,
@@ -29,7 +32,7 @@ export class Plan {
     this.map = splitSelections;
   }
   _splitSelections(parentType, selections) {
-    const map = new Map();
+    const map = new AccumulatorMap();
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
@@ -143,6 +146,29 @@ export class Plan {
       parentType,
       fragment.selectionSet.selections,
     );
+    const defer = fragment.directives?.find(
+      (directive) => directive.name.value === 'defer',
+    );
+    if (defer === undefined || splitSelections.size < 2) {
+      this._addSplitFragments(fragment, splitSelections, map);
+      return;
+    }
+    const identifier = `__identifier__${this.uniqueId.gen()}__${
+      splitSelections.size
+    }`;
+    this._addModifiedSplitFragments(
+      fragment,
+      splitSelections,
+      map,
+      (selections) =>
+        this._addIdentifier(
+          selections,
+          identifier,
+          defer.arguments?.find((arg) => arg.name.value === 'if')?.value,
+        ),
+    );
+  }
+  _addSplitFragments(fragment, splitSelections, map) {
     for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
       const splitFragment = {
         ...fragment,
@@ -151,13 +177,55 @@ export class Plan {
           selections: fragmentSelections,
         },
       };
-      const selections = map.get(fragmentSubschema);
-      if (selections) {
-        selections.push(splitFragment);
-      } else {
-        map.set(fragmentSubschema, [splitFragment]);
-      }
+      map.add(fragmentSubschema, splitFragment);
     }
+  }
+  _addModifiedSplitFragments(fragment, splitSelections, map, toSelections) {
+    for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
+      const splitFragment = {
+        ...fragment,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: toSelections(fragmentSelections),
+        },
+      };
+      map.add(fragmentSubschema, splitFragment);
+    }
+  }
+  _addIdentifier(selections, identifier, includeIf) {
+    const field = {
+      kind: Kind.FIELD,
+      name: {
+        kind: Kind.NAME,
+        value: '__typename',
+      },
+      alias: {
+        kind: Kind.NAME,
+        value: identifier,
+      },
+      directives: includeIf
+        ? [
+            {
+              kind: Kind.DIRECTIVE,
+              name: {
+                kind: Kind.NAME,
+                value: 'include',
+              },
+              arguments: [
+                {
+                  kind: Kind.ARGUMENT,
+                  name: {
+                    kind: Kind.NAME,
+                    value: 'if',
+                  },
+                  value: includeIf,
+                },
+              ],
+            },
+          ]
+        : undefined,
+    };
+    return [...selections, field];
   }
   print(indent = 0) {
     const entries = [];

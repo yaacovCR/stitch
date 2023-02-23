@@ -9,7 +9,7 @@ import type {
   SubsequentIncrementalExecutionResult,
 } from 'graphql';
 import { GraphQLError } from 'graphql';
-import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
+import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
 import { Consolidator } from '../utilities/Consolidator.js';
@@ -19,6 +19,11 @@ interface PromiseContext {
   promise: Promise<void>;
   trigger: () => void;
 }
+interface TaggedSubsequentIncrementalExecutionResult {
+  path: Path;
+  incrementalResult: SubsequentIncrementalExecutionResult;
+}
+type Path = ReadonlyArray<string | number>;
 /**
  * @internal
  */
@@ -34,7 +39,13 @@ export declare class PlannedOperation {
   _data: ObjMap<unknown>;
   _nullData: boolean;
   _errors: Array<GraphQLError>;
-  _consolidator: Consolidator<SubsequentIncrementalExecutionResult> | undefined;
+  _consolidator:
+    | Consolidator<
+        TaggedSubsequentIncrementalExecutionResult,
+        SubsequentIncrementalExecutionResult
+      >
+    | undefined;
+  _deferredResults: Map<string, Array<ObjMap<unknown>>>;
   _promiseContext: PromiseContext | undefined;
   constructor(
     plan: Plan,
@@ -61,23 +72,37 @@ export declare class PlannedOperation {
     T extends PromiseOrValue<
       ExecutionResult | ExperimentalIncrementalExecutionResults
     >,
-  >(parent: ObjMap<unknown>, result: T): void;
+  >(parent: ObjMap<unknown>, result: T, path: Path): void;
   _handleAsyncPossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(parent: ObjMap<unknown>, promiseContext: PromiseContext, result: T): void;
+  >(
+    parent: ObjMap<unknown>,
+    promiseContext: PromiseContext,
+    result: T,
+    path: Path,
+  ): void;
   _handlePossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(parent: ObjMap<unknown>, result: T): void;
+  >(parent: ObjMap<unknown>, result: T, path: Path): void;
+  _handleIncrementalResult(
+    taggedResult: TaggedSubsequentIncrementalExecutionResult,
+  ): SubsequentIncrementalExecutionResult | undefined;
   _handleSingleResult(
     parent: ObjMap<unknown>,
     result: ExecutionResult | InitialIncrementalExecutionResult,
+    path: Path,
   ): void;
-  _executeSubPlans(data: ObjMap<unknown>, subPlans: ObjMap<Plan>): void;
+  _executeSubPlans(
+    data: ObjMap<unknown>,
+    subPlans: ObjMap<Plan>,
+    path: Path,
+  ): void;
   _executePossibleListSubPlan(
     parent: ObjMap<unknown> | Array<unknown>,
     plan: Plan,
+    path: Path,
   ): void;
-  _executeSubPlan(parent: ObjMap<unknown>, plan: Plan): void;
+  _executeSubPlan(parent: ObjMap<unknown>, plan: Plan, path: Path): void;
   _deepMerge(parent: ObjMap<unknown>, key: string, value: unknown): void;
   _handlePossibleStream<
     T extends ExecutionResult | SimpleAsyncGenerator<ExecutionResult>,

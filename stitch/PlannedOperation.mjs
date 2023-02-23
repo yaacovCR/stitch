@@ -1,5 +1,6 @@
 import { GraphQLError, Kind } from 'graphql';
 import { isAsyncIterable } from '../predicates/isAsyncIterable.mjs';
+import { isDeferIncrementalResult } from '../predicates/isDeferResult.mjs';
 import { isObjectLike } from '../predicates/isObjectLike.mjs';
 import { isPromise } from '../predicates/isPromise.mjs';
 import { Consolidator } from '../utilities/Consolidator.mjs';
@@ -16,6 +17,7 @@ export class PlannedOperation {
     this._data = Object.create(null);
     this._nullData = false;
     this._errors = [];
+    this._deferredResults = new Map();
   }
   execute() {
     for (const [subschema, subschemaSelections] of this.plan.map.entries()) {
@@ -23,7 +25,7 @@ export class PlannedOperation {
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult(this._data, result);
+      this._handleMaybeAsyncPossibleMultiPartResult(this._data, result, []);
     }
     return this._promiseContext !== undefined
       ? this._promiseContext.promise.then(() => this._return())
@@ -106,7 +108,7 @@ export class PlannedOperation {
       ? { data: dataOrNull, errors: this._errors }
       : { data: dataOrNull };
   }
-  _handleMaybeAsyncPossibleMultiPartResult(parent, result) {
+  _handleMaybeAsyncPossibleMultiPartResult(parent, result, path) {
     if (isPromise(result)) {
       const promiseContext = this._incrementPromiseContext();
       result.then(
@@ -115,37 +117,118 @@ export class PlannedOperation {
             parent,
             promiseContext,
             resolved,
+            path,
           ),
         (err) =>
-          this._handleAsyncPossibleMultiPartResult(parent, promiseContext, {
-            data: null,
-            errors: [new GraphQLError(err.message, { originalError: err })],
-          }),
+          this._handleAsyncPossibleMultiPartResult(
+            parent,
+            promiseContext,
+            {
+              data: null,
+              errors: [new GraphQLError(err.message, { originalError: err })],
+            },
+            path,
+          ),
       );
     } else {
-      this._handlePossibleMultiPartResult(parent, result);
+      this._handlePossibleMultiPartResult(parent, result, path);
     }
   }
-  _handleAsyncPossibleMultiPartResult(parent, promiseContext, result) {
+  _handleAsyncPossibleMultiPartResult(parent, promiseContext, result, path) {
     promiseContext.promiseCount--;
-    this._handlePossibleMultiPartResult(parent, result);
+    this._handlePossibleMultiPartResult(parent, result, path);
     if (promiseContext.promiseCount === 0) {
       promiseContext.trigger();
     }
   }
-  _handlePossibleMultiPartResult(parent, result) {
-    if ('initialResult' in result) {
-      this._handleSingleResult(parent, result.initialResult);
-      if (this._consolidator === undefined) {
-        this._consolidator = new Consolidator([result.subsequentResults]);
-      } else {
-        this._consolidator.add(result.subsequentResults);
-      }
-    } else {
-      this._handleSingleResult(parent, result);
+  _handlePossibleMultiPartResult(parent, result, path) {
+    if (!('initialResult' in result)) {
+      this._handleSingleResult(parent, result, path);
+      return;
     }
+    const { initialResult, subsequentResults } = result;
+    this._handleSingleResult(parent, initialResult, path);
+    const taggedResults = mapAsyncIterable(
+      subsequentResults,
+      (incrementalResult) => ({
+        path,
+        incrementalResult,
+      }),
+    );
+    if (this._consolidator === undefined) {
+      this._consolidator = new Consolidator([taggedResults], (taggedResult) =>
+        this._handleIncrementalResult(taggedResult),
+      );
+      return;
+    }
+    this._consolidator.add(taggedResults);
   }
-  _handleSingleResult(parent, result) {
+  _handleIncrementalResult(taggedResult) {
+    const { path, incrementalResult } = taggedResult;
+    if (incrementalResult.incremental === undefined) {
+      return incrementalResult;
+    }
+    const newIncremental = [];
+    for (const result of incrementalResult.incremental) {
+      if (!isDeferIncrementalResult(result)) {
+        newIncremental.push(result);
+        continue;
+      }
+      const data = result.data;
+      if (data == null) {
+        newIncremental.push(result);
+        continue;
+      }
+      let identifier;
+      const newData = Object.create(null);
+      for (const key of Object.keys(data)) {
+        if (!key.startsWith('__identifier')) {
+          newData[key] = data[key];
+          continue;
+        }
+        identifier = key;
+      }
+      if (identifier === undefined) {
+        newIncremental.push(result);
+        continue;
+      }
+      const fullPath = result.path ? [...path, ...result.path] : path;
+      const key = fullPath.join();
+      const total = parseInt(identifier.split('__')[3], 10);
+      const deferredResults = this._deferredResults.get(key);
+      if (deferredResults === undefined) {
+        this._deferredResults.set(key, [newData]);
+        continue;
+      }
+      if (deferredResults.length !== total - 1) {
+        deferredResults.push(newData);
+        continue;
+      }
+      for (const deferredResult of deferredResults) {
+        for (const [deferredKey, value] of Object.entries(deferredResult)) {
+          newData[deferredKey] = value;
+        }
+      }
+      this._deferredResults.delete(key);
+      newIncremental.push({
+        ...result,
+        data: newData,
+        path: fullPath,
+      });
+    }
+    if (newIncremental.length === 0) {
+      return undefined;
+    }
+    const newIncrementalResult = {
+      ...incrementalResult,
+      incremental: newIncremental,
+    };
+    if (this._deferredResults.size) {
+      newIncrementalResult.hasNext = true;
+    }
+    return newIncrementalResult;
+  }
+  _handleSingleResult(parent, result, path) {
     if (result.errors != null) {
       this._errors.push(...result.errors);
     }
@@ -159,33 +242,33 @@ export class PlannedOperation {
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(parent, key, value);
     }
-    this._executeSubPlans(result.data, this.plan.subPlans);
+    this._executeSubPlans(result.data, this.plan.subPlans, path);
   }
-  _executeSubPlans(data, subPlans) {
+  _executeSubPlans(data, subPlans, path) {
     for (const [key, subPlan] of Object.entries(subPlans)) {
       if (data[key]) {
-        this._executePossibleListSubPlan(data[key], subPlan);
+        this._executePossibleListSubPlan(data[key], subPlan, [...path, key]);
       }
     }
   }
-  _executePossibleListSubPlan(parent, plan) {
+  _executePossibleListSubPlan(parent, plan, path) {
     if (Array.isArray(parent)) {
-      for (const item of parent) {
-        this._executePossibleListSubPlan(item, plan);
+      for (let i = 0; i < parent.length; i++) {
+        this._executePossibleListSubPlan(parent[i], plan, [...path, i]);
       }
       return;
     }
-    this._executeSubPlan(parent, plan);
+    this._executeSubPlan(parent, plan, path);
   }
-  _executeSubPlan(parent, plan) {
+  _executeSubPlan(parent, plan, path) {
     for (const [subschema, subschemaSelections] of plan.map.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult(parent, result);
+      this._handleMaybeAsyncPossibleMultiPartResult(parent, result, path);
     }
-    this._executeSubPlans(parent, plan.subPlans);
+    this._executeSubPlans(parent, plan.subPlans, path);
   }
   _deepMerge(parent, key, value) {
     if (

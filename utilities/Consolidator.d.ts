@@ -3,9 +3,10 @@ import { Repeater } from '@repeaterjs/repeater';
 /**
  * @internal
  */
-export declare class Consolidator<T> extends Repeater<T> {
+export declare class Consolidator<T, U> extends Repeater<U> {
   _asyncIterators: Set<AsyncIterator<T>>;
-  _push: Push<T> | undefined;
+  _processor: (value: T) => U | undefined;
+  _push: Push<U> | undefined;
   _stop: Stop | undefined;
   _started: boolean;
   _stopped: boolean;
@@ -17,7 +18,10 @@ export declare class Consolidator<T> extends Repeater<T> {
     AsyncIterator<T>,
     (value?: IteratorResult<unknown>) => unknown
   >;
-  constructor(asyncIterables?: Array<AsyncIterable<T>>);
+  constructor(
+    asyncIterables?: Array<AsyncIterable<T>>,
+    processor?: (value: T) => U | undefined,
+  );
   _resetSignal(): Promise<void>;
   close(): void;
   add(value: AsyncIterable<T>): void;

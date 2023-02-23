@@ -2,9 +2,11 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.Plan = void 0;
 const graphql_1 = require('graphql');
+const AccumulatorMap_js_1 = require('../utilities/AccumulatorMap.js');
 const inlineRootFragments_js_1 = require('../utilities/inlineRootFragments.js');
 const inspect_js_1 = require('../utilities/inspect.js');
 const invariant_js_1 = require('../utilities/invariant.js');
+const UniqueId_js_1 = require('../utilities/UniqueId.js');
 /**
  * @internal
  */
@@ -14,6 +16,7 @@ class Plan {
     this.parentType = parentType;
     this.fragmentMap = fragmentMap;
     this.subPlans = Object.create(null);
+    this.uniqueId = new UniqueId_js_1.UniqueId();
     const inlinedSelections = (0, inlineRootFragments_js_1.inlineRootFragments)(
       selections,
       fragmentMap,
@@ -25,7 +28,7 @@ class Plan {
     this.map = splitSelections;
   }
   _splitSelections(parentType, selections) {
-    const map = new Map();
+    const map = new AccumulatorMap_js_1.AccumulatorMap();
     for (const selection of selections) {
       switch (selection.kind) {
         case graphql_1.Kind.FIELD: {
@@ -147,6 +150,29 @@ class Plan {
       parentType,
       fragment.selectionSet.selections,
     );
+    const defer = fragment.directives?.find(
+      (directive) => directive.name.value === 'defer',
+    );
+    if (defer === undefined || splitSelections.size < 2) {
+      this._addSplitFragments(fragment, splitSelections, map);
+      return;
+    }
+    const identifier = `__identifier__${this.uniqueId.gen()}__${
+      splitSelections.size
+    }`;
+    this._addModifiedSplitFragments(
+      fragment,
+      splitSelections,
+      map,
+      (selections) =>
+        this._addIdentifier(
+          selections,
+          identifier,
+          defer.arguments?.find((arg) => arg.name.value === 'if')?.value,
+        ),
+    );
+  }
+  _addSplitFragments(fragment, splitSelections, map) {
     for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
       const splitFragment = {
         ...fragment,
@@ -155,13 +181,55 @@ class Plan {
           selections: fragmentSelections,
         },
       };
-      const selections = map.get(fragmentSubschema);
-      if (selections) {
-        selections.push(splitFragment);
-      } else {
-        map.set(fragmentSubschema, [splitFragment]);
-      }
+      map.add(fragmentSubschema, splitFragment);
     }
+  }
+  _addModifiedSplitFragments(fragment, splitSelections, map, toSelections) {
+    for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
+      const splitFragment = {
+        ...fragment,
+        selectionSet: {
+          kind: graphql_1.Kind.SELECTION_SET,
+          selections: toSelections(fragmentSelections),
+        },
+      };
+      map.add(fragmentSubschema, splitFragment);
+    }
+  }
+  _addIdentifier(selections, identifier, includeIf) {
+    const field = {
+      kind: graphql_1.Kind.FIELD,
+      name: {
+        kind: graphql_1.Kind.NAME,
+        value: '__typename',
+      },
+      alias: {
+        kind: graphql_1.Kind.NAME,
+        value: identifier,
+      },
+      directives: includeIf
+        ? [
+            {
+              kind: graphql_1.Kind.DIRECTIVE,
+              name: {
+                kind: graphql_1.Kind.NAME,
+                value: 'include',
+              },
+              arguments: [
+                {
+                  kind: graphql_1.Kind.ARGUMENT,
+                  name: {
+                    kind: graphql_1.Kind.NAME,
+                    value: 'if',
+                  },
+                  value: includeIf,
+                },
+              ],
+            },
+          ]
+        : undefined,
+    };
+    return [...selections, field];
   }
   print(indent = 0) {
     const entries = [];

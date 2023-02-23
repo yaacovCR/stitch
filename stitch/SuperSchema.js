@@ -37,7 +37,7 @@ class SuperSchema {
     const introspectionSubschema = {
       schema: this.mergedSchema,
       executor: (args) =>
-        (0, graphql_1.execute)({
+        (0, graphql_1.experimentalExecuteIncrementally)({
           ...args,
           schema: this.mergedSchema,
         }),

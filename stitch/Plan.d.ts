@@ -6,8 +6,11 @@ import type {
   InlineFragmentNode,
   SelectionNode,
   SelectionSetNode,
+  ValueNode,
 } from 'graphql';
-import type { ObjMap } from '../types/ObjMap';
+import type { ObjMap } from '../types/ObjMap.js';
+import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
+import { UniqueId } from '../utilities/UniqueId.js';
 import type { Subschema, SuperSchema } from './SuperSchema';
 /**
  * @internal
@@ -18,6 +21,7 @@ export declare class Plan {
   fragmentMap: ObjMap<FragmentDefinitionNode>;
   map: Map<Subschema, Array<SelectionNode>>;
   subPlans: ObjMap<Plan>;
+  uniqueId: UniqueId;
   constructor(
     superSchema: SuperSchema,
     parentType: GraphQLCompositeType,
@@ -47,8 +51,26 @@ export declare class Plan {
   _addInlineFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
-    map: Map<Subschema, Array<SelectionNode>>,
+    map: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
+  _addSplitFragments(
+    fragment: InlineFragmentNode,
+    splitSelections: Map<Subschema, Array<SelectionNode>>,
+    map: AccumulatorMap<Subschema, SelectionNode>,
+  ): void;
+  _addModifiedSplitFragments(
+    fragment: InlineFragmentNode,
+    splitSelections: Map<Subschema, Array<SelectionNode>>,
+    map: AccumulatorMap<Subschema, SelectionNode>,
+    toSelections: (
+      originalSelections: ReadonlyArray<SelectionNode>,
+    ) => Array<SelectionNode>,
+  ): void;
+  _addIdentifier(
+    selections: ReadonlyArray<SelectionNode>,
+    identifier: string,
+    includeIf: ValueNode | undefined,
+  ): Array<SelectionNode>;
   print(indent?: number): string;
   _printMap(indent: number): string;
   _printSubschemaSelections(
