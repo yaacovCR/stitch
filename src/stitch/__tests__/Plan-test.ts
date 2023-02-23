@@ -217,6 +217,72 @@ describe('Plan', () => {
     `);
   });
 
+  it('works to split fields with subfields', () => {
+    const someSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        someField: SomeNestedObject
+      }
+
+      type SomeNestedObject {
+        someField: String
+      }
+    `);
+
+    const anotherSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        anotherField: AnotherNestedObject
+      }
+
+      type AnotherNestedObject {
+        someField: String
+      }
+    `);
+
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+
+    const operation = parse(
+      `{
+        someObject {
+          someField { someField }
+          anotherField { someField }
+        }
+      }`,
+      { noLocation: true },
+    ).definitions[0] as OperationDefinitionNode;
+
+    const plan = createPlan(superSchema, operation);
+
+    expect(plan.print()).to.equal(dedent`
+      Map:
+        Subschema 0:
+          {
+            someObject {
+              someField {
+                someField
+              }
+            }
+          }
+      SubPlan for 'someObject':
+        Map:
+          Subschema 1:
+            {
+              anotherField {
+                someField
+              }
+            }
+    `);
+  });
+
   it('works with @defer directive on merged types', () => {
     const someSchema = buildSchema(`
       type Query {
