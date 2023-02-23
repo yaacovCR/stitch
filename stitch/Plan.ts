@@ -7,6 +7,7 @@ import type {
   InlineFragmentNode,
   SelectionNode,
   SelectionSetNode,
+  ValueNode,
 } from 'graphql';
 import {
   getNamedType,
@@ -19,10 +20,12 @@ import {
   TypeMetaFieldDef,
   TypeNameMetaFieldDef,
 } from 'graphql';
-import type { ObjMap } from '../types/ObjMap';
+import type { ObjMap } from '../types/ObjMap.ts';
+import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { inlineRootFragments } from '../utilities/inlineRootFragments.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
+import { UniqueId } from '../utilities/UniqueId.ts';
 import type { Subschema, SuperSchema } from './SuperSchema';
 /**
  * @internal
@@ -33,6 +36,7 @@ export class Plan {
   fragmentMap: ObjMap<FragmentDefinitionNode>;
   map: Map<Subschema, Array<SelectionNode>>;
   subPlans: ObjMap<Plan>;
+  uniqueId: UniqueId;
   constructor(
     superSchema: SuperSchema,
     parentType: GraphQLCompositeType,
@@ -43,6 +47,7 @@ export class Plan {
     this.parentType = parentType;
     this.fragmentMap = fragmentMap;
     this.subPlans = Object.create(null);
+    this.uniqueId = new UniqueId();
     const inlinedSelections = inlineRootFragments(selections, fragmentMap);
     const splitSelections = this._splitSelections(
       parentType,
@@ -54,7 +59,7 @@ export class Plan {
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
   ): Map<Subschema, Array<SelectionNode>> {
-    const map = new Map<Subschema, Array<SelectionNode>>();
+    const map = new AccumulatorMap<Subschema, SelectionNode>();
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
@@ -179,12 +184,39 @@ export class Plan {
   _addInlineFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
-    map: Map<Subschema, Array<SelectionNode>>,
+    map: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
     const splitSelections = this._splitSelections(
       parentType,
       fragment.selectionSet.selections,
     );
+    const defer = fragment.directives?.find(
+      (directive) => directive.name.value === 'defer',
+    );
+    if (defer === undefined || splitSelections.size < 2) {
+      this._addSplitFragments(fragment, splitSelections, map);
+      return;
+    }
+    const identifier = `__identifier__${this.uniqueId.gen()}__${
+      splitSelections.size
+    }`;
+    this._addModifiedSplitFragments(
+      fragment,
+      splitSelections,
+      map,
+      (selections) =>
+        this._addIdentifier(
+          selections,
+          identifier,
+          defer.arguments?.find((arg) => arg.name.value === 'if')?.value,
+        ),
+    );
+  }
+  _addSplitFragments(
+    fragment: InlineFragmentNode,
+    splitSelections: Map<Subschema, Array<SelectionNode>>,
+    map: AccumulatorMap<Subschema, SelectionNode>,
+  ): void {
     for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
       const splitFragment: InlineFragmentNode = {
         ...fragment,
@@ -193,13 +225,66 @@ export class Plan {
           selections: fragmentSelections,
         },
       };
-      const selections = map.get(fragmentSubschema);
-      if (selections) {
-        selections.push(splitFragment);
-      } else {
-        map.set(fragmentSubschema, [splitFragment]);
-      }
+      map.add(fragmentSubschema, splitFragment);
     }
+  }
+  _addModifiedSplitFragments(
+    fragment: InlineFragmentNode,
+    splitSelections: Map<Subschema, Array<SelectionNode>>,
+    map: AccumulatorMap<Subschema, SelectionNode>,
+    toSelections: (
+      originalSelections: ReadonlyArray<SelectionNode>,
+    ) => Array<SelectionNode>,
+  ): void {
+    for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
+      const splitFragment: InlineFragmentNode = {
+        ...fragment,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: toSelections(fragmentSelections),
+        },
+      };
+      map.add(fragmentSubschema, splitFragment);
+    }
+  }
+  _addIdentifier(
+    selections: ReadonlyArray<SelectionNode>,
+    identifier: string,
+    includeIf: ValueNode | undefined,
+  ): Array<SelectionNode> {
+    const field: FieldNode = {
+      kind: Kind.FIELD,
+      name: {
+        kind: Kind.NAME,
+        value: '__typename',
+      },
+      alias: {
+        kind: Kind.NAME,
+        value: identifier,
+      },
+      directives: includeIf
+        ? [
+            {
+              kind: Kind.DIRECTIVE,
+              name: {
+                kind: Kind.NAME,
+                value: 'include',
+              },
+              arguments: [
+                {
+                  kind: Kind.ARGUMENT,
+                  name: {
+                    kind: Kind.NAME,
+                    value: 'if',
+                  },
+                  value: includeIf,
+                },
+              ],
+            },
+          ]
+        : undefined,
+    };
+    return [...selections, field];
   }
   print(indent = 0): string {
     const entries = [];
