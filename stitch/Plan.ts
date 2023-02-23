@@ -252,7 +252,7 @@ export class Plan {
     identifier: string,
     includeIf: ValueNode | undefined,
   ): Array<SelectionNode> {
-    const field: FieldNode = {
+    const identifierField: FieldNode = {
       kind: Kind.FIELD,
       name: {
         kind: Kind.NAME,
@@ -284,7 +284,7 @@ export class Plan {
           ]
         : undefined,
     };
-    return [...selections, field];
+    return [identifierField, ...selections];
   }
   print(indent = 0): string {
     const entries = [];
