@@ -197,7 +197,7 @@ class Plan {
     }
   }
   _addIdentifier(selections, identifier, includeIf) {
-    const field = {
+    const identifierField = {
       kind: graphql_1.Kind.FIELD,
       name: {
         kind: graphql_1.Kind.NAME,
@@ -229,7 +229,7 @@ class Plan {
           ]
         : undefined,
     };
-    return [...selections, field];
+    return [identifierField, ...selections];
   }
   print(indent = 0) {
     const entries = [];

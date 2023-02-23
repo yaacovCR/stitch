@@ -193,7 +193,7 @@ export class Plan {
     }
   }
   _addIdentifier(selections, identifier, includeIf) {
-    const field = {
+    const identifierField = {
       kind: Kind.FIELD,
       name: {
         kind: Kind.NAME,
@@ -225,7 +225,7 @@ export class Plan {
           ]
         : undefined,
     };
-    return [...selections, field];
+    return [identifierField, ...selections];
   }
   print(indent = 0) {
     const entries = [];
