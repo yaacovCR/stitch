@@ -216,4 +216,61 @@ describe('Plan', () => {
               }
     `);
   });
+
+  it('works with defer', () => {
+    const someSchema = buildSchema(`
+        type Query {
+          someObject: [SomeObject]
+        }
+
+        type SomeObject {
+          someField: [String]
+        }
+    `);
+
+    const anotherSchema = buildSchema(`
+      type Query {
+        someObject: [SomeObject]
+        anotherField: [String]
+      }
+
+      type SomeObject {
+        anotherField: [String]
+      }
+    `);
+
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+
+    const operation = parse(
+      '{ someObject { ... @defer { someField anotherField } } }',
+      {
+        noLocation: true,
+      },
+    ).definitions[0] as OperationDefinitionNode;
+
+    const plan = createPlan(superSchema, operation);
+    expect(plan.print()).to.equal(dedent`
+      Map:
+        Subschema 0:
+          {
+            someObject {
+              ... @defer {
+                someField
+                __identifier__0__2: __typename
+              }
+            }
+          }
+      SubPlan for 'someObject':
+        Map:
+          Subschema 1:
+            {
+              ... @defer {
+                anotherField
+                __identifier__0__2: __typename
+              }
+            }
+`);
+  });
 });

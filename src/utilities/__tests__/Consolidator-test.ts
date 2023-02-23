@@ -130,7 +130,7 @@ describe('Consolidator', () => {
   });
 
   it('single iterator calling add after next', async () => {
-    const consolidator = new Consolidator<number>();
+    const consolidator = new Consolidator<number, number>();
 
     const iteration = consolidator.next();
 
