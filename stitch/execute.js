@@ -3,8 +3,8 @@ Object.defineProperty(exports, '__esModule', { value: true });
 exports.execute = void 0;
 const graphql_1 = require('graphql');
 const buildExecutionContext_js_1 = require('./buildExecutionContext.js');
+const Executor_js_1 = require('./Executor.js');
 const Plan_js_1 = require('./Plan.js');
-const PlannedOperation_js_1 = require('./PlannedOperation.js');
 function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -33,12 +33,12 @@ function execute(args) {
     operation.selectionSet.selections,
     fragmentMap,
   );
-  const plannedOperation = new PlannedOperation_js_1.PlannedOperation(
+  const executor = new Executor_js_1.Executor(
     plan,
     operation,
     fragments,
     rawVariableValues,
   );
-  return plannedOperation.execute();
+  return executor.execute();
 }
 exports.execute = execute;

@@ -1,8 +1,8 @@
 import { GraphQLError, OperationTypeNode } from 'graphql';
 import { invariant } from '../utilities/invariant.mjs';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
+import { Executor } from './Executor.mjs';
 import { Plan } from './Plan.mjs';
-import { PlannedOperation } from './PlannedOperation.mjs';
 export function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -30,11 +30,6 @@ export function subscribe(args) {
     operation.selectionSet.selections,
     fragmentMap,
   );
-  const plannedOperation = new PlannedOperation(
-    plan,
-    operation,
-    fragments,
-    rawVariableValues,
-  );
-  return plannedOperation.subscribe();
+  const executor = new Executor(plan, operation, fragments, rawVariableValues);
+  return executor.subscribe();
 }

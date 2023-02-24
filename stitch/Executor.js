@@ -1,15 +1,18 @@
-import { GraphQLError, Kind } from 'graphql';
-import { isAsyncIterable } from '../predicates/isAsyncIterable.mjs';
-import { isDeferIncrementalResult } from '../predicates/isDeferResult.mjs';
-import { isObjectLike } from '../predicates/isObjectLike.mjs';
-import { isPromise } from '../predicates/isPromise.mjs';
-import { Consolidator } from '../utilities/Consolidator.mjs';
-import { PromiseAggregator } from '../utilities/PromiseAggregator.mjs';
-import { mapAsyncIterable } from './mapAsyncIterable.mjs';
+'use strict';
+Object.defineProperty(exports, '__esModule', { value: true });
+exports.Executor = void 0;
+const graphql_1 = require('graphql');
+const isAsyncIterable_js_1 = require('../predicates/isAsyncIterable.js');
+const isDeferResult_js_1 = require('../predicates/isDeferResult.js');
+const isObjectLike_js_1 = require('../predicates/isObjectLike.js');
+const isPromise_js_1 = require('../predicates/isPromise.js');
+const Consolidator_js_1 = require('../utilities/Consolidator.js');
+const PromiseAggregator_js_1 = require('../utilities/PromiseAggregator.js');
+const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
 /**
  * @internal
  */
-export class PlannedOperation {
+class Executor {
   constructor(plan, operation, fragments, rawVariableValues) {
     this.plan = plan;
     this.operation = operation;
@@ -19,7 +22,9 @@ export class PlannedOperation {
     this._nullData = false;
     this._errors = [];
     this._deferredResults = new Map();
-    this._promiseAggregator = new PromiseAggregator(() => this._return());
+    this._promiseAggregator = new PromiseAggregator_js_1.PromiseAggregator(() =>
+      this._return(),
+    );
   }
   execute() {
     for (const [subschema, subschemaSelections] of this.plan.map.entries()) {
@@ -33,12 +38,12 @@ export class PlannedOperation {
   }
   _createDocument(selections) {
     return {
-      kind: Kind.DOCUMENT,
+      kind: graphql_1.Kind.DOCUMENT,
       definitions: [
         {
           ...this.operation,
           selectionSet: {
-            kind: Kind.SELECTION_SET,
+            kind: graphql_1.Kind.SELECTION_SET,
             selections,
           },
         },
@@ -49,15 +54,18 @@ export class PlannedOperation {
   subscribe() {
     const iteration = this.plan.map.entries().next();
     if (iteration.done) {
-      const error = new GraphQLError('Could not route subscription.', {
-        nodes: this.operation,
-      });
+      const error = new graphql_1.GraphQLError(
+        'Could not route subscription.',
+        {
+          nodes: this.operation,
+        },
+      );
       return { errors: [error] };
     }
     const [subschema, subschemaSelections] = iteration.value;
     const subscriber = subschema.subscriber;
     if (!subscriber) {
-      const error = new GraphQLError(
+      const error = new graphql_1.GraphQLError(
         'Subschema is not configured to execute subscription operation.',
         { nodes: this.operation },
       );
@@ -68,7 +76,7 @@ export class PlannedOperation {
       document,
       variables: this.rawVariableValues,
     });
-    if (isPromise(result)) {
+    if ((0, isPromise_js_1.isPromise)(result)) {
       return result.then((resolved) => this._handlePossibleStream(resolved));
     }
     return this._handlePossibleStream(result);
@@ -91,7 +99,7 @@ export class PlannedOperation {
       : { data: dataOrNull };
   }
   _handleMaybeAsyncPossibleMultiPartResult(parent, result, path) {
-    if (isPromise(result)) {
+    if ((0, isPromise_js_1.isPromise)(result)) {
       this._promiseAggregator.add(
         result,
         (resolved) =>
@@ -101,7 +109,9 @@ export class PlannedOperation {
             parent,
             {
               data: null,
-              errors: [new GraphQLError(err.message, { originalError: err })],
+              errors: [
+                new graphql_1.GraphQLError(err.message, { originalError: err }),
+              ],
             },
             path,
           ),
@@ -117,7 +127,7 @@ export class PlannedOperation {
     }
     const { initialResult, subsequentResults } = result;
     this._handleSingleResult(parent, initialResult, path);
-    const taggedResults = mapAsyncIterable(
+    const taggedResults = (0, mapAsyncIterable_js_1.mapAsyncIterable)(
       subsequentResults,
       (incrementalResult) => ({
         path,
@@ -125,8 +135,9 @@ export class PlannedOperation {
       }),
     );
     if (this._consolidator === undefined) {
-      this._consolidator = new Consolidator([taggedResults], (taggedResult) =>
-        this._handleIncrementalResult(taggedResult),
+      this._consolidator = new Consolidator_js_1.Consolidator(
+        [taggedResults],
+        (taggedResult) => this._handleIncrementalResult(taggedResult),
       );
       return;
     }
@@ -139,7 +150,7 @@ export class PlannedOperation {
     }
     const newIncremental = [];
     for (const result of incrementalResult.incremental) {
-      if (!isDeferIncrementalResult(result)) {
+      if (!(0, isDeferResult_js_1.isDeferIncrementalResult)(result)) {
         newIncremental.push(result);
         continue;
       }
@@ -241,8 +252,8 @@ export class PlannedOperation {
   }
   _deepMerge(parent, key, value) {
     if (
-      !isObjectLike(parent[key]) ||
-      !isObjectLike(value) ||
+      !(0, isObjectLike_js_1.isObjectLike)(parent[key]) ||
+      !(0, isObjectLike_js_1.isObjectLike)(value) ||
       Array.isArray(value)
     ) {
       parent[key] = value;
@@ -254,9 +265,13 @@ export class PlannedOperation {
     }
   }
   _handlePossibleStream(result) {
-    if (isAsyncIterable(result)) {
-      return mapAsyncIterable(result, (payload) => payload);
+    if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
+      return (0, mapAsyncIterable_js_1.mapAsyncIterable)(
+        result,
+        (payload) => payload,
+      );
     }
     return result;
   }
 }
+exports.Executor = Executor;

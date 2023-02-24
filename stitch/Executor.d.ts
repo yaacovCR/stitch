@@ -23,7 +23,7 @@ type Path = ReadonlyArray<string | number>;
 /**
  * @internal
  */
-export declare class PlannedOperation {
+export declare class Executor {
   plan: Plan;
   operation: OperationDefinitionNode;
   fragments: ReadonlyArray<FragmentDefinitionNode>;
