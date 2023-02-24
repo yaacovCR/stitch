@@ -6,8 +6,8 @@ import { GraphQLError } from 'graphql';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
+import { Executor } from './Executor.ts';
 import { Plan } from './Plan.ts';
-import { PlannedOperation } from './PlannedOperation.ts';
 export function execute(
   args: ExecutionArgs,
 ): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults> {
@@ -36,11 +36,6 @@ export function execute(
     operation.selectionSet.selections,
     fragmentMap,
   );
-  const plannedOperation = new PlannedOperation(
-    plan,
-    operation,
-    fragments,
-    rawVariableValues,
-  );
-  return plannedOperation.execute();
+  const executor = new Executor(plan, operation, fragments, rawVariableValues);
+  return executor.execute();
 }
