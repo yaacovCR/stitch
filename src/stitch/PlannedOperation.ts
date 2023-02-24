@@ -20,15 +20,10 @@ import { isDeferIncrementalResult } from '../predicates/isDeferResult.js';
 import { isObjectLike } from '../predicates/isObjectLike.js';
 import { isPromise } from '../predicates/isPromise.js';
 import { Consolidator } from '../utilities/Consolidator.js';
+import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 
 import { mapAsyncIterable } from './mapAsyncIterable.js';
 import type { Plan } from './Plan.js';
-
-interface PromiseContext {
-  promiseCount: number;
-  promise: Promise<void>;
-  trigger: () => void;
-}
 
 interface TaggedSubsequentIncrementalExecutionResult {
   path: Path;
@@ -61,7 +56,11 @@ export class PlannedOperation {
     | undefined;
 
   _deferredResults: Map<string, Array<ObjMap<unknown>>>;
-  _promiseContext: PromiseContext | undefined;
+  _promiseAggregator: PromiseAggregator<
+    ExecutionResult | ExperimentalIncrementalExecutionResults,
+    GraphQLError,
+    ExecutionResult | ExperimentalIncrementalExecutionResults
+  >;
 
   constructor(
     plan: Plan,
@@ -81,6 +80,7 @@ export class PlannedOperation {
     this._nullData = false;
     this._errors = [];
     this._deferredResults = new Map();
+    this._promiseAggregator = new PromiseAggregator(() => this._return());
   }
 
   execute(): PromiseOrValue<
@@ -95,9 +95,7 @@ export class PlannedOperation {
       this._handleMaybeAsyncPossibleMultiPartResult(this._data, result, []);
     }
 
-    return this._promiseContext !== undefined
-      ? this._promiseContext.promise.then(() => this._return())
-      : this._return();
+    return this._promiseAggregator.return();
   }
 
   _createDocument(selections: Array<SelectionNode>): DocumentNode {
@@ -114,26 +112,6 @@ export class PlannedOperation {
         ...this.fragments,
       ],
     };
-  }
-
-  _incrementPromiseContext(): PromiseContext {
-    if (this._promiseContext) {
-      this._promiseContext.promiseCount++;
-      return this._promiseContext;
-    }
-
-    let trigger!: () => void;
-    const promiseCount = 1;
-    const promise = new Promise<void>((resolve) => {
-      trigger = resolve;
-    });
-    const promiseContext: PromiseContext = {
-      promiseCount,
-      promise,
-      trigger,
-    };
-    this._promiseContext = promiseContext;
-    return promiseContext;
   }
 
   subscribe(): PromiseOrValue<
@@ -173,9 +151,7 @@ export class PlannedOperation {
     return this._handlePossibleStream(result);
   }
 
-  _return(): PromiseOrValue<
-    ExecutionResult | ExperimentalIncrementalExecutionResults
-  > {
+  _return(): ExecutionResult | ExperimentalIncrementalExecutionResults {
     const dataOrNull = this._nullData ? null : this._data;
 
     if (this._consolidator !== undefined) {
@@ -203,19 +179,13 @@ export class PlannedOperation {
     >,
   >(parent: ObjMap<unknown>, result: T, path: Path): void {
     if (isPromise(result)) {
-      const promiseContext = this._incrementPromiseContext();
-      result.then(
+      this._promiseAggregator.add(
+        result,
         (resolved) =>
-          this._handleAsyncPossibleMultiPartResult(
-            parent,
-            promiseContext,
-            resolved,
-            path,
-          ),
+          this._handlePossibleMultiPartResult(parent, resolved, path),
         (err) =>
-          this._handleAsyncPossibleMultiPartResult(
+          this._handlePossibleMultiPartResult(
             parent,
-            promiseContext,
             {
               data: null,
               errors: [new GraphQLError(err.message, { originalError: err })],
@@ -225,21 +195,6 @@ export class PlannedOperation {
       );
     } else {
       this._handlePossibleMultiPartResult(parent, result, path);
-    }
-  }
-
-  _handleAsyncPossibleMultiPartResult<
-    T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(
-    parent: ObjMap<unknown>,
-    promiseContext: PromiseContext,
-    result: T,
-    path: Path,
-  ): void {
-    promiseContext.promiseCount--;
-    this._handlePossibleMultiPartResult(parent, result, path);
-    if (promiseContext.promiseCount === 0) {
-      promiseContext.trigger();
     }
   }
 
