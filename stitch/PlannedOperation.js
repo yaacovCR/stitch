@@ -7,6 +7,7 @@ const isDeferResult_js_1 = require('../predicates/isDeferResult.js');
 const isObjectLike_js_1 = require('../predicates/isObjectLike.js');
 const isPromise_js_1 = require('../predicates/isPromise.js');
 const Consolidator_js_1 = require('../utilities/Consolidator.js');
+const PromiseAggregator_js_1 = require('../utilities/PromiseAggregator.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
 /**
  * @internal
@@ -21,6 +22,9 @@ class PlannedOperation {
     this._nullData = false;
     this._errors = [];
     this._deferredResults = new Map();
+    this._promiseAggregator = new PromiseAggregator_js_1.PromiseAggregator(() =>
+      this._return(),
+    );
   }
   execute() {
     for (const [subschema, subschemaSelections] of this.plan.map.entries()) {
@@ -30,9 +34,7 @@ class PlannedOperation {
       });
       this._handleMaybeAsyncPossibleMultiPartResult(this._data, result, []);
     }
-    return this._promiseContext !== undefined
-      ? this._promiseContext.promise.then(() => this._return())
-      : this._return();
+    return this._promiseAggregator.return();
   }
   _createDocument(selections) {
     return {
@@ -48,24 +50,6 @@ class PlannedOperation {
         ...this.fragments,
       ],
     };
-  }
-  _incrementPromiseContext() {
-    if (this._promiseContext) {
-      this._promiseContext.promiseCount++;
-      return this._promiseContext;
-    }
-    let trigger;
-    const promiseCount = 1;
-    const promise = new Promise((resolve) => {
-      trigger = resolve;
-    });
-    const promiseContext = {
-      promiseCount,
-      promise,
-      trigger,
-    };
-    this._promiseContext = promiseContext;
-    return promiseContext;
   }
   subscribe() {
     const iteration = this.plan.map.entries().next();
@@ -116,19 +100,13 @@ class PlannedOperation {
   }
   _handleMaybeAsyncPossibleMultiPartResult(parent, result, path) {
     if ((0, isPromise_js_1.isPromise)(result)) {
-      const promiseContext = this._incrementPromiseContext();
-      result.then(
+      this._promiseAggregator.add(
+        result,
         (resolved) =>
-          this._handleAsyncPossibleMultiPartResult(
-            parent,
-            promiseContext,
-            resolved,
-            path,
-          ),
+          this._handlePossibleMultiPartResult(parent, resolved, path),
         (err) =>
-          this._handleAsyncPossibleMultiPartResult(
+          this._handlePossibleMultiPartResult(
             parent,
-            promiseContext,
             {
               data: null,
               errors: [
@@ -140,13 +118,6 @@ class PlannedOperation {
       );
     } else {
       this._handlePossibleMultiPartResult(parent, result, path);
-    }
-  }
-  _handleAsyncPossibleMultiPartResult(parent, promiseContext, result, path) {
-    promiseContext.promiseCount--;
-    this._handlePossibleMultiPartResult(parent, result, path);
-    if (promiseContext.promiseCount === 0) {
-      promiseContext.trigger();
     }
   }
   _handlePossibleMultiPartResult(parent, result, path) {

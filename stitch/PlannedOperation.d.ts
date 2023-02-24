@@ -13,12 +13,8 @@ import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
 import { Consolidator } from '../utilities/Consolidator.js';
+import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 import type { Plan } from './Plan.js';
-interface PromiseContext {
-  promiseCount: number;
-  promise: Promise<void>;
-  trigger: () => void;
-}
 interface TaggedSubsequentIncrementalExecutionResult {
   path: Path;
   incrementalResult: SubsequentIncrementalExecutionResult;
@@ -46,7 +42,11 @@ export declare class PlannedOperation {
       >
     | undefined;
   _deferredResults: Map<string, Array<ObjMap<unknown>>>;
-  _promiseContext: PromiseContext | undefined;
+  _promiseAggregator: PromiseAggregator<
+    ExecutionResult | ExperimentalIncrementalExecutionResults,
+    GraphQLError,
+    ExecutionResult | ExperimentalIncrementalExecutionResults
+  >;
   constructor(
     plan: Plan,
     operation: OperationDefinitionNode,
@@ -61,26 +61,15 @@ export declare class PlannedOperation {
     ExecutionResult | ExperimentalIncrementalExecutionResults
   >;
   _createDocument(selections: Array<SelectionNode>): DocumentNode;
-  _incrementPromiseContext(): PromiseContext;
   subscribe(): PromiseOrValue<
     ExecutionResult | SimpleAsyncGenerator<ExecutionResult>
   >;
-  _return(): PromiseOrValue<
-    ExecutionResult | ExperimentalIncrementalExecutionResults
-  >;
+  _return(): ExecutionResult | ExperimentalIncrementalExecutionResults;
   _handleMaybeAsyncPossibleMultiPartResult<
     T extends PromiseOrValue<
       ExecutionResult | ExperimentalIncrementalExecutionResults
     >,
   >(parent: ObjMap<unknown>, result: T, path: Path): void;
-  _handleAsyncPossibleMultiPartResult<
-    T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(
-    parent: ObjMap<unknown>,
-    promiseContext: PromiseContext,
-    result: T,
-    path: Path,
-  ): void;
   _handlePossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
   >(parent: ObjMap<unknown>, result: T, path: Path): void;

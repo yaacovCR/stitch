@@ -4,6 +4,7 @@ import { isDeferIncrementalResult } from '../predicates/isDeferResult.mjs';
 import { isObjectLike } from '../predicates/isObjectLike.mjs';
 import { isPromise } from '../predicates/isPromise.mjs';
 import { Consolidator } from '../utilities/Consolidator.mjs';
+import { PromiseAggregator } from '../utilities/PromiseAggregator.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
 /**
  * @internal
@@ -18,6 +19,7 @@ export class PlannedOperation {
     this._nullData = false;
     this._errors = [];
     this._deferredResults = new Map();
+    this._promiseAggregator = new PromiseAggregator(() => this._return());
   }
   execute() {
     for (const [subschema, subschemaSelections] of this.plan.map.entries()) {
@@ -27,9 +29,7 @@ export class PlannedOperation {
       });
       this._handleMaybeAsyncPossibleMultiPartResult(this._data, result, []);
     }
-    return this._promiseContext !== undefined
-      ? this._promiseContext.promise.then(() => this._return())
-      : this._return();
+    return this._promiseAggregator.return();
   }
   _createDocument(selections) {
     return {
@@ -45,24 +45,6 @@ export class PlannedOperation {
         ...this.fragments,
       ],
     };
-  }
-  _incrementPromiseContext() {
-    if (this._promiseContext) {
-      this._promiseContext.promiseCount++;
-      return this._promiseContext;
-    }
-    let trigger;
-    const promiseCount = 1;
-    const promise = new Promise((resolve) => {
-      trigger = resolve;
-    });
-    const promiseContext = {
-      promiseCount,
-      promise,
-      trigger,
-    };
-    this._promiseContext = promiseContext;
-    return promiseContext;
   }
   subscribe() {
     const iteration = this.plan.map.entries().next();
@@ -110,19 +92,13 @@ export class PlannedOperation {
   }
   _handleMaybeAsyncPossibleMultiPartResult(parent, result, path) {
     if (isPromise(result)) {
-      const promiseContext = this._incrementPromiseContext();
-      result.then(
+      this._promiseAggregator.add(
+        result,
         (resolved) =>
-          this._handleAsyncPossibleMultiPartResult(
-            parent,
-            promiseContext,
-            resolved,
-            path,
-          ),
+          this._handlePossibleMultiPartResult(parent, resolved, path),
         (err) =>
-          this._handleAsyncPossibleMultiPartResult(
+          this._handlePossibleMultiPartResult(
             parent,
-            promiseContext,
             {
               data: null,
               errors: [new GraphQLError(err.message, { originalError: err })],
@@ -132,13 +108,6 @@ export class PlannedOperation {
       );
     } else {
       this._handlePossibleMultiPartResult(parent, result, path);
-    }
-  }
-  _handleAsyncPossibleMultiPartResult(parent, promiseContext, result, path) {
-    promiseContext.promiseCount--;
-    this._handlePossibleMultiPartResult(parent, result, path);
-    if (promiseContext.promiseCount === 0) {
-      promiseContext.trigger();
     }
   }
   _handlePossibleMultiPartResult(parent, result, path) {
