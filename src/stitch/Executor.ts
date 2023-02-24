@@ -35,7 +35,7 @@ type Path = ReadonlyArray<string | number>;
 /**
  * @internal
  */
-export class PlannedOperation {
+export class Executor {
   plan: Plan;
   operation: OperationDefinitionNode;
   fragments: ReadonlyArray<FragmentDefinitionNode>;
