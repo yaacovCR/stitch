@@ -47,12 +47,7 @@ export function subscribe(
     fragmentMap,
   );
 
-  const executor = new Executor(
-    plan,
-    operation,
-    fragments,
-    rawVariableValues,
-  );
+  const executor = new Executor(plan, operation, fragments, rawVariableValues);
 
   return executor.subscribe();
 }
