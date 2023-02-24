@@ -8,8 +8,8 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
+import { Executor } from './Executor.js';
 import { Plan } from './Plan.js';
-import { PlannedOperation } from './PlannedOperation.js';
 
 export function execute(
   args: ExecutionArgs,
@@ -46,12 +46,7 @@ export function execute(
     fragmentMap,
   );
 
-  const plannedOperation = new PlannedOperation(
-    plan,
-    operation,
-    fragments,
-    rawVariableValues,
-  );
+  const executor = new Executor(plan, operation, fragments, rawVariableValues);
 
-  return plannedOperation.execute();
+  return executor.execute();
 }

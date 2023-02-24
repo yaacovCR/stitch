@@ -19,8 +19,8 @@ import { describe, it } from 'mocha';
 import { isPromise } from '../../predicates/isPromise.js';
 import { invariant } from '../../utilities/invariant.js';
 
+import { Executor } from '../Executor.js';
 import { Plan } from '../Plan.js';
-import { PlannedOperation } from '../PlannedOperation.js';
 import type { Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
@@ -36,10 +36,10 @@ function getSubschema(schema: GraphQLSchema, rootValue: unknown): Subschema {
   };
 }
 
-function createPlannedOperation(
+function createExecutor(
   superSchema: SuperSchema,
   operation: OperationDefinitionNode,
-): PlannedOperation {
+): Executor {
   const queryType = superSchema.getRootType(OperationTypeNode.QUERY);
 
   invariant(queryType !== undefined);
@@ -51,7 +51,7 @@ function createPlannedOperation(
     {},
   );
 
-  return new PlannedOperation(plan, operation, [], undefined);
+  return new Executor(plan, operation, [], undefined);
 }
 
 async function complete(
@@ -79,7 +79,7 @@ async function complete(
   return result;
 }
 
-describe('PlannedOperation', () => {
+describe('Executor', () => {
   describe('stitching', () => {
     it('works to stitch introspection root fields', () => {
       const someSchema = buildSchema(`
@@ -120,9 +120,9 @@ describe('PlannedOperation', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const plannedOperation = createPlannedOperation(superSchema, operation);
+      const executor = createExecutor(superSchema, operation);
 
-      expect(plannedOperation.execute()).to.deep.equal({
+      expect(executor.execute()).to.deep.equal({
         data: {
           __schema: {
             queryType: {
@@ -176,9 +176,9 @@ describe('PlannedOperation', () => {
         noLocation: true,
       }).definitions[0] as OperationDefinitionNode;
 
-      const plannedOperation = createPlannedOperation(superSchema, operation);
+      const executor = createExecutor(superSchema, operation);
 
-      expect(plannedOperation.execute()).to.deep.equal({
+      expect(executor.execute()).to.deep.equal({
         data: {
           someObject: {
             someField: 'someField',
@@ -231,9 +231,9 @@ describe('PlannedOperation', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const plannedOperation = createPlannedOperation(superSchema, operation);
+      const executor = createExecutor(superSchema, operation);
 
-      expect(plannedOperation.execute()).to.deep.equal({
+      expect(executor.execute()).to.deep.equal({
         data: {
           someObject: {
             someField: {
@@ -281,9 +281,9 @@ describe('PlannedOperation', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const plannedOperation = createPlannedOperation(superSchema, operation);
+      const executor = createExecutor(superSchema, operation);
 
-      expect(plannedOperation.execute()).to.deep.equal({
+      expect(executor.execute()).to.deep.equal({
         data: {
           someObject: [
             {
@@ -336,9 +336,9 @@ describe('PlannedOperation', () => {
         noLocation: true,
       }).definitions[0] as OperationDefinitionNode;
 
-      const plannedOperation = createPlannedOperation(superSchema, operation);
+      const executor = createExecutor(superSchema, operation);
 
-      expect(plannedOperation.execute()).to.deep.equal({
+      expect(executor.execute()).to.deep.equal({
         data: {
           someObject: [
             {
@@ -410,9 +410,9 @@ describe('PlannedOperation', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const plannedOperation = createPlannedOperation(superSchema, operation);
+      const executor = createExecutor(superSchema, operation);
 
-      expect(plannedOperation.execute()).to.deep.equal({
+      expect(executor.execute()).to.deep.equal({
         data: {
           someObject: [
             {
@@ -486,9 +486,9 @@ describe('PlannedOperation', () => {
         },
       ).definitions[0] as OperationDefinitionNode;
 
-      const plannedOperation = createPlannedOperation(superSchema, operation);
+      const executor = createExecutor(superSchema, operation);
 
-      expect(await complete(plannedOperation.execute())).to.deep.equal([
+      expect(await complete(executor.execute())).to.deep.equal([
         {
           data: { someObject: [{}, {}] },
           hasNext: true,
