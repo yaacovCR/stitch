@@ -446,7 +446,7 @@ describe('Executor', () => {
   });
 
   describe('stitching with defer', () => {
-    it('works to stitch subfields', async () => {
+    it('works to stitch deferred subfields', async () => {
       const someSchema = buildSchema(`
         type Query {
           someObject: [SomeObject]
@@ -521,5 +521,237 @@ describe('Executor', () => {
         },
       ]);
     });
+  });
+
+  it('works to stitch deferred sub-subfields', async () => {
+    const someSchema = buildSchema(`
+      type Query {
+        someObject: [SomeObject]
+      }
+
+      type SomeObject {
+        someField: [SomeNestedObject]
+      }
+
+      type SomeNestedObject {
+        someNestedField: [String]
+      }
+    `);
+
+    const anotherSchema = buildSchema(`
+      type Query {
+        someObject: [SomeObject]
+        anotherNestedField: [String]
+      }
+
+      type SomeObject {
+        someField: [SomeNestedObject]
+      }
+
+      type SomeNestedObject {
+        anotherNestedField: [String]
+      }
+    `);
+
+    const someSubschema = getSubschema(someSchema, {
+      someObject: [
+        {
+          someField: [
+            { someNestedField: ['someNestedFieldA'] },
+            { someNestedField: ['someNestedFieldB'] },
+          ],
+        },
+        {
+          someField: [
+            { someNestedField: ['someNestedField1'] },
+            { someNestedField: ['someNestedField2'] },
+          ],
+        },
+      ],
+    });
+    const anotherSubschema = getSubschema(anotherSchema, {
+      anotherNestedField: ['anotherNestedField'],
+    });
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+
+    const operation = parse(
+      '{ someObject { someField { ... @defer { someNestedField anotherNestedField } } } }',
+      { noLocation: true },
+    ).definitions[0] as OperationDefinitionNode;
+
+    const executor = createExecutor(superSchema, operation);
+
+    expect(await complete(executor.execute())).to.deep.equal([
+      {
+        data: {
+          someObject: [
+            {
+              someField: [{}, {}],
+            },
+            {
+              someField: [{}, {}],
+            },
+          ],
+        },
+        hasNext: true,
+      },
+      {
+        incremental: [
+          {
+            data: {
+              someNestedField: ['someNestedFieldA'],
+              anotherNestedField: ['anotherNestedField'],
+            },
+            path: ['someObject', 0, 'someField', 0],
+          },
+        ],
+        hasNext: true,
+      },
+      {
+        incremental: [
+          {
+            data: {
+              someNestedField: ['someNestedFieldB'],
+              anotherNestedField: ['anotherNestedField'],
+            },
+            path: ['someObject', 0, 'someField', 1],
+          },
+        ],
+        hasNext: true,
+      },
+      {
+        incremental: [
+          {
+            data: {
+              someNestedField: ['someNestedField1'],
+              anotherNestedField: ['anotherNestedField'],
+            },
+            path: ['someObject', 1, 'someField', 0],
+          },
+        ],
+        hasNext: true,
+      },
+      {
+        incremental: [
+          {
+            data: {
+              someNestedField: ['someNestedField2'],
+              anotherNestedField: ['anotherNestedField'],
+            },
+            path: ['someObject', 1, 'someField', 1],
+          },
+        ],
+        hasNext: false,
+      },
+    ]);
+  });
+
+  it('works to stitch subfields of deferred subfields', async () => {
+    const someSchema = buildSchema(`
+      type Query {
+        someObject: [SomeObject]
+      }
+
+      type SomeObject {
+        someField: [SomeNestedObject]
+      }
+
+      type SomeNestedObject {
+        someNestedField: [String]
+      }
+    `);
+
+    const anotherSchema = buildSchema(`
+      type Query {
+        someObject: [SomeObject]
+        anotherNestedField: [String]
+      }
+
+      type SomeObject {
+        someField: [SomeNestedObject]
+      }
+
+      type SomeNestedObject {
+        anotherNestedField: [String]
+      }
+    `);
+
+    const someSubschema = getSubschema(someSchema, {
+      someObject: [
+        {
+          someField: [
+            { someNestedField: ['someNestedFieldA'] },
+            { someNestedField: ['someNestedFieldB'] },
+          ],
+        },
+        {
+          someField: [
+            { someNestedField: ['someNestedField1'] },
+            { someNestedField: ['someNestedField2'] },
+          ],
+        },
+      ],
+    });
+    const anotherSubschema = getSubschema(anotherSchema, {
+      anotherNestedField: ['anotherNestedField'],
+    });
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+
+    const operation = parse(
+      '{ someObject { ... @defer { someField { someNestedField anotherNestedField } } } }',
+      { noLocation: true },
+    ).definitions[0] as OperationDefinitionNode;
+
+    const executor = createExecutor(superSchema, operation);
+
+    expect(await complete(executor.execute())).to.deep.equal([
+      {
+        data: {
+          someObject: [{}, {}],
+        },
+        hasNext: true,
+      },
+      {
+        incremental: [
+          {
+            data: {
+              someField: [
+                {
+                  someNestedField: ['someNestedFieldA'],
+                  anotherNestedField: ['anotherNestedField'],
+                },
+                {
+                  someNestedField: ['someNestedFieldB'],
+                  anotherNestedField: ['anotherNestedField'],
+                },
+              ],
+            },
+            path: ['someObject', 0],
+          },
+        ],
+        // FIXME: this should be true!
+        hasNext: false,
+      },
+      {
+        incremental: [
+          {
+            data: {
+              someField: [
+                {
+                  someNestedField: ['someNestedField1'],
+                  anotherNestedField: ['anotherNestedField'],
+                },
+                {
+                  someNestedField: ['someNestedField2'],
+                  anotherNestedField: ['anotherNestedField'],
+                },
+              ],
+            },
+            path: ['someObject', 1],
+          },
+        ],
+        hasNext: false,
+      },
+    ]);
   });
 });

@@ -155,7 +155,7 @@ describe('Consolidator', () => {
     ]);
     consolidator.close();
 
-    await expectValues(consolidator, [1, 10, 2, 20, 3, 30, 4, 40, 5, 50], 60);
+    await expectValues(consolidator, [1, 10, 2, 20, 3, 4, 30, 5, 40, 50], 60);
     expect(await consolidator.next()).to.deep.equal({
       done: true,
       value: undefined,
@@ -168,7 +168,7 @@ describe('Consolidator', () => {
     consolidator.add(deferredGen([10, 20, 30, 40, 50], 60));
     consolidator.close();
 
-    await expectValues(consolidator, [1, 10, 2, 20, 3, 30, 4, 40, 5, 50], 60);
+    await expectValues(consolidator, [1, 10, 2, 20, 3, 4, 30, 5, 40, 50], 60);
     expect(await consolidator.next()).to.deep.equal({
       done: true,
       value: undefined,
@@ -182,7 +182,7 @@ describe('Consolidator', () => {
     ]);
     consolidator.close();
 
-    await expectValues(consolidator, [1, 10, 2, 20, 3, 30, 4, 40, 5, 50], 60);
+    await expectValues(consolidator, [1, 10, 2, 20, 3, 30, 4, 5, 40, 50], 60);
     expect(await consolidator.next()).to.deep.equal({
       done: true,
       value: undefined,
@@ -197,7 +197,7 @@ describe('Consolidator', () => {
     consolidator.add(gen([1, 2, 3, 4, 5], 6));
     consolidator.close();
 
-    await expectValues(consolidator, [1, 10, 2, 20, 3, 30, 4, 40, 5, 50], 60);
+    await expectValues(consolidator, [1, 10, 2, 20, 3, 30, 4, 5, 40, 50], 60);
     expect(await consolidator.next()).to.deep.equal({
       done: true,
       value: undefined,
