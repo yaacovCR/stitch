@@ -301,8 +301,6 @@ export class Executor {
         }
       }
 
-      this._deferredResults.delete(key);
-
       newIncremental.push({
         ...result,
         data: newData,
