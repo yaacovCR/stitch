@@ -15,6 +15,7 @@ import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
 import { Consolidator } from '../utilities/Consolidator.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 import type { Plan } from './Plan.js';
+import type { Subschema } from './SuperSchema.js';
 interface TaggedSubsequentIncrementalExecutionResult {
   path: Path;
   incrementalResult: SubsequentIncrementalExecutionResult;
@@ -76,6 +77,10 @@ export declare class Executor {
   _handleIncrementalResult(
     taggedResult: TaggedSubsequentIncrementalExecutionResult,
   ): SubsequentIncrementalExecutionResult | undefined;
+  _getDeferredSubschemas(
+    plan: Plan,
+    path: ReadonlyArray<string | number>,
+  ): Set<Subschema> | undefined;
   _handleSingleResult(
     parent: ObjMap<unknown>,
     result: ExecutionResult | InitialIncrementalExecutionResult,

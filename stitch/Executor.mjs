@@ -22,7 +22,10 @@ export class Executor {
     this._promiseAggregator = new PromiseAggregator(() => this._return());
   }
   execute() {
-    for (const [subschema, subschemaSelections] of this.plan.map.entries()) {
+    for (const [
+      subschema,
+      subschemaSelections,
+    ] of this.plan.selectionMap.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
@@ -47,7 +50,7 @@ export class Executor {
     };
   }
   subscribe() {
-    const iteration = this.plan.map.entries().next();
+    const iteration = this.plan.selectionMap.entries().next();
     if (iteration.done) {
       const error = new GraphQLError('Could not route subscription.', {
         nodes: this.operation,
@@ -151,7 +154,7 @@ export class Executor {
       let identifier;
       const newData = Object.create(null);
       for (const key of Object.keys(data)) {
-        if (!key.startsWith('__identifier')) {
+        if (key !== '__deferredIdentifier__') {
           newData[key] = data[key];
           continue;
         }
@@ -163,16 +166,24 @@ export class Executor {
       }
       const fullPath = result.path ? [...path, ...result.path] : path;
       const key = fullPath.join();
-      const total = parseInt(identifier.split('__')[3], 10);
-      const deferredResults = this._deferredResults.get(key);
+      let deferredResults = this._deferredResults.get(key);
       if (deferredResults === undefined) {
-        this._deferredResults.set(key, [newData]);
-        continue;
-      }
-      if (deferredResults.length !== total - 1) {
+        deferredResults = [newData];
+        this._deferredResults.set(key, deferredResults);
+      } else {
         deferredResults.push(newData);
+      }
+      const deferredSubschemas = this._getDeferredSubschemas(
+        this.plan,
+        fullPath,
+      );
+      if (
+        deferredSubschemas &&
+        deferredResults.length < deferredSubschemas.size
+      ) {
         continue;
       }
+      this._deferredResults.delete(key);
       for (const deferredResult of deferredResults) {
         for (const [deferredKey, value] of Object.entries(deferredResult)) {
           newData[deferredKey] = value;
@@ -196,6 +207,21 @@ export class Executor {
       newIncrementalResult.hasNext = true;
     }
     return newIncrementalResult;
+  }
+  _getDeferredSubschemas(plan, path) {
+    let currentPlan = plan;
+    const fieldPath = [...path];
+    let key;
+    while ((key = fieldPath.shift()) !== undefined) {
+      if (typeof key === 'number') {
+        continue;
+      }
+      currentPlan = currentPlan.subPlans[key];
+    }
+    if (currentPlan === undefined) {
+      return undefined;
+    }
+    return currentPlan.deferredSubschemas;
   }
   _handleSingleResult(parent, result, path) {
     if (result.errors != null) {
@@ -230,7 +256,10 @@ export class Executor {
     this._executeSubPlan(parent, plan, path);
   }
   _executeSubPlan(parent, plan, path) {
-    for (const [subschema, subschemaSelections] of plan.map.entries()) {
+    for (const [
+      subschema,
+      subschemaSelections,
+    ] of plan.selectionMap.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,

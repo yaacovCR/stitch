@@ -10,8 +10,11 @@ import type {
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
-import { UniqueId } from '../utilities/UniqueId.js';
 import type { Subschema, SuperSchema } from './SuperSchema';
+interface SelectionMetadata {
+  selectionMap: AccumulatorMap<Subschema, SelectionNode>;
+  deferredSubschemas: Set<Subschema>;
+}
 /**
  * @internal
  */
@@ -19,27 +22,27 @@ export declare class Plan {
   superSchema: SuperSchema;
   parentType: GraphQLCompositeType;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, Array<SelectionNode>>;
+  selectionMap: Map<Subschema, Array<SelectionNode>>;
+  deferredSubschemas: Set<Subschema>;
   subPlans: ObjMap<Plan>;
-  uniqueId: UniqueId;
   constructor(
     superSchema: SuperSchema,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
     fragmentMap: ObjMap<FragmentDefinitionNode>,
   );
-  _splitSelections(
+  _processSelections(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-  ): Map<Subschema, Array<SelectionNode>>;
+  ): SelectionMetadata;
   _addField(
     parentType: GraphQLCompositeType,
     field: FieldNode,
-    map: Map<Subschema, Array<SelectionNode>>,
+    selectionMetadata: SelectionMetadata,
   ): void;
   _getSubschemaAndSelections(
     subschemas: ReadonlyArray<Subschema>,
-    map: Map<Subschema, Array<SelectionNode>>,
+    selectionMap: Map<Subschema, Array<SelectionNode>>,
   ): {
     subschema: Subschema;
     selections: Array<SelectionNode>;
@@ -51,17 +54,17 @@ export declare class Plan {
   _addInlineFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
-    map: AccumulatorMap<Subschema, SelectionNode>,
+    selectionMetadata: SelectionMetadata,
   ): void;
-  _addSplitFragments(
+  _addFragmentSelectionMap(
     fragment: InlineFragmentNode,
-    splitSelections: Map<Subschema, Array<SelectionNode>>,
-    map: AccumulatorMap<Subschema, SelectionNode>,
+    fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
-  _addModifiedSplitFragments(
+  _addModifiedFragmentSelectionMap(
     fragment: InlineFragmentNode,
-    splitSelections: Map<Subschema, Array<SelectionNode>>,
-    map: AccumulatorMap<Subschema, SelectionNode>,
+    fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
     toSelections: (
       originalSelections: ReadonlyArray<SelectionNode>,
     ) => Array<SelectionNode>,
@@ -73,6 +76,7 @@ export declare class Plan {
   ): Array<SelectionNode>;
   print(indent?: number): string;
   _printMap(indent: number): string;
+  _printDeferredSubschemas(indent: number): string;
   _printSubschemaSelections(
     subschema: Subschema,
     selections: ReadonlyArray<SelectionNode>,
@@ -85,3 +89,4 @@ export declare class Plan {
   _printSubPlan(responseKey: string, subPlan: Plan, indent: number): string;
   _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string;
 }
+export {};
