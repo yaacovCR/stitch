@@ -21,6 +21,7 @@ import { Consolidator } from '../utilities/Consolidator.ts';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.ts';
 import { mapAsyncIterable } from './mapAsyncIterable.ts';
 import type { Plan } from './Plan.ts';
+import type { Subschema } from './SuperSchema.ts';
 interface TaggedSubsequentIncrementalExecutionResult {
   path: Path;
   incrementalResult: SubsequentIncrementalExecutionResult;
@@ -76,7 +77,10 @@ export class Executor {
   execute(): PromiseOrValue<
     ExecutionResult | ExperimentalIncrementalExecutionResults
   > {
-    for (const [subschema, subschemaSelections] of this.plan.map.entries()) {
+    for (const [
+      subschema,
+      subschemaSelections,
+    ] of this.plan.selectionMap.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
@@ -103,7 +107,7 @@ export class Executor {
   subscribe(): PromiseOrValue<
     ExecutionResult | SimpleAsyncGenerator<ExecutionResult>
   > {
-    const iteration = this.plan.map.entries().next();
+    const iteration = this.plan.selectionMap.entries().next();
     if (iteration.done) {
       const error = new GraphQLError('Could not route subscription.', {
         nodes: this.operation,
@@ -215,7 +219,7 @@ export class Executor {
       let identifier: string | undefined;
       const newData = Object.create(null);
       for (const key of Object.keys(data)) {
-        if (!key.startsWith('__identifier')) {
+        if (key !== '__deferredIdentifier__') {
           newData[key] = data[key];
           continue;
         }
@@ -227,16 +231,24 @@ export class Executor {
       }
       const fullPath = result.path ? [...path, ...result.path] : path;
       const key = fullPath.join();
-      const total = parseInt(identifier.split('__')[3], 10);
-      const deferredResults = this._deferredResults.get(key);
+      let deferredResults = this._deferredResults.get(key);
       if (deferredResults === undefined) {
-        this._deferredResults.set(key, [newData]);
-        continue;
-      }
-      if (deferredResults.length !== total - 1) {
+        deferredResults = [newData];
+        this._deferredResults.set(key, deferredResults);
+      } else {
         deferredResults.push(newData);
+      }
+      const deferredSubschemas = this._getDeferredSubschemas(
+        this.plan,
+        fullPath,
+      );
+      if (
+        deferredSubschemas &&
+        deferredResults.length < deferredSubschemas.size
+      ) {
         continue;
       }
+      this._deferredResults.delete(key);
       for (const deferredResult of deferredResults) {
         for (const [deferredKey, value] of Object.entries(deferredResult)) {
           newData[deferredKey] = value;
@@ -260,6 +272,24 @@ export class Executor {
       newIncrementalResult.hasNext = true;
     }
     return newIncrementalResult;
+  }
+  _getDeferredSubschemas(
+    plan: Plan,
+    path: ReadonlyArray<string | number>,
+  ): Set<Subschema> | undefined {
+    let currentPlan = plan;
+    const fieldPath = [...path];
+    let key: string | number | undefined;
+    while ((key = fieldPath.shift()) !== undefined) {
+      if (typeof key === 'number') {
+        continue;
+      }
+      currentPlan = currentPlan.subPlans[key];
+    }
+    if (currentPlan === undefined) {
+      return undefined;
+    }
+    return currentPlan.deferredSubschemas;
   }
   _handleSingleResult(
     parent: ObjMap<unknown>,
@@ -310,7 +340,10 @@ export class Executor {
     this._executeSubPlan(parent, plan, path);
   }
   _executeSubPlan(parent: ObjMap<unknown>, plan: Plan, path: Path): void {
-    for (const [subschema, subschemaSelections] of plan.map.entries()) {
+    for (const [
+      subschema,
+      subschemaSelections,
+    ] of plan.selectionMap.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,

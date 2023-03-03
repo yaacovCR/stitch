@@ -25,8 +25,11 @@ import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { inlineRootFragments } from '../utilities/inlineRootFragments.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
-import { UniqueId } from '../utilities/UniqueId.ts';
 import type { Subschema, SuperSchema } from './SuperSchema';
+interface SelectionMetadata {
+  selectionMap: AccumulatorMap<Subschema, SelectionNode>;
+  deferredSubschemas: Set<Subschema>;
+}
 /**
  * @internal
  */
@@ -34,9 +37,9 @@ export class Plan {
   superSchema: SuperSchema;
   parentType: GraphQLCompositeType;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
-  map: Map<Subschema, Array<SelectionNode>>;
+  selectionMap: Map<Subschema, Array<SelectionNode>>;
+  deferredSubschemas: Set<Subschema>;
   subPlans: ObjMap<Plan>;
-  uniqueId: UniqueId;
   constructor(
     superSchema: SuperSchema,
     parentType: GraphQLCompositeType,
@@ -47,23 +50,26 @@ export class Plan {
     this.parentType = parentType;
     this.fragmentMap = fragmentMap;
     this.subPlans = Object.create(null);
-    this.uniqueId = new UniqueId();
     const inlinedSelections = inlineRootFragments(selections, fragmentMap);
-    const splitSelections = this._splitSelections(
+    const { selectionMap, deferredSubschemas } = this._processSelections(
       parentType,
       inlinedSelections,
     );
-    this.map = splitSelections;
+    this.selectionMap = selectionMap;
+    this.deferredSubschemas = deferredSubschemas;
   }
-  _splitSelections(
+  _processSelections(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-  ): Map<Subschema, Array<SelectionNode>> {
-    const map = new AccumulatorMap<Subschema, SelectionNode>();
+  ): SelectionMetadata {
+    const selectionMetadata: SelectionMetadata = {
+      selectionMap: new AccumulatorMap(),
+      deferredSubschemas: new Set(),
+    };
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addField(parentType, selection, map);
+          this._addField(parentType, selection, selectionMetadata);
           break;
         }
         case Kind.INLINE_FRAGMENT: {
@@ -73,7 +79,7 @@ export class Plan {
             : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addInlineFragment(refinedType, selection, map);
+          this._addInlineFragment(refinedType, selection, selectionMetadata);
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -86,12 +92,12 @@ export class Plan {
         }
       }
     }
-    return map;
+    return selectionMetadata;
   }
   _addField(
     parentType: GraphQLCompositeType,
     field: FieldNode,
-    map: Map<Subschema, Array<SelectionNode>>,
+    selectionMetadata: SelectionMetadata,
   ): void {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
@@ -101,7 +107,7 @@ export class Plan {
     }
     const { subschema, selections } = this._getSubschemaAndSelections(
       Array.from(subschemaSets),
-      map,
+      selectionMetadata.selectionMap,
     );
     if (!field.selectionSet) {
       selections.push(field);
@@ -119,7 +125,7 @@ export class Plan {
       field.selectionSet.selections,
       this.fragmentMap,
     );
-    const filteredSelections = fieldPlan.map.get(subschema);
+    const filteredSelections = fieldPlan.selectionMap.get(subschema);
     if (filteredSelections) {
       selections.push({
         ...field,
@@ -128,10 +134,10 @@ export class Plan {
           selections: filteredSelections,
         },
       });
-      fieldPlan.map.delete(subschema);
+      fieldPlan.selectionMap.delete(subschema);
     }
     if (
-      fieldPlan.map.size > 0 ||
+      fieldPlan.selectionMap.size > 0 ||
       Object.values(fieldPlan.subPlans).length > 0
     ) {
       const responseKey = field.alias?.value ?? field.name.value;
@@ -140,21 +146,21 @@ export class Plan {
   }
   _getSubschemaAndSelections(
     subschemas: ReadonlyArray<Subschema>,
-    map: Map<Subschema, Array<SelectionNode>>,
+    selectionMap: Map<Subschema, Array<SelectionNode>>,
   ): {
     subschema: Subschema;
     selections: Array<SelectionNode>;
   } {
     let selections: Array<SelectionNode> | undefined;
     for (const subschema of subschemas) {
-      selections = map.get(subschema);
+      selections = selectionMap.get(subschema);
       if (selections) {
         return { subschema, selections };
       }
     }
     selections = [];
     const subschema = subschemas[0];
-    map.set(subschema, selections);
+    selectionMap.set(subschema, selections);
     return { subschema, selections };
   }
   _getFieldDef(
@@ -184,40 +190,51 @@ export class Plan {
   _addInlineFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
-    map: AccumulatorMap<Subschema, SelectionNode>,
+    selectionMetadata: SelectionMetadata,
   ): void {
-    const splitSelections = this._splitSelections(
+    const fragmentSelectionMetadata = this._processSelections(
       parentType,
       fragment.selectionSet.selections,
     );
     const defer = fragment.directives?.find(
       (directive) => directive.name.value === 'defer',
     );
-    if (defer === undefined || splitSelections.size < 2) {
-      this._addSplitFragments(fragment, splitSelections, map);
-      return;
+    if (defer === undefined) {
+      this._addFragmentSelectionMap(
+        fragment,
+        fragmentSelectionMetadata.selectionMap,
+        selectionMetadata.selectionMap,
+      );
+    } else {
+      for (const deferredSubschema of fragmentSelectionMetadata.selectionMap.keys()) {
+        selectionMetadata.deferredSubschemas.add(deferredSubschema);
+      }
+      const identifier = '__deferredIdentifier__';
+      this._addModifiedFragmentSelectionMap(
+        fragment,
+        fragmentSelectionMetadata.selectionMap,
+        selectionMetadata.selectionMap,
+        (selections) =>
+          this._addIdentifier(
+            selections,
+            identifier,
+            defer.arguments?.find((arg) => arg.name.value === 'if')?.value,
+          ),
+      );
     }
-    const identifier = `__identifier__${this.uniqueId.gen()}__${
-      splitSelections.size
-    }`;
-    this._addModifiedSplitFragments(
-      fragment,
-      splitSelections,
-      map,
-      (selections) =>
-        this._addIdentifier(
-          selections,
-          identifier,
-          defer.arguments?.find((arg) => arg.name.value === 'if')?.value,
-        ),
-    );
+    for (const deferredSubschema of fragmentSelectionMetadata.deferredSubschemas) {
+      selectionMetadata.deferredSubschemas.add(deferredSubschema);
+    }
   }
-  _addSplitFragments(
+  _addFragmentSelectionMap(
     fragment: InlineFragmentNode,
-    splitSelections: Map<Subschema, Array<SelectionNode>>,
-    map: AccumulatorMap<Subschema, SelectionNode>,
+    fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
-    for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
+    for (const [
+      fragmentSubschema,
+      fragmentSelections,
+    ] of fragmentSelectionMap) {
       const splitFragment: InlineFragmentNode = {
         ...fragment,
         selectionSet: {
@@ -225,18 +242,21 @@ export class Plan {
           selections: fragmentSelections,
         },
       };
-      map.add(fragmentSubschema, splitFragment);
+      selectionMap.add(fragmentSubschema, splitFragment);
     }
   }
-  _addModifiedSplitFragments(
+  _addModifiedFragmentSelectionMap(
     fragment: InlineFragmentNode,
-    splitSelections: Map<Subschema, Array<SelectionNode>>,
-    map: AccumulatorMap<Subschema, SelectionNode>,
+    fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
     toSelections: (
       originalSelections: ReadonlyArray<SelectionNode>,
     ) => Array<SelectionNode>,
   ): void {
-    for (const [fragmentSubschema, fragmentSelections] of splitSelections) {
+    for (const [
+      fragmentSubschema,
+      fragmentSelections,
+    ] of fragmentSelectionMap) {
       const splitFragment: InlineFragmentNode = {
         ...fragment,
         selectionSet: {
@@ -244,7 +264,7 @@ export class Plan {
           selections: toSelections(fragmentSelections),
         },
       };
-      map.add(fragmentSubschema, splitFragment);
+      selectionMap.add(fragmentSubschema, splitFragment);
     }
   }
   _addIdentifier(
@@ -288,8 +308,11 @@ export class Plan {
   }
   print(indent = 0): string {
     const entries = [];
-    if (this.map.size > 0) {
+    if (this.selectionMap.size > 0) {
       entries.push(this._printMap(indent));
+    }
+    if (this.deferredSubschemas.size > 0) {
+      entries.push(this._printDeferredSubschemas(indent));
     }
     const subPlans = Array.from(Object.entries(this.subPlans));
     if (subPlans.length > 0) {
@@ -300,11 +323,22 @@ export class Plan {
   _printMap(indent: number): string {
     const spaces = new Array(indent).fill(' ', 0, indent).join('');
     let result = `${spaces}Map:\n`;
-    result += Array.from(this.map.entries())
+    result += Array.from(this.selectionMap.entries())
       .map(([subschema, selections]) =>
         this._printSubschemaSelections(subschema, selections, indent + 2),
       )
       .join('\n');
+    return result;
+  }
+  _printDeferredSubschemas(indent: number): string {
+    const spaces = new Array(indent).fill(' ', 0, indent).join('');
+    let result = `${spaces}Deferred: `;
+    result += Array.from(this.deferredSubschemas.values())
+      .map(
+        (subschema) =>
+          `Subschema ${this.superSchema.getSubschemaId(subschema)}`,
+      )
+      .join(', ');
     return result;
   }
   _printSubschemaSelections(
