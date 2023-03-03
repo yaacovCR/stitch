@@ -323,7 +323,7 @@ describe('Plan', () => {
           {
             someObject {
               ... @defer {
-                __identifier__0__2: __typename
+                __deferredIdentifier__: __typename
                 someField
               }
             }
@@ -333,10 +333,11 @@ describe('Plan', () => {
           Subschema 1:
             {
               ... @defer {
-                __identifier__0__2: __typename
+                __deferredIdentifier__: __typename
                 anotherField
               }
             }
+        Deferred: Subschema 0, Subschema 1
     `);
   });
 });
