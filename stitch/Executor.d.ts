@@ -1,3 +1,4 @@
+import type { Push } from '@repeaterjs/repeater';
 import type {
   DocumentNode,
   ExecutionResult,
@@ -21,6 +22,19 @@ interface TaggedSubsequentIncrementalExecutionResult {
   incrementalResult: SubsequentIncrementalExecutionResult;
 }
 type Path = ReadonlyArray<string | number>;
+interface GraphQLData {
+  fields: ObjMap<unknown>;
+  errors: Array<GraphQLError>;
+  nulled: boolean;
+  promiseAggregator: PromiseAggregator<
+    ExecutionResult | ExperimentalIncrementalExecutionResults,
+    GraphQLError,
+    ExecutionResult | ExperimentalIncrementalExecutionResults
+  >;
+}
+interface Parent {
+  [key: string | number]: unknown;
+}
 /**
  * @internal
  */
@@ -33,9 +47,6 @@ export declare class Executor {
         readonly [variable: string]: unknown;
       }
     | undefined;
-  _data: ObjMap<unknown>;
-  _nullData: boolean;
-  _errors: Array<GraphQLError>;
   _consolidator:
     | Consolidator<
         TaggedSubsequentIncrementalExecutionResult,
@@ -43,11 +54,6 @@ export declare class Executor {
       >
     | undefined;
   _deferredResults: Map<string, Array<ObjMap<unknown>>>;
-  _promiseAggregator: PromiseAggregator<
-    ExecutionResult | ExperimentalIncrementalExecutionResults,
-    GraphQLError,
-    ExecutionResult | ExperimentalIncrementalExecutionResults
-  >;
   constructor(
     plan: Plan,
     operation: OperationDefinitionNode,
@@ -65,39 +71,76 @@ export declare class Executor {
   subscribe(): PromiseOrValue<
     ExecutionResult | SimpleAsyncGenerator<ExecutionResult>
   >;
-  _return(): ExecutionResult | ExperimentalIncrementalExecutionResults;
+  _buildResponse(
+    initialGraphQLData: GraphQLData,
+  ): ExecutionResult | ExperimentalIncrementalExecutionResults;
   _handleMaybeAsyncPossibleMultiPartResult<
     T extends PromiseOrValue<
       ExecutionResult | ExperimentalIncrementalExecutionResults
     >,
-  >(parent: ObjMap<unknown>, result: T, path: Path): void;
+  >(
+    graphQLData: GraphQLData,
+    parent: Parent | undefined,
+    fields: ObjMap<unknown>,
+    result: T,
+    path: Path,
+  ): void;
   _handlePossibleMultiPartResult<
     T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(parent: ObjMap<unknown>, result: T, path: Path): void;
+  >(
+    graphQLData: GraphQLData,
+    parent: Parent | undefined,
+    fields: ObjMap<unknown>,
+    result: T,
+    path: Path,
+  ): void;
+  _push(
+    incrementalResult: SubsequentIncrementalExecutionResult,
+    push: Push<SubsequentIncrementalExecutionResult>,
+  ): void;
   _handleIncrementalResult(
     taggedResult: TaggedSubsequentIncrementalExecutionResult,
-  ): SubsequentIncrementalExecutionResult | undefined;
+    push: Push<SubsequentIncrementalExecutionResult>,
+  ): void;
   _getDeferredSubschemas(
     plan: Plan,
     path: ReadonlyArray<string | number>,
   ): Set<Subschema> | undefined;
-  _handleSingleResult(
-    parent: ObjMap<unknown>,
+  _handleDeferredResult(
+    data: ObjMap<unknown>,
+    subPlans: ObjMap<Plan>,
+    push: Push<SubsequentIncrementalExecutionResult>,
+    path: Path,
+  ): void;
+  _getSubPlans(path: Path): ObjMap<Plan> | undefined;
+  _handleInitialResult(
+    graphQLData: GraphQLData,
+    parent: Parent | undefined,
+    fields: ObjMap<unknown>,
     result: ExecutionResult | InitialIncrementalExecutionResult,
     path: Path,
   ): void;
   _executeSubPlans(
-    data: ObjMap<unknown>,
+    graphQLData: GraphQLData,
+    fields: ObjMap<unknown>,
     subPlans: ObjMap<Plan>,
     path: Path,
   ): void;
   _executePossibleListSubPlan(
-    parent: ObjMap<unknown> | Array<unknown>,
+    graphQLData: GraphQLData,
+    parent: Parent,
+    fieldsOrList: ObjMap<unknown> | Array<unknown>,
     plan: Plan,
     path: Path,
   ): void;
-  _executeSubPlan(parent: ObjMap<unknown>, plan: Plan, path: Path): void;
-  _deepMerge(parent: ObjMap<unknown>, key: string, value: unknown): void;
+  _executeSubPlan(
+    graphQLData: GraphQLData,
+    parent: Parent,
+    fields: ObjMap<unknown>,
+    plan: Plan,
+    path: Path,
+  ): void;
+  _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void;
   _handlePossibleStream<
     T extends ExecutionResult | SimpleAsyncGenerator<ExecutionResult>,
   >(result: T): PromiseOrValue<T>;

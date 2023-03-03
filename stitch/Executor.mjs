@@ -15,13 +15,17 @@ export class Executor {
     this.operation = operation;
     this.fragments = fragments;
     this.rawVariableValues = rawVariableValues;
-    this._data = Object.create(null);
-    this._nullData = false;
-    this._errors = [];
     this._deferredResults = new Map();
-    this._promiseAggregator = new PromiseAggregator(() => this._return());
   }
   execute() {
+    const initialGraphQLData = {
+      fields: Object.create(null),
+      errors: [],
+      nulled: false,
+      promiseAggregator: new PromiseAggregator(() =>
+        this._buildResponse(initialGraphQLData),
+      ),
+    };
     for (const [
       subschema,
       subschemaSelections,
@@ -30,9 +34,15 @@ export class Executor {
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult(this._data, result, []);
+      this._handleMaybeAsyncPossibleMultiPartResult(
+        initialGraphQLData,
+        undefined,
+        initialGraphQLData.fields,
+        result,
+        [],
+      );
     }
-    return this._promiseAggregator.return();
+    return initialGraphQLData.promiseAggregator.return();
   }
   _createDocument(selections) {
     return {
@@ -76,50 +86,76 @@ export class Executor {
     }
     return this._handlePossibleStream(result);
   }
-  _return() {
-    const dataOrNull = this._nullData ? null : this._data;
+  _buildResponse(initialGraphQLData) {
+    const fieldsOrNull = initialGraphQLData.nulled
+      ? null
+      : initialGraphQLData.fields;
     if (this._consolidator !== undefined) {
       this._consolidator.close();
       const initialResult =
-        this._errors.length > 0
-          ? { data: dataOrNull, errors: this._errors, hasNext: true }
-          : { data: dataOrNull, hasNext: true };
+        initialGraphQLData.errors.length > 0
+          ? {
+              data: fieldsOrNull,
+              errors: initialGraphQLData.errors,
+              hasNext: true,
+            }
+          : { data: fieldsOrNull, hasNext: true };
       return {
         initialResult,
         subsequentResults: this._consolidator,
       };
     }
-    return this._errors.length > 0
-      ? { data: dataOrNull, errors: this._errors }
-      : { data: dataOrNull };
+    return initialGraphQLData.errors.length > 0
+      ? { data: fieldsOrNull, errors: initialGraphQLData.errors }
+      : { data: fieldsOrNull };
   }
-  _handleMaybeAsyncPossibleMultiPartResult(parent, result, path) {
-    if (isPromise(result)) {
-      this._promiseAggregator.add(
+  _handleMaybeAsyncPossibleMultiPartResult(
+    graphQLData,
+    parent,
+    fields,
+    result,
+    path,
+  ) {
+    if (!isPromise(result)) {
+      this._handlePossibleMultiPartResult(
+        graphQLData,
+        parent,
+        fields,
         result,
-        (resolved) =>
-          this._handlePossibleMultiPartResult(parent, resolved, path),
-        (err) =>
-          this._handlePossibleMultiPartResult(
-            parent,
-            {
-              data: null,
-              errors: [new GraphQLError(err.message, { originalError: err })],
-            },
-            path,
-          ),
+        path,
       );
-    } else {
-      this._handlePossibleMultiPartResult(parent, result, path);
+      return;
     }
+    graphQLData.promiseAggregator.add(
+      result,
+      (resolved) =>
+        this._handlePossibleMultiPartResult(
+          graphQLData,
+          parent,
+          fields,
+          resolved,
+          path,
+        ),
+      (err) =>
+        this._handlePossibleMultiPartResult(
+          graphQLData,
+          parent,
+          fields,
+          {
+            data: null,
+            errors: [new GraphQLError(err.message, { originalError: err })],
+          },
+          path,
+        ),
+    );
   }
-  _handlePossibleMultiPartResult(parent, result, path) {
+  _handlePossibleMultiPartResult(graphQLData, parent, fields, result, path) {
     if (!('initialResult' in result)) {
-      this._handleSingleResult(parent, result, path);
+      this._handleInitialResult(graphQLData, parent, fields, result, path);
       return;
     }
     const { initialResult, subsequentResults } = result;
-    this._handleSingleResult(parent, initialResult, path);
+    this._handleInitialResult(graphQLData, parent, fields, initialResult, path);
     const taggedResults = mapAsyncIterable(
       subsequentResults,
       (incrementalResult) => ({
@@ -128,17 +164,25 @@ export class Executor {
       }),
     );
     if (this._consolidator === undefined) {
-      this._consolidator = new Consolidator([taggedResults], (taggedResult) =>
-        this._handleIncrementalResult(taggedResult),
+      this._consolidator = new Consolidator(
+        [taggedResults],
+        (taggedResult, push) =>
+          this._handleIncrementalResult(taggedResult, push),
       );
       return;
     }
     this._consolidator.add(taggedResults);
   }
-  _handleIncrementalResult(taggedResult) {
+  _push(incrementalResult, push) {
+    push(incrementalResult).then(undefined, () => {
+      /* ignore */
+    });
+  }
+  _handleIncrementalResult(taggedResult, push) {
     const { path, incrementalResult } = taggedResult;
     if (incrementalResult.incremental === undefined) {
-      return incrementalResult;
+      this._push(incrementalResult, push);
+      return;
     }
     const newIncremental = [];
     for (const result of incrementalResult.incremental) {
@@ -160,11 +204,16 @@ export class Executor {
         }
         identifier = key;
       }
+      const fullPath = result.path ? [...path, ...result.path] : path;
       if (identifier === undefined) {
-        newIncremental.push(result);
+        const subPlans = this._getSubPlans(result.path);
+        if (subPlans && Object.keys(subPlans).length > 0) {
+          this._handleDeferredResult(newData, subPlans, push, fullPath);
+        } else {
+          newIncremental.push(result);
+        }
         continue;
       }
-      const fullPath = result.path ? [...path, ...result.path] : path;
       const key = fullPath.join();
       let deferredResults = this._deferredResults.get(key);
       if (deferredResults === undefined) {
@@ -189,12 +238,16 @@ export class Executor {
           newData[deferredKey] = value;
         }
       }
-      this._deferredResults.delete(key);
-      newIncremental.push({
-        ...result,
-        data: newData,
-        path: fullPath,
-      });
+      const subPlans = this._getSubPlans(fullPath);
+      if (subPlans && Object.keys(subPlans).length > 0) {
+        this._handleDeferredResult(newData, subPlans, push, fullPath);
+      } else {
+        newIncremental.push({
+          ...result,
+          data: newData,
+          path: fullPath,
+        });
+      }
     }
     if (newIncremental.length === 0) {
       return undefined;
@@ -206,7 +259,7 @@ export class Executor {
     if (this._deferredResults.size) {
       newIncrementalResult.hasNext = true;
     }
-    return newIncrementalResult;
+    this._push(newIncrementalResult, push);
   }
   _getDeferredSubschemas(plan, path) {
     let currentPlan = plan;
@@ -223,39 +276,96 @@ export class Executor {
     }
     return currentPlan.deferredSubschemas;
   }
-  _handleSingleResult(parent, result, path) {
-    if (result.errors != null) {
-      this._errors.push(...result.errors);
+  _handleDeferredResult(data, subPlans, push, path) {
+    const graphQLData = {
+      fields: Object.create(null),
+      errors: [],
+      nulled: false,
+      promiseAggregator: new PromiseAggregator(() => data),
+    };
+    this._executeSubPlans(graphQLData, data, subPlans, path);
+    const newData = graphQLData.promiseAggregator.return();
+    this._push(
+      {
+        incremental: [
+          {
+            data: newData,
+            path,
+          },
+        ],
+        hasNext: this._deferredResults.size > 0,
+      },
+      push,
+    );
+  }
+  _getSubPlans(path) {
+    let subPlans = this.plan.subPlans;
+    for (const key of path) {
+      if (typeof key === 'number') {
+        continue;
+      }
+      if (subPlans[key] === undefined) {
+        return undefined;
+      }
+      subPlans = subPlans[key].subPlans;
     }
-    if (this._nullData) {
+    return subPlans;
+  }
+  _handleInitialResult(graphQLData, parent, fields, result, path) {
+    if (result.errors != null) {
+      graphQLData.errors.push(...result.errors);
+    }
+    const parentKey = path[path.length - 1];
+    if (parent !== undefined) {
+      if (parent[parentKey] === null) {
+        return;
+      }
+    } else if (graphQLData.nulled) {
       return;
     }
     if (result.data == null) {
-      this._nullData = true;
+      if (parentKey === undefined) {
+        graphQLData.nulled = true;
+      } else if (parent) {
+        parent[parentKey] = null;
+        // TODO: null bubbling?
+      }
       return;
     }
     for (const [key, value] of Object.entries(result.data)) {
-      this._deepMerge(parent, key, value);
+      this._deepMerge(fields, key, value);
     }
-    this._executeSubPlans(result.data, this.plan.subPlans, path);
+    this._executeSubPlans(graphQLData, result.data, this.plan.subPlans, path);
   }
-  _executeSubPlans(data, subPlans, path) {
+  _executeSubPlans(graphQLData, fields, subPlans, path) {
     for (const [key, subPlan] of Object.entries(subPlans)) {
-      if (data[key]) {
-        this._executePossibleListSubPlan(data[key], subPlan, [...path, key]);
+      if (fields[key]) {
+        this._executePossibleListSubPlan(
+          graphQLData,
+          fields,
+          fields[key],
+          subPlan,
+          [...path, key],
+        );
       }
     }
   }
-  _executePossibleListSubPlan(parent, plan, path) {
-    if (Array.isArray(parent)) {
-      for (let i = 0; i < parent.length; i++) {
-        this._executePossibleListSubPlan(parent[i], plan, [...path, i]);
+  _executePossibleListSubPlan(graphQLData, parent, fieldsOrList, plan, path) {
+    if (Array.isArray(fieldsOrList)) {
+      for (let i = 0; i < fieldsOrList.length; i++) {
+        this._executePossibleListSubPlan(
+          graphQLData,
+          fieldsOrList,
+          fieldsOrList[i],
+          plan,
+          [...path, i],
+        );
       }
       return;
     }
-    this._executeSubPlan(parent, plan, path);
+    this._executeSubPlan(graphQLData, parent, fieldsOrList, plan, path);
   }
-  _executeSubPlan(parent, plan, path) {
+  _executeSubPlan(graphQLData, parent, fields, plan, path) {
     for (const [
       subschema,
       subschemaSelections,
@@ -264,22 +374,28 @@ export class Executor {
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult(parent, result, path);
+      this._handleMaybeAsyncPossibleMultiPartResult(
+        graphQLData,
+        parent,
+        fields,
+        result,
+        path,
+      );
     }
-    this._executeSubPlans(parent, plan.subPlans, path);
+    this._executeSubPlans(graphQLData, fields, plan.subPlans, path);
   }
-  _deepMerge(parent, key, value) {
+  _deepMerge(fields, key, value) {
     if (
-      !isObjectLike(parent[key]) ||
+      !isObjectLike(fields[key]) ||
       !isObjectLike(value) ||
       Array.isArray(value)
     ) {
-      parent[key] = value;
+      fields[key] = value;
       return;
     }
     for (const [subKey, subValue] of Object.entries(value)) {
-      const parentObjMap = parent[key];
-      this._deepMerge(parentObjMap, subKey, subValue);
+      const subFields = fields[key];
+      this._deepMerge(subFields, subKey, subValue);
     }
   }
   _handlePossibleStream(result) {

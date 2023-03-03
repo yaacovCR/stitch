@@ -1,11 +1,12 @@
 import type { Push, Stop } from '@repeaterjs/repeater';
 import { Repeater } from '@repeaterjs/repeater';
+import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 /**
  * @internal
  */
 export declare class Consolidator<T, U> extends Repeater<U> {
   _asyncIterators: Set<AsyncIterator<T>>;
-  _processor: (value: T) => U | undefined;
+  _processor: (value: T, push: Push<U>) => PromiseOrValue<void>;
   _push: Push<U> | undefined;
   _stop: Stop | undefined;
   _started: boolean;
@@ -20,7 +21,7 @@ export declare class Consolidator<T, U> extends Repeater<U> {
   >;
   constructor(
     asyncIterables?: Array<AsyncIterable<T>>,
-    processor?: (value: T) => U | undefined,
+    processor?: (value: T, push: Push<U>) => PromiseOrValue<void>,
   );
   _resetSignal(): Promise<void>;
   close(): void;

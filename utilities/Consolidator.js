@@ -2,11 +2,12 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.Consolidator = void 0;
 const repeater_1 = require('@repeaterjs/repeater');
+const isPromise_js_1 = require('../predicates/isPromise.js');
 /**
  * @internal
  */
 class Consolidator extends repeater_1.Repeater {
-  constructor(asyncIterables, processor = (value) => value) {
+  constructor(asyncIterables, processor = (value, push) => push(value)) {
     super(async (push, stop) => {
       this._push = push;
       this._stop = stop;
@@ -89,10 +90,13 @@ class Consolidator extends repeater_1.Repeater {
             this._finalIteration = iteration;
             return;
           }
-          const processed = this._processor(iteration.value);
-          if (processed !== undefined) {
-            // eslint-disable-next-line no-await-in-loop, @typescript-eslint/no-non-null-assertion
-            await this._push(processed);
+          const maybePromise = this._processor(
+            iteration.value,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this._push,
+          );
+          if ((0, isPromise_js_1.isPromise)(maybePromise)) {
+            maybePromise.then(undefined, (err) => this._stop?.(err));
           }
         }
       }

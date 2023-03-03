@@ -1,9 +1,10 @@
 import { Repeater } from '@repeaterjs/repeater';
+import { isPromise } from '../predicates/isPromise.mjs';
 /**
  * @internal
  */
 export class Consolidator extends Repeater {
-  constructor(asyncIterables, processor = (value) => value) {
+  constructor(asyncIterables, processor = (value, push) => push(value)) {
     super(async (push, stop) => {
       this._push = push;
       this._stop = stop;
@@ -86,10 +87,13 @@ export class Consolidator extends Repeater {
             this._finalIteration = iteration;
             return;
           }
-          const processed = this._processor(iteration.value);
-          if (processed !== undefined) {
-            // eslint-disable-next-line no-await-in-loop, @typescript-eslint/no-non-null-assertion
-            await this._push(processed);
+          const maybePromise = this._processor(
+            iteration.value,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this._push,
+          );
+          if (isPromise(maybePromise)) {
+            maybePromise.then(undefined, (err) => this._stop?.(err));
           }
         }
       }
