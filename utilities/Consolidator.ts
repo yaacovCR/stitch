@@ -1,11 +1,13 @@
 import type { Push, Stop } from '@repeaterjs/repeater';
 import { Repeater } from '@repeaterjs/repeater';
+import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
+import { isPromise } from '../predicates/isPromise.ts';
 /**
  * @internal
  */
 export class Consolidator<T, U> extends Repeater<U> {
   _asyncIterators: Set<AsyncIterator<T>>;
-  _processor: (value: T) => U | undefined;
+  _processor: (value: T, push: Push<U>) => PromiseOrValue<void>;
   _push: Push<U> | undefined;
   _stop: Stop | undefined;
   _started: boolean;
@@ -20,8 +22,10 @@ export class Consolidator<T, U> extends Repeater<U> {
   >;
   constructor(
     asyncIterables?: Array<AsyncIterable<T>>,
-    processor: (value: T) => U | undefined = (value: T) =>
-      value as unknown as U,
+    processor: (value: T, push: Push<U>) => PromiseOrValue<void> = (
+      value,
+      push,
+    ) => push(value as unknown as U) as Promise<void>,
   ) {
     super(async (push, stop) => {
       this._push = push;
@@ -105,10 +109,13 @@ export class Consolidator<T, U> extends Repeater<U> {
             this._finalIteration = iteration;
             return;
           }
-          const processed = this._processor(iteration.value as T);
-          if (processed !== undefined) {
-            // eslint-disable-next-line no-await-in-loop, @typescript-eslint/no-non-null-assertion
-            await this._push!(processed);
+          const maybePromise = this._processor(
+            iteration.value as T,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this._push!,
+          );
+          if (isPromise(maybePromise)) {
+            maybePromise.then(undefined, (err) => this._stop?.(err));
           }
         }
       }
