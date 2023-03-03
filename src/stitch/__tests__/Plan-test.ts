@@ -340,4 +340,76 @@ describe('Plan', () => {
         Deferred: Subschema 0, Subschema 1
     `);
   });
+
+  it('works with @defer directive on fragments on merged types', () => {
+    const someSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        someField: SomeNestedObject
+      }
+
+      type SomeNestedObject {
+        someField: String
+      }
+    `);
+
+    const anotherSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        anotherField: AnotherNestedObject
+      }
+
+      type AnotherNestedObject {
+        someField: String
+      }
+    `);
+
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+
+    const operation = parse(
+      `{
+        someObject {
+          someField { ... @defer { someField } }
+          anotherField { ... @defer { someField } }
+        }
+      }`,
+      { noLocation: true },
+    ).definitions[0] as OperationDefinitionNode;
+
+    const plan = createPlan(superSchema, operation);
+
+    expect(plan.print()).to.equal(dedent`
+      Map:
+        Subschema 0:
+          {
+            someObject {
+              someField {
+                ... @defer {
+                  __deferredIdentifier__: __typename
+                  someField
+                }
+              }
+            }
+          }
+      SubPlan for 'someObject':
+        Map:
+          Subschema 1:
+            {
+              anotherField {
+                ... @defer {
+                  __deferredIdentifier__: __typename
+                  someField
+                }
+              }
+            }
+    `);
+  });
 });
