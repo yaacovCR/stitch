@@ -1,7 +1,4 @@
-import type {
-  ExecutionResult,
-  ExperimentalIncrementalExecutionResults,
-} from 'graphql';
+import type { ExecutionResult } from 'graphql';
 import { GraphQLError } from 'graphql';
 
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
@@ -11,9 +8,7 @@ import { buildExecutionContext } from './buildExecutionContext.js';
 import { Executor } from './Executor.js';
 import { Plan } from './Plan.js';
 
-export function execute(
-  args: ExecutionArgs,
-): PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults> {
+export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
   const exeContext = buildExecutionContext(args);

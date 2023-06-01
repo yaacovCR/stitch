@@ -98,8 +98,6 @@ function createSubscription(
   const document = parse(`
     subscription (
       $priority: Int = 0
-      $shouldDefer: Boolean = false
-      $shouldStream: Boolean = false
       $asyncResolver: Boolean = false
     ) {
       importantEmail(priority: $priority) {
@@ -110,12 +108,9 @@ function createSubscription(
             asyncSubject
           }
         }
-        ... @defer(if: $shouldDefer) {
-          inbox {
-            emails @include(if: $shouldStream) @stream(if: $shouldStream)
-            unread
-            total
-          }
+        inbox {
+          unread
+          total
         }
       }
     }
@@ -699,154 +694,6 @@ describe('Subscription Publish Phase', () => {
 
     // Awaiting a subscription after closing it results in completed results.
     expect(await subscription.next()).to.deep.equal({
-      done: true,
-      value: undefined,
-    });
-  });
-
-  it('subscribe function returns errors with @defer', async () => {
-    const pubsub = new SimplePubSub<Email>();
-    const subscription = await createSubscription(pubsub, {
-      shouldDefer: true,
-    });
-    assert(isAsyncIterable(subscription));
-    // Wait for the next subscription payload.
-    const payload = subscription.next();
-
-    // A new email arrives!
-    expect(
-      pubsub.emit({
-        from: 'yuzhi@graphql.org',
-        subject: 'Alright',
-        message: 'Tests are good',
-        unread: true,
-      }),
-    ).to.equal(true);
-
-    const errorPayload = {
-      done: false,
-      value: {
-        errors: [
-          {
-            message: 'invariant is not defined',
-            // workaround for https://github.com/graphql/graphql-js/pull/3832
-            // '`@defer` directive not supported on subscription operations. Disable `@defer` by setting the `if` argument to `false`.',
-            locations: [{ line: 8, column: 7 }],
-            path: ['importantEmail'],
-          },
-        ],
-        data: { importantEmail: null },
-      },
-    };
-
-    // The previously waited on payload now has a value.
-    expectJSON(await payload).toDeepEqual(errorPayload);
-
-    // Another new email arrives, after all incrementally delivered payloads are received.
-    expect(
-      pubsub.emit({
-        from: 'hyo@graphql.org',
-        subject: 'Tools',
-        message: 'I <3 making things',
-        unread: true,
-      }),
-    ).to.equal(true);
-
-    // The next waited on payload will have a value.
-    expectJSON(await subscription.next()).toDeepEqual(errorPayload);
-
-    expectJSON(await subscription.return()).toDeepEqual({
-      done: true,
-      value: undefined,
-    });
-
-    // Awaiting a subscription after closing it results in completed results.
-    expectJSON(await subscription.next()).toDeepEqual({
-      done: true,
-      value: undefined,
-    });
-  });
-
-  it('subscribe function returns errors with @stream', async () => {
-    const pubsub = new SimplePubSub<Email>();
-    const subscription = await createSubscription(pubsub, {
-      shouldStream: true,
-    });
-    assert(isAsyncIterable(subscription));
-    // Wait for the next subscription payload.
-    const payload = subscription.next();
-
-    // A new email arrives!
-    expect(
-      pubsub.emit({
-        from: 'yuzhi@graphql.org',
-        subject: 'Alright',
-        message: 'Tests are good',
-        unread: true,
-      }),
-    ).to.equal(true);
-
-    // The previously waited on payload now has a value.
-    expectJSON(await payload).toDeepEqual({
-      done: false,
-      value: {
-        errors: [
-          {
-            message: 'invariant is not defined',
-            // workaround for https://github.com/graphql/graphql-js/pull/3832
-            // '`@stream` directive not supported on subscription operations. Disable `@stream` by setting the `if` argument to `false`.',
-            locations: [{ line: 18, column: 13 }],
-            path: ['importantEmail', 'inbox', 'emails'],
-          },
-        ],
-        data: {
-          importantEmail: {
-            email: { from: 'yuzhi@graphql.org', subject: 'Alright' },
-            inbox: { emails: null, unread: 1, total: 2 },
-          },
-        },
-      },
-    });
-
-    // Another new email arrives, after all incrementally delivered payloads are received.
-    expect(
-      pubsub.emit({
-        from: 'hyo@graphql.org',
-        subject: 'Tools',
-        message: 'I <3 making things',
-        unread: true,
-      }),
-    ).to.equal(true);
-
-    // The next waited on payload will have a value.
-    expectJSON(await subscription.next()).toDeepEqual({
-      done: false,
-      value: {
-        errors: [
-          {
-            message: 'invariant is not defined',
-            // workaround for https://github.com/graphql/graphql-js/pull/3832
-            // '`@stream` directive not supported on subscription operations. Disable `@stream` by setting the `if` argument to `false`.',
-            locations: [{ line: 18, column: 13 }],
-            path: ['importantEmail', 'inbox', 'emails'],
-          },
-        ],
-        data: {
-          importantEmail: {
-            email: { from: 'hyo@graphql.org', subject: 'Tools' },
-            inbox: { emails: null, unread: 2, total: 3 },
-          },
-        },
-      },
-    });
-
-    expectJSON(await subscription.return()).toDeepEqual({
-      done: true,
-      value: undefined,
-    });
-
-    // Awaiting a subscription after closing it results in completed results.
-    expectJSON(await subscription.next()).toDeepEqual({
       done: true,
       value: undefined,
     });

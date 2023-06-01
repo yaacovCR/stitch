@@ -1,10 +1,6 @@
 import { assert } from 'chai';
-import type {
-  ExecutionArgs,
-  ExecutionResult,
-  ExperimentalIncrementalExecutionResults,
-} from 'graphql';
-import { experimentalExecuteIncrementally as graphqlExecute } from 'graphql';
+import type { ExecutionArgs, ExecutionResult } from 'graphql';
+import { execute as graphqlExecute } from 'graphql';
 
 import type { PromiseOrValue } from '../../../types/PromiseOrValue.js';
 import type { SimpleAsyncGenerator } from '../../../types/SimpleAsyncGenerator.js';
@@ -16,11 +12,7 @@ import { execute as gatewayExecute } from '../../execute.js';
 
 export function executeWithGraphQL(
   args: ExecutionArgs,
-): PromiseOrValue<
-  | ExecutionResult
-  | SimpleAsyncGenerator<ExecutionResult>
-  | ExperimentalIncrementalExecutionResults
-> {
+): PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>> {
   return gatewayExecute({
     ...args,
     subschemas: [
