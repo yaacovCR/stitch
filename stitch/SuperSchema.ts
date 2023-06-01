@@ -2,7 +2,6 @@ import type {
   DirectiveLocation,
   DocumentNode,
   ExecutionResult,
-  ExperimentalIncrementalExecutionResults,
   FragmentDefinitionNode,
   GraphQLArgument,
   GraphQLArgumentConfig,
@@ -29,7 +28,7 @@ import type {
 } from 'graphql';
 import {
   coerceInputValue,
-  experimentalExecuteIncrementally,
+  execute,
   GraphQLDirective,
   GraphQLEnumType,
   GraphQLError,
@@ -99,7 +98,7 @@ export type Executor = (args: {
         readonly [variable: string]: unknown;
       }
     | undefined;
-}) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
+}) => PromiseOrValue<ExecutionResult>;
 export type Subscriber = (args: {
   document: DocumentNode;
   variables?:
@@ -146,7 +145,7 @@ export class SuperSchema {
     const introspectionSubschema: Subschema = {
       schema: this.mergedSchema,
       executor: (args) =>
-        experimentalExecuteIncrementally({
+        execute({
           ...args,
           schema: this.mergedSchema,
         }),
