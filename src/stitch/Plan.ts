@@ -80,9 +80,10 @@ export class Plan {
         }
         case Kind.INLINE_FRAGMENT: {
           const typeName = selection.typeCondition?.name.value;
-          const refinedType = typeName
-            ? this.superSchema.getType(typeName)
-            : parentType;
+          const refinedType =
+            typeName !== undefined
+              ? this.superSchema.getType(typeName)
+              : parentType;
 
           invariant(
             isCompositeType(refinedType),
@@ -114,7 +115,7 @@ export class Plan {
 
     const subschemaSets = subschemaSetsByField[field.name.value];
 
-    if (!subschemaSets) {
+    if (subschemaSets === undefined) {
       return;
     }
 
@@ -205,7 +206,7 @@ export class Plan {
 
     const field = fields[fieldName];
 
-    if (field) {
+    if (field !== undefined) {
       return field;
     }
 
