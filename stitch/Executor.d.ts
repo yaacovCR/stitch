@@ -2,9 +2,7 @@ import type { Push } from '@repeaterjs/repeater';
 import type {
   DocumentNode,
   ExecutionResult,
-  ExperimentalIncrementalExecutionResults,
   FragmentDefinitionNode,
-  InitialIncrementalExecutionResult,
   OperationDefinitionNode,
   SelectionNode,
   SubsequentIncrementalExecutionResult,
@@ -13,23 +11,17 @@ import { GraphQLError } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
-import { Consolidator } from '../utilities/Consolidator.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 import type { Plan } from './Plan.js';
-import type { Subschema } from './SuperSchema.js';
-interface TaggedSubsequentIncrementalExecutionResult {
-  path: Path;
-  incrementalResult: SubsequentIncrementalExecutionResult;
-}
 type Path = ReadonlyArray<string | number>;
 interface GraphQLData {
   fields: ObjMap<unknown>;
   errors: Array<GraphQLError>;
   nulled: boolean;
   promiseAggregator: PromiseAggregator<
-    ExecutionResult | ExperimentalIncrementalExecutionResults,
+    ExecutionResult,
     GraphQLError,
-    ExecutionResult | ExperimentalIncrementalExecutionResults
+    ExecutionResult
   >;
 }
 interface Parent {
@@ -47,13 +39,6 @@ export declare class Executor {
         readonly [variable: string]: unknown;
       }
     | undefined;
-  _consolidator:
-    | Consolidator<
-        TaggedSubsequentIncrementalExecutionResult,
-        SubsequentIncrementalExecutionResult
-      >
-    | undefined;
-  _deferredResults: Map<string, Array<ObjMap<unknown>>>;
   constructor(
     plan: Plan,
     operation: OperationDefinitionNode,
@@ -64,60 +49,29 @@ export declare class Executor {
         }
       | undefined,
   );
-  execute(): PromiseOrValue<
-    ExecutionResult | ExperimentalIncrementalExecutionResults
-  >;
+  execute(): PromiseOrValue<ExecutionResult>;
   _createDocument(selections: Array<SelectionNode>): DocumentNode;
   subscribe(): PromiseOrValue<
     ExecutionResult | SimpleAsyncGenerator<ExecutionResult>
   >;
-  _buildResponse(
-    initialGraphQLData: GraphQLData,
-  ): ExecutionResult | ExperimentalIncrementalExecutionResults;
-  _handleMaybeAsyncPossibleMultiPartResult<
-    T extends PromiseOrValue<
-      ExecutionResult | ExperimentalIncrementalExecutionResults
-    >,
-  >(
+  _buildResponse(initialGraphQLData: GraphQLData): ExecutionResult;
+  _handleMaybeAsyncResult(
     graphQLData: GraphQLData,
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
-    result: T,
-    path: Path,
-  ): void;
-  _handlePossibleMultiPartResult<
-    T extends ExecutionResult | ExperimentalIncrementalExecutionResults,
-  >(
-    graphQLData: GraphQLData,
-    parent: Parent | undefined,
-    fields: ObjMap<unknown>,
-    result: T,
+    result: PromiseOrValue<ExecutionResult>,
     path: Path,
   ): void;
   _push(
     incrementalResult: SubsequentIncrementalExecutionResult,
     push: Push<SubsequentIncrementalExecutionResult>,
   ): void;
-  _handleIncrementalResult(
-    taggedResult: TaggedSubsequentIncrementalExecutionResult,
-    push: Push<SubsequentIncrementalExecutionResult>,
-  ): void;
-  _getDeferredSubschemas(
-    plan: Plan,
-    path: ReadonlyArray<string | number>,
-  ): Set<Subschema> | undefined;
-  _handleDeferredResult(
-    data: ObjMap<unknown>,
-    subPlans: ObjMap<Plan>,
-    push: Push<SubsequentIncrementalExecutionResult>,
-    path: Path,
-  ): void;
   _getSubPlans(path: Path): ObjMap<Plan> | undefined;
   _handleInitialResult(
     graphQLData: GraphQLData,
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
-    result: ExecutionResult | InitialIncrementalExecutionResult,
+    result: ExecutionResult,
     path: Path,
   ): void;
   _executeSubPlans(

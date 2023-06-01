@@ -1,9 +1,7 @@
 import { GraphQLError, Kind } from 'graphql';
 import { isAsyncIterable } from '../predicates/isAsyncIterable.mjs';
-import { isDeferIncrementalResult } from '../predicates/isDeferResult.mjs';
 import { isObjectLike } from '../predicates/isObjectLike.mjs';
 import { isPromise } from '../predicates/isPromise.mjs';
-import { Consolidator } from '../utilities/Consolidator.mjs';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
 /**
@@ -15,7 +13,6 @@ export class Executor {
     this.operation = operation;
     this.fragments = fragments;
     this.rawVariableValues = rawVariableValues;
-    this._deferredResults = new Map();
   }
   execute() {
     const initialGraphQLData = {
@@ -34,7 +31,7 @@ export class Executor {
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult(
+      this._handleMaybeAsyncResult(
         initialGraphQLData,
         undefined,
         initialGraphQLData.fields,
@@ -90,54 +87,21 @@ export class Executor {
     const fieldsOrNull = initialGraphQLData.nulled
       ? null
       : initialGraphQLData.fields;
-    if (this._consolidator !== undefined) {
-      this._consolidator.close();
-      const initialResult =
-        initialGraphQLData.errors.length > 0
-          ? {
-              data: fieldsOrNull,
-              errors: initialGraphQLData.errors,
-              hasNext: true,
-            }
-          : { data: fieldsOrNull, hasNext: true };
-      return {
-        initialResult,
-        subsequentResults: this._consolidator,
-      };
-    }
     return initialGraphQLData.errors.length > 0
       ? { data: fieldsOrNull, errors: initialGraphQLData.errors }
       : { data: fieldsOrNull };
   }
-  _handleMaybeAsyncPossibleMultiPartResult(
-    graphQLData,
-    parent,
-    fields,
-    result,
-    path,
-  ) {
+  _handleMaybeAsyncResult(graphQLData, parent, fields, result, path) {
     if (!isPromise(result)) {
-      this._handlePossibleMultiPartResult(
-        graphQLData,
-        parent,
-        fields,
-        result,
-        path,
-      );
+      this._handleInitialResult(graphQLData, parent, fields, result, path);
       return;
     }
     graphQLData.promiseAggregator.add(
       result,
       (resolved) =>
-        this._handlePossibleMultiPartResult(
-          graphQLData,
-          parent,
-          fields,
-          resolved,
-          path,
-        ),
+        this._handleInitialResult(graphQLData, parent, fields, resolved, path),
       (err) =>
-        this._handlePossibleMultiPartResult(
+        this._handleInitialResult(
           graphQLData,
           parent,
           fields,
@@ -149,154 +113,10 @@ export class Executor {
         ),
     );
   }
-  _handlePossibleMultiPartResult(graphQLData, parent, fields, result, path) {
-    if (!('initialResult' in result)) {
-      this._handleInitialResult(graphQLData, parent, fields, result, path);
-      return;
-    }
-    const { initialResult, subsequentResults } = result;
-    this._handleInitialResult(graphQLData, parent, fields, initialResult, path);
-    const taggedResults = mapAsyncIterable(
-      subsequentResults,
-      (incrementalResult) => ({
-        path,
-        incrementalResult,
-      }),
-    );
-    if (this._consolidator === undefined) {
-      this._consolidator = new Consolidator(
-        [taggedResults],
-        (taggedResult, push) =>
-          this._handleIncrementalResult(taggedResult, push),
-      );
-      return;
-    }
-    this._consolidator.add(taggedResults);
-  }
   _push(incrementalResult, push) {
     push(incrementalResult).then(undefined, () => {
       /* ignore */
     });
-  }
-  _handleIncrementalResult(taggedResult, push) {
-    const { path, incrementalResult } = taggedResult;
-    if (incrementalResult.incremental === undefined) {
-      this._push(incrementalResult, push);
-      return;
-    }
-    const newIncremental = [];
-    for (const result of incrementalResult.incremental) {
-      if (!isDeferIncrementalResult(result)) {
-        newIncremental.push(result);
-        continue;
-      }
-      const data = result.data;
-      if (data == null) {
-        newIncremental.push(result);
-        continue;
-      }
-      let identifier;
-      const newData = Object.create(null);
-      for (const key of Object.keys(data)) {
-        if (key !== '__deferredIdentifier__') {
-          newData[key] = data[key];
-          continue;
-        }
-        identifier = key;
-      }
-      const fullPath = result.path ? [...path, ...result.path] : path;
-      if (identifier === undefined) {
-        const subPlans = this._getSubPlans(result.path);
-        if (subPlans && Object.keys(subPlans).length > 0) {
-          this._handleDeferredResult(newData, subPlans, push, fullPath);
-        } else {
-          newIncremental.push(result);
-        }
-        continue;
-      }
-      const key = fullPath.join();
-      let deferredResults = this._deferredResults.get(key);
-      if (deferredResults === undefined) {
-        deferredResults = [newData];
-        this._deferredResults.set(key, deferredResults);
-      } else {
-        deferredResults.push(newData);
-      }
-      const deferredSubschemas = this._getDeferredSubschemas(
-        this.plan,
-        fullPath,
-      );
-      if (
-        deferredSubschemas &&
-        deferredResults.length < deferredSubschemas.size
-      ) {
-        continue;
-      }
-      this._deferredResults.delete(key);
-      for (const deferredResult of deferredResults) {
-        for (const [deferredKey, value] of Object.entries(deferredResult)) {
-          newData[deferredKey] = value;
-        }
-      }
-      const subPlans = this._getSubPlans(fullPath);
-      if (subPlans && Object.keys(subPlans).length > 0) {
-        this._handleDeferredResult(newData, subPlans, push, fullPath);
-      } else {
-        newIncremental.push({
-          ...result,
-          data: newData,
-          path: fullPath,
-        });
-      }
-    }
-    if (newIncremental.length === 0) {
-      return undefined;
-    }
-    const newIncrementalResult = {
-      ...incrementalResult,
-      incremental: newIncremental,
-    };
-    if (this._deferredResults.size) {
-      newIncrementalResult.hasNext = true;
-    }
-    this._push(newIncrementalResult, push);
-  }
-  _getDeferredSubschemas(plan, path) {
-    let currentPlan = plan;
-    const fieldPath = [...path];
-    let key;
-    while ((key = fieldPath.shift()) !== undefined) {
-      if (typeof key === 'number') {
-        continue;
-      }
-      currentPlan = currentPlan.subPlans[key];
-    }
-    if (currentPlan === undefined) {
-      return undefined;
-    }
-    return currentPlan.deferredSubschemas;
-  }
-  _handleDeferredResult(data, subPlans, push, path) {
-    const graphQLData = {
-      fields: Object.create(null),
-      errors: [],
-      nulled: false,
-      promiseAggregator: new PromiseAggregator(() => data),
-    };
-    this._executeSubPlans(graphQLData, data, subPlans, path);
-    const newData = graphQLData.promiseAggregator.return();
-    this._push(
-      {
-        incremental: [
-          {
-            data: newData,
-            path,
-          },
-        ],
-        hasNext: this._deferredResults.size > 0,
-      },
-      push,
-    );
   }
   _getSubPlans(path) {
     let subPlans = this.plan.subPlans;
@@ -374,13 +194,7 @@ export class Executor {
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncPossibleMultiPartResult(
-        graphQLData,
-        parent,
-        fields,
-        result,
-        path,
-      );
+      this._handleMaybeAsyncResult(graphQLData, parent, fields, result, path);
     }
     this._executeSubPlans(graphQLData, fields, plan.subPlans, path);
   }

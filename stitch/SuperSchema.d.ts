@@ -2,7 +2,6 @@ import type {
   DirectiveLocation,
   DocumentNode,
   ExecutionResult,
-  ExperimentalIncrementalExecutionResults,
   FragmentDefinitionNode,
   GraphQLArgument,
   GraphQLArgumentConfig,
@@ -80,7 +79,7 @@ export type Executor = (args: {
         readonly [variable: string]: unknown;
       }
     | undefined;
-}) => PromiseOrValue<ExecutionResult | ExperimentalIncrementalExecutionResults>;
+}) => PromiseOrValue<ExecutionResult>;
 export type Subscriber = (args: {
   document: DocumentNode;
   variables?:

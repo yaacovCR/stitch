@@ -13,7 +13,6 @@ import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import type { Subschema, SuperSchema } from './SuperSchema';
 interface SelectionMetadata {
   selectionMap: AccumulatorMap<Subschema, SelectionNode>;
-  deferredSubschemas: Set<Subschema>;
 }
 /**
  * @internal
@@ -23,7 +22,6 @@ export declare class Plan {
   parentType: GraphQLCompositeType;
   fragmentMap: ObjMap<FragmentDefinitionNode>;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
-  deferredSubschemas: Set<Subschema>;
   subPlans: ObjMap<Plan>;
   constructor(
     superSchema: SuperSchema,
@@ -76,7 +74,6 @@ export declare class Plan {
   ): Array<SelectionNode>;
   print(indent?: number): string;
   _printMap(indent: number): string;
-  _printDeferredSubschemas(indent: number): string;
   _printSubschemaSelections(
     subschema: Subschema,
     selections: ReadonlyArray<SelectionNode>,

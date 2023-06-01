@@ -19,17 +19,15 @@ class Plan {
       selections,
       fragmentMap,
     );
-    const { selectionMap, deferredSubschemas } = this._processSelections(
+    const { selectionMap } = this._processSelections(
       parentType,
       inlinedSelections,
     );
     this.selectionMap = selectionMap;
-    this.deferredSubschemas = deferredSubschemas;
   }
   _processSelections(parentType, selections) {
     const selectionMetadata = {
       selectionMap: new AccumulatorMap_js_1.AccumulatorMap(),
-      deferredSubschemas: new Set(),
     };
     for (const selection of selections) {
       switch (selection.kind) {
@@ -152,35 +150,11 @@ class Plan {
       parentType,
       fragment.selectionSet.selections,
     );
-    const defer = fragment.directives?.find(
-      (directive) => directive.name.value === 'defer',
+    this._addFragmentSelectionMap(
+      fragment,
+      fragmentSelectionMetadata.selectionMap,
+      selectionMetadata.selectionMap,
     );
-    if (defer === undefined) {
-      this._addFragmentSelectionMap(
-        fragment,
-        fragmentSelectionMetadata.selectionMap,
-        selectionMetadata.selectionMap,
-      );
-    } else {
-      for (const deferredSubschema of fragmentSelectionMetadata.selectionMap.keys()) {
-        selectionMetadata.deferredSubschemas.add(deferredSubschema);
-      }
-      const identifier = '__deferredIdentifier__';
-      this._addModifiedFragmentSelectionMap(
-        fragment,
-        fragmentSelectionMetadata.selectionMap,
-        selectionMetadata.selectionMap,
-        (selections) =>
-          this._addIdentifier(
-            selections,
-            identifier,
-            defer.arguments?.find((arg) => arg.name.value === 'if')?.value,
-          ),
-      );
-    }
-    for (const deferredSubschema of fragmentSelectionMetadata.deferredSubschemas) {
-      selectionMetadata.deferredSubschemas.add(deferredSubschema);
-    }
   }
   _addFragmentSelectionMap(fragment, fragmentSelectionMap, selectionMap) {
     for (const [
@@ -257,9 +231,6 @@ class Plan {
     if (this.selectionMap.size > 0) {
       entries.push(this._printMap(indent));
     }
-    if (this.deferredSubschemas.size > 0) {
-      entries.push(this._printDeferredSubschemas(indent));
-    }
     const subPlans = Array.from(Object.entries(this.subPlans));
     if (subPlans.length > 0) {
       entries.push(this._printSubPlans(subPlans, indent));
@@ -274,17 +245,6 @@ class Plan {
         this._printSubschemaSelections(subschema, selections, indent + 2),
       )
       .join('\n');
-    return result;
-  }
-  _printDeferredSubschemas(indent) {
-    const spaces = new Array(indent).fill(' ', 0, indent).join('');
-    let result = `${spaces}Deferred: `;
-    result += Array.from(this.deferredSubschemas.values())
-      .map(
-        (subschema) =>
-          `Subschema ${this.superSchema.getSubschemaId(subschema)}`,
-      )
-      .join(', ');
     return result;
   }
   _printSubschemaSelections(subschema, selections, indent) {
