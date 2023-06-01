@@ -282,7 +282,7 @@ export class Executor {
         this._executePossibleListSubPlan(
           graphQLData,
           fieldsOrList as unknown as Parent,
-          fieldsOrList[i] as unknown as ObjMap<unknown>,
+          fieldsOrList[i] as ObjMap<unknown>,
           plan,
           [...path, i],
         );

@@ -56,7 +56,6 @@ import type { ObjMap } from '../types/ObjMap';
 import type { PromiseOrValue } from '../types/PromiseOrValue';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator';
 
-import { hasOwnProperty } from '../utilities/hasOwnProperty.js';
 import { inspect } from '../utilities/inspect.js';
 import { printPathArray } from '../utilities/printPathArray.js';
 
@@ -621,7 +620,7 @@ export class SuperSchema {
         continue;
       }
 
-      if (!hasOwnProperty(inputs, varName)) {
+      if (!Object.hasOwn(inputs, varName)) {
         if (varDefNode.defaultValue) {
           coercedValues[varName] = valueFromAST(
             varDefNode.defaultValue,
