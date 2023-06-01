@@ -6,7 +6,7 @@ import type { ObjMap } from '../types/ObjMap';
 export function inlineRootFragments(
   selections: ReadonlyArray<SelectionNode>,
   fragmentMap: ObjMap<FragmentDefinitionNode>,
-  visitedFragments: Set<string> = new Set(),
+  visitedFragments = new Set<string>(),
 ): Array<SelectionNode> {
   const newSelections: Array<SelectionNode> = [];
   for (const selection of selections) {
