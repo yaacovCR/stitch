@@ -172,7 +172,7 @@ export class SuperSchema {
           continue;
         }
 
-        if (!originalTypes[name]) {
+        if (originalTypes[name] === undefined) {
           originalTypes[name] = [type];
         } else {
           originalTypes[name].push(type);
@@ -186,7 +186,7 @@ export class SuperSchema {
       for (const operation of operations) {
         const rootType = schema.getRootType(operation);
         if (rootType) {
-          if (!originalRootTypes[operation]) {
+          if (originalRootTypes[operation] === undefined) {
             originalRootTypes[operation] = [rootType];
           } else {
             originalRootTypes[operation].push(rootType);
@@ -196,7 +196,7 @@ export class SuperSchema {
 
       for (const directive of schema.getDirectives()) {
         const name = directive.name;
-        if (!originalDirectives[name]) {
+        if (originalDirectives[name] === undefined) {
           originalDirectives[name] = [directive];
         } else {
           originalDirectives[name].push(directive);
@@ -258,13 +258,13 @@ export class SuperSchema {
     type: GraphQLCompositeType,
   ): void {
     let subschemaSetsByField = this.subschemaSetsByTypeAndField[name];
-    if (!subschemaSetsByField) {
+    if (subschemaSetsByField === undefined) {
       subschemaSetsByField = Object.create(null);
       this.subschemaSetsByTypeAndField[name] = subschemaSetsByField;
     }
 
     let typenameSubschemaSet = subschemaSetsByField.__typename;
-    if (!typenameSubschemaSet) {
+    if (typenameSubschemaSet === undefined) {
       typenameSubschemaSet = new Set();
       subschemaSetsByField.__typename = typenameSubschemaSet;
     }
@@ -276,7 +276,7 @@ export class SuperSchema {
 
     for (const fieldName of Object.keys(type.getFields())) {
       let subschemaSet = subschemaSetsByField[fieldName];
-      if (!subschemaSet) {
+      if (subschemaSet === undefined) {
         subschemaSet = new Set();
         subschemaSetsByField[fieldName] = subschemaSet;
       }
@@ -381,7 +381,7 @@ export class SuperSchema {
     const fields = Object.create(null);
     for (const type of originalTypes) {
       for (const [fieldName, field] of Object.entries(type.getFields())) {
-        if (fields[fieldName]) {
+        if (fields[fieldName] !== undefined) {
           continue;
         }
         fields[fieldName] = this._fieldToFieldConfig(field);
@@ -424,7 +424,7 @@ export class SuperSchema {
     const interfaceMap = Object.create(null);
     for (const type of originalTypes) {
       for (const interfaceType of type.getInterfaces()) {
-        if (interfaceMap[interfaceType.name]) {
+        if (interfaceMap[interfaceType.name] !== undefined) {
           continue;
         }
         interfaceMap[interfaceType.name] = this._getMergedType(interfaceType);
@@ -439,7 +439,7 @@ export class SuperSchema {
     const memberMap = Object.create(null);
     for (const unionType of originalTypes) {
       for (const memberType of unionType.getTypes()) {
-        if (memberMap[memberType.name]) {
+        if (memberMap[memberType.name] !== undefined) {
           continue;
         }
         memberMap[memberType.name] = this._getMergedType(memberType);
@@ -454,7 +454,7 @@ export class SuperSchema {
     const fields = Object.create(null);
     for (const type of originalTypes) {
       for (const [fieldName, field] of Object.entries(type.getFields())) {
-        if (fields[fieldName]) {
+        if (fields[fieldName] !== undefined) {
           continue;
         }
         fields[fieldName] = this._inputFieldToInputFieldConfig(field);
@@ -480,7 +480,7 @@ export class SuperSchema {
     for (const type of originalTypes) {
       for (const value of type.getValues()) {
         const valueName = value.name;
-        if (values[valueName]) {
+        if (values[valueName] !== undefined) {
           continue;
         }
         values[valueName] = this._enumValueToEnumValueConfig(value);

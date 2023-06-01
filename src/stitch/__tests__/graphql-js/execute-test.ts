@@ -1092,7 +1092,7 @@ describe('Execute: Handles basic execution tasks', () => {
       }
     }
 
-    const SpecialType = new GraphQLObjectType({
+    const SpecialType = new GraphQLObjectType<Special, { async: boolean }>({
       name: 'SpecialType',
       isTypeOf(obj, context) {
         const result = obj instanceof Special;
@@ -1130,12 +1130,11 @@ describe('Execute: Handles basic execution tasks', () => {
       ],
     });
 
-    const contextValue = { async: true };
     const asyncResult = await execute({
       schema,
       document,
       rootValue,
-      contextValue,
+      contextValue: { async: true },
     });
     expect(asyncResult).to.deep.equal(result);
   });

@@ -49,7 +49,7 @@ export function mapAsyncIterable<T, U, R, N>(
     let thrown = false;
     let nextValue: N | undefined;
     // eslint-disable-next-line no-unmodified-loop-condition
-    while (!finalIteration) {
+    while (finalIteration === undefined) {
       // safe race implementation
       let eventStream: Repeater<IteratorResult<T> | undefined>;
       if (thrown) {
@@ -70,7 +70,7 @@ export function mapAsyncIterable<T, U, R, N>(
         break;
       }
 
-      if (possibleIteration.done) {
+      if (possibleIteration.done === true) {
         stop();
         break;
       }
