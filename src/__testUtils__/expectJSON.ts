@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 
 import { isObjectLike } from '../predicates/isObjectLike.js';
+
 import { mapValue } from '../utilities/mapValue.js';
 
 /**
