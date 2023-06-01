@@ -166,7 +166,8 @@ module.exports = {
           // General utilities
           ['^(\\./|(\\.\\./)+)types/'],
           ['^(\\./|(\\.\\./)+)__testUtils__/'],
-          ['^(\\./|(\\.\\./)+)utils/'],
+          ['^(\\./|(\\.\\./)+)predicates/'],
+          ['^(\\./|(\\.\\./)+)utilities/'],
 
           // Top-level directories
           ['^(\\./|(\\.\\./)+)plan/'],

@@ -16,6 +16,7 @@ import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
 import { isAsyncIterable } from '../predicates/isAsyncIterable.js';
 import { isObjectLike } from '../predicates/isObjectLike.js';
 import { isPromise } from '../predicates/isPromise.js';
+
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 
 import { mapAsyncIterable } from './mapAsyncIterable.js';
