@@ -37,9 +37,10 @@ class Plan {
         }
         case graphql_1.Kind.INLINE_FRAGMENT: {
           const typeName = selection.typeCondition?.name.value;
-          const refinedType = typeName
-            ? this.superSchema.getType(typeName)
-            : parentType;
+          const refinedType =
+            typeName !== undefined
+              ? this.superSchema.getType(typeName)
+              : parentType;
           (0, graphql_1.isCompositeType)(refinedType) ||
             (0, invariant_js_1.invariant)(
               false,
@@ -66,7 +67,7 @@ class Plan {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
     const subschemaSets = subschemaSetsByField[field.name.value];
-    if (!subschemaSets) {
+    if (subschemaSets === undefined) {
       return;
     }
     const { subschema, selections } = this._getSubschemaAndSelections(
@@ -133,7 +134,7 @@ class Plan {
       );
     const fields = parentType.getFields();
     const field = fields[fieldName];
-    if (field) {
+    if (field !== undefined) {
       return field;
     }
     if (parentType === this.superSchema.mergedSchema.getQueryType()) {

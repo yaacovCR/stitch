@@ -41,9 +41,10 @@ export class Plan {
         }
         case Kind.INLINE_FRAGMENT: {
           const typeName = selection.typeCondition?.name.value;
-          const refinedType = typeName
-            ? this.superSchema.getType(typeName)
-            : parentType;
+          const refinedType =
+            typeName !== undefined
+              ? this.superSchema.getType(typeName)
+              : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
           this._addInlineFragment(refinedType, selection, selectionMetadata);
@@ -65,7 +66,7 @@ export class Plan {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
     const subschemaSets = subschemaSetsByField[field.name.value];
-    if (!subschemaSets) {
+    if (subschemaSets === undefined) {
       return;
     }
     const { subschema, selections } = this._getSubschemaAndSelections(
@@ -129,7 +130,7 @@ export class Plan {
       invariant(false, `Invalid parent type ${inspect(parentType)}.`);
     const fields = parentType.getFields();
     const field = fields[fieldName];
-    if (field) {
+    if (field !== undefined) {
       return field;
     }
     if (parentType === this.superSchema.mergedSchema.getQueryType()) {

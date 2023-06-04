@@ -14,7 +14,7 @@ function mapAsyncIterable(iterable, fn) {
     let thrown = false;
     let nextValue;
     // eslint-disable-next-line no-unmodified-loop-condition
-    while (!finalIteration) {
+    while (finalIteration === undefined) {
       // safe race implementation
       let eventStream;
       if (thrown) {
@@ -32,7 +32,7 @@ function mapAsyncIterable(iterable, fn) {
       if (possibleIteration === undefined) {
         break;
       }
-      if (possibleIteration.done) {
+      if (possibleIteration.done === true) {
         stop();
         break;
       }

@@ -2,7 +2,6 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.SuperSchema = void 0;
 const graphql_1 = require('graphql');
-const hasOwnProperty_js_1 = require('../utilities/hasOwnProperty.js');
 const inspect_js_1 = require('../utilities/inspect.js');
 const printPathArray_js_1 = require('../utilities/printPathArray.js');
 const operations = [
@@ -66,7 +65,7 @@ class SuperSchema {
         if (name.startsWith('__')) {
           continue;
         }
-        if (!originalTypes[name]) {
+        if (originalTypes[name] === undefined) {
           originalTypes[name] = [type];
         } else {
           originalTypes[name].push(type);
@@ -78,7 +77,7 @@ class SuperSchema {
       for (const operation of operations) {
         const rootType = schema.getRootType(operation);
         if (rootType) {
-          if (!originalRootTypes[operation]) {
+          if (originalRootTypes[operation] === undefined) {
             originalRootTypes[operation] = [rootType];
           } else {
             originalRootTypes[operation].push(rootType);
@@ -87,7 +86,7 @@ class SuperSchema {
       }
       for (const directive of schema.getDirectives()) {
         const name = directive.name;
-        if (!originalDirectives[name]) {
+        if (originalDirectives[name] === undefined) {
           originalDirectives[name] = [directive];
         } else {
           originalDirectives[name].push(directive);
@@ -125,12 +124,12 @@ class SuperSchema {
   }
   _addToSubschemaSets(subschema, name, type) {
     let subschemaSetsByField = this.subschemaSetsByTypeAndField[name];
-    if (!subschemaSetsByField) {
+    if (subschemaSetsByField === undefined) {
       subschemaSetsByField = Object.create(null);
       this.subschemaSetsByTypeAndField[name] = subschemaSetsByField;
     }
     let typenameSubschemaSet = subschemaSetsByField.__typename;
-    if (!typenameSubschemaSet) {
+    if (typenameSubschemaSet === undefined) {
       typenameSubschemaSet = new Set();
       subschemaSetsByField.__typename = typenameSubschemaSet;
     }
@@ -140,7 +139,7 @@ class SuperSchema {
     }
     for (const fieldName of Object.keys(type.getFields())) {
       let subschemaSet = subschemaSetsByField[fieldName];
-      if (!subschemaSet) {
+      if (subschemaSet === undefined) {
         subschemaSet = new Set();
         subschemaSetsByField[fieldName] = subschemaSet;
       }
@@ -217,7 +216,7 @@ class SuperSchema {
     const fields = Object.create(null);
     for (const type of originalTypes) {
       for (const [fieldName, field] of Object.entries(type.getFields())) {
-        if (fields[fieldName]) {
+        if (fields[fieldName] !== undefined) {
           continue;
         }
         fields[fieldName] = this._fieldToFieldConfig(field);
@@ -250,7 +249,7 @@ class SuperSchema {
     const interfaceMap = Object.create(null);
     for (const type of originalTypes) {
       for (const interfaceType of type.getInterfaces()) {
-        if (interfaceMap[interfaceType.name]) {
+        if (interfaceMap[interfaceType.name] !== undefined) {
           continue;
         }
         interfaceMap[interfaceType.name] = this._getMergedType(interfaceType);
@@ -262,7 +261,7 @@ class SuperSchema {
     const memberMap = Object.create(null);
     for (const unionType of originalTypes) {
       for (const memberType of unionType.getTypes()) {
-        if (memberMap[memberType.name]) {
+        if (memberMap[memberType.name] !== undefined) {
           continue;
         }
         memberMap[memberType.name] = this._getMergedType(memberType);
@@ -274,7 +273,7 @@ class SuperSchema {
     const fields = Object.create(null);
     for (const type of originalTypes) {
       for (const [fieldName, field] of Object.entries(type.getFields())) {
-        if (fields[fieldName]) {
+        if (fields[fieldName] !== undefined) {
           continue;
         }
         fields[fieldName] = this._inputFieldToInputFieldConfig(field);
@@ -294,7 +293,7 @@ class SuperSchema {
     for (const type of originalTypes) {
       for (const value of type.getValues()) {
         const valueName = value.name;
-        if (values[valueName]) {
+        if (values[valueName] !== undefined) {
           continue;
         }
         values[valueName] = this._enumValueToEnumValueConfig(value);
@@ -399,7 +398,7 @@ class SuperSchema {
         );
         continue;
       }
-      if (!(0, hasOwnProperty_js_1.hasOwnProperty)(inputs, varName)) {
+      if (!Object.hasOwn(inputs, varName)) {
         if (varDefNode.defaultValue) {
           coercedValues[varName] = (0, graphql_1.valueFromAST)(
             varDefNode.defaultValue,

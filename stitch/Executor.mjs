@@ -159,7 +159,7 @@ export class Executor {
   }
   _executeSubPlans(graphQLData, fields, subPlans, path) {
     for (const [key, subPlan] of Object.entries(subPlans)) {
-      if (fields[key]) {
+      if (fields[key] !== undefined) {
         this._executePossibleListSubPlan(
           graphQLData,
           fields,

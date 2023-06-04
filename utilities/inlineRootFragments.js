@@ -32,7 +32,7 @@ function inlineRootFragments(
         }
         visitedFragments.add(selection.name.value);
         const fragment = fragmentMap[selection.name.value];
-        if (fragment) {
+        if (fragment !== undefined) {
           newSelections.push({
             kind: graphql_1.Kind.INLINE_FRAGMENT,
             directives: selection.directives,
