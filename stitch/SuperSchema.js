@@ -2,6 +2,7 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.SuperSchema = void 0;
 const graphql_1 = require('graphql');
+const AccumulatorMap_js_1 = require('../utilities/AccumulatorMap.js');
 const inspect_js_1 = require('../utilities/inspect.js');
 const printPathArray_js_1 = require('../utilities/printPathArray.js');
 const operations = [
@@ -56,20 +57,16 @@ class SuperSchema {
     this.subschemas = [introspectionSubschema, ...subschemas];
   }
   _createMergedElements(subschemas) {
-    const originalRootTypes = Object.create(null);
-    const originalTypes = Object.create(null);
-    const originalDirectives = Object.create(null);
+    const originalRootTypes = new AccumulatorMap_js_1.AccumulatorMap();
+    const originalTypes = new AccumulatorMap_js_1.AccumulatorMap();
+    const originalDirectives = new AccumulatorMap_js_1.AccumulatorMap();
     for (const subschema of subschemas) {
       const schema = subschema.schema;
       for (const [name, type] of Object.entries(schema.getTypeMap())) {
         if (name.startsWith('__')) {
           continue;
         }
-        if (originalTypes[name] === undefined) {
-          originalTypes[name] = [type];
-        } else {
-          originalTypes[name].push(type);
-        }
+        originalTypes.add(name, type);
         if ((0, graphql_1.isCompositeType)(type)) {
           this._addToSubschemaSets(subschema, name, type);
         }
@@ -77,23 +74,15 @@ class SuperSchema {
       for (const operation of operations) {
         const rootType = schema.getRootType(operation);
         if (rootType) {
-          if (originalRootTypes[operation] === undefined) {
-            originalRootTypes[operation] = [rootType];
-          } else {
-            originalRootTypes[operation].push(rootType);
-          }
+          originalRootTypes.add(operation, rootType);
         }
       }
       for (const directive of schema.getDirectives()) {
         const name = directive.name;
-        if (originalDirectives[name] === undefined) {
-          originalDirectives[name] = [directive];
-        } else {
-          originalDirectives[name].push(directive);
-        }
+        originalDirectives.add(name, directive);
       }
     }
-    for (const [typeName, types] of Object.entries(originalTypes)) {
+    for (const [typeName, types] of originalTypes) {
       const firstType = types[0];
       if (firstType instanceof graphql_1.GraphQLScalarType) {
         if ((0, graphql_1.isSpecifiedScalarType)(firstType)) {
@@ -113,12 +102,10 @@ class SuperSchema {
         this.mergedTypes[typeName] = this._mergeEnumTypes(types);
       }
     }
-    for (const [operation, rootTypes] of Object.entries(originalRootTypes)) {
+    for (const [operation, rootTypes] of originalRootTypes) {
       this.mergedRootTypes[operation] = this.getType(rootTypes[0].name);
     }
-    for (const [directiveName, directives] of Object.entries(
-      originalDirectives,
-    )) {
+    for (const [directiveName, directives] of originalDirectives) {
       this.mergedDirectives[directiveName] = this._mergeDirectives(directives);
     }
   }
