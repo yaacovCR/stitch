@@ -19,20 +19,14 @@ class Plan {
       selections,
       fragmentMap,
     );
-    const { selectionMap } = this._processSelections(
-      parentType,
-      inlinedSelections,
-    );
-    this.selectionMap = selectionMap;
+    this.selectionMap = this._processSelections(parentType, inlinedSelections);
   }
   _processSelections(parentType, selections) {
-    const selectionMetadata = {
-      selectionMap: new AccumulatorMap_js_1.AccumulatorMap(),
-    };
+    const selectionMap = new AccumulatorMap_js_1.AccumulatorMap();
     for (const selection of selections) {
       switch (selection.kind) {
         case graphql_1.Kind.FIELD: {
-          this._addField(parentType, selection, selectionMetadata);
+          this._addField(parentType, selection, selectionMap);
           break;
         }
         case graphql_1.Kind.INLINE_FRAGMENT: {
@@ -48,7 +42,7 @@ class Plan {
                 refinedType,
               )}`,
             );
-          this._addInlineFragment(refinedType, selection, selectionMetadata);
+          this._addInlineFragment(refinedType, selection, selectionMap);
           break;
         }
         case graphql_1.Kind.FRAGMENT_SPREAD: {
@@ -61,9 +55,9 @@ class Plan {
         }
       }
     }
-    return selectionMetadata;
+    return selectionMap;
   }
-  _addField(parentType, field, selectionMetadata) {
+  _addField(parentType, field, selectionMap) {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
     const subschemaSets = subschemaSetsByField[field.name.value];
@@ -72,7 +66,7 @@ class Plan {
     }
     const { subschema, selections } = this._getSubschemaAndSelections(
       Array.from(subschemaSets),
-      selectionMetadata.selectionMap,
+      selectionMap,
     );
     if (!field.selectionSet) {
       selections.push(field);
@@ -146,16 +140,12 @@ class Plan {
       }
     }
   }
-  _addInlineFragment(parentType, fragment, selectionMetadata) {
-    const fragmentSelectionMetadata = this._processSelections(
+  _addInlineFragment(parentType, fragment, selectionMap) {
+    const fragmentSelectionMap = this._processSelections(
       parentType,
       fragment.selectionSet.selections,
     );
-    this._addFragmentSelectionMap(
-      fragment,
-      fragmentSelectionMetadata.selectionMap,
-      selectionMetadata.selectionMap,
-    );
+    this._addFragmentSelectionMap(fragment, fragmentSelectionMap, selectionMap);
   }
   _addFragmentSelectionMap(fragment, fragmentSelectionMap, selectionMap) {
     for (const [

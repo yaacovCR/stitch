@@ -10,9 +10,6 @@ import type {
 import type { ObjMap } from '../types/ObjMap.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import type { Subschema, SuperSchema } from './SuperSchema';
-interface SelectionMetadata {
-  selectionMap: AccumulatorMap<Subschema, SelectionNode>;
-}
 /**
  * @internal
  */
@@ -31,11 +28,11 @@ export declare class Plan {
   _processSelections(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-  ): SelectionMetadata;
+  ): AccumulatorMap<Subschema, SelectionNode>;
   _addField(
     parentType: GraphQLCompositeType,
     field: FieldNode,
-    selectionMetadata: SelectionMetadata,
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
   _getSubschemaAndSelections(
     subschemas: ReadonlyArray<Subschema>,
@@ -51,7 +48,7 @@ export declare class Plan {
   _addInlineFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
-    selectionMetadata: SelectionMetadata,
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
   _addFragmentSelectionMap(
     fragment: InlineFragmentNode,
@@ -72,4 +69,3 @@ export declare class Plan {
   _printSubPlan(responseKey: string, subPlan: Plan, indent: number): string;
   _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string;
 }
-export {};
