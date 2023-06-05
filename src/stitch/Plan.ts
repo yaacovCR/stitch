@@ -52,9 +52,7 @@ export class Plan {
 
     const inlinedSelections = inlineRootFragments(selections, fragmentMap);
 
-    const selectionMap = this._processSelections(parentType, inlinedSelections);
-
-    this.selectionMap = selectionMap;
+    this.selectionMap = this._processSelections(parentType, inlinedSelections);
   }
 
   _processSelections(
