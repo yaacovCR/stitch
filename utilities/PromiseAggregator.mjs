@@ -1,13 +1,11 @@
+import { inspect } from './inspect.mjs';
 /**
  * @internal
  */
 export class PromiseAggregator {
-  constructor(returner) {
+  constructor() {
     this._promiseCount = 0;
-    this._promise = new Promise((resolve) => {
-      this._trigger = resolve;
-    });
-    this._returner = returner;
+    this._signal = new Promise((resolve) => (this._trigger = resolve));
   }
   _increment() {
     this._promiseCount++;
@@ -18,23 +16,21 @@ export class PromiseAggregator {
       this._trigger();
     }
   }
-  add(promise, onFulfilled, onRejected) {
+  add(promise) {
     this._increment();
     promise.then(
-      (resolved) => {
-        onFulfilled(resolved);
+      () => {
         this._decrement();
       },
       (err) => {
-        onRejected(err);
-        this._decrement();
+        throw new Error(`Error thrown by aggregated promise: ${inspect(err)}`);
       },
     );
   }
-  return() {
-    if (this._promiseCount === 0) {
-      return this._returner();
-    }
-    return this._promise.then(() => this._returner());
+  isEmpty() {
+    return this._promiseCount === 0;
+  }
+  resolved() {
+    return this._signal;
   }
 }

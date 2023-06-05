@@ -16,11 +16,7 @@ interface GraphQLData {
   fields: ObjMap<unknown>;
   errors: Array<GraphQLError>;
   nulled: boolean;
-  promiseAggregator: PromiseAggregator<
-    ExecutionResult,
-    GraphQLError,
-    ExecutionResult
-  >;
+  promiseAggregator: PromiseAggregator;
 }
 interface Parent {
   [key: string | number]: unknown;
