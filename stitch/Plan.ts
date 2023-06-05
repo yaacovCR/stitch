@@ -25,9 +25,6 @@ import { inlineRootFragments } from '../utilities/inlineRootFragments.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
 import type { Subschema, SuperSchema } from './SuperSchema';
-interface SelectionMetadata {
-  selectionMap: AccumulatorMap<Subschema, SelectionNode>;
-}
 /**
  * @internal
  */
@@ -48,23 +45,17 @@ export class Plan {
     this.fragmentMap = fragmentMap;
     this.subPlans = Object.create(null);
     const inlinedSelections = inlineRootFragments(selections, fragmentMap);
-    const { selectionMap } = this._processSelections(
-      parentType,
-      inlinedSelections,
-    );
-    this.selectionMap = selectionMap;
+    this.selectionMap = this._processSelections(parentType, inlinedSelections);
   }
   _processSelections(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-  ): SelectionMetadata {
-    const selectionMetadata: SelectionMetadata = {
-      selectionMap: new AccumulatorMap(),
-    };
+  ): AccumulatorMap<Subschema, SelectionNode> {
+    const selectionMap = new AccumulatorMap<Subschema, SelectionNode>();
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addField(parentType, selection, selectionMetadata);
+          this._addField(parentType, selection, selectionMap);
           break;
         }
         case Kind.INLINE_FRAGMENT: {
@@ -75,7 +66,7 @@ export class Plan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addInlineFragment(refinedType, selection, selectionMetadata);
+          this._addInlineFragment(refinedType, selection, selectionMap);
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -88,12 +79,12 @@ export class Plan {
         }
       }
     }
-    return selectionMetadata;
+    return selectionMap;
   }
   _addField(
     parentType: GraphQLCompositeType,
     field: FieldNode,
-    selectionMetadata: SelectionMetadata,
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
@@ -103,7 +94,7 @@ export class Plan {
     }
     const { subschema, selections } = this._getSubschemaAndSelections(
       Array.from(subschemaSets),
-      selectionMetadata.selectionMap,
+      selectionMap,
     );
     if (!field.selectionSet) {
       selections.push(field);
@@ -186,17 +177,13 @@ export class Plan {
   _addInlineFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
-    selectionMetadata: SelectionMetadata,
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
-    const fragmentSelectionMetadata = this._processSelections(
+    const fragmentSelectionMap = this._processSelections(
       parentType,
       fragment.selectionSet.selections,
     );
-    this._addFragmentSelectionMap(
-      fragment,
-      fragmentSelectionMetadata.selectionMap,
-      selectionMetadata.selectionMap,
-    );
+    this._addFragmentSelectionMap(fragment, fragmentSelectionMap, selectionMap);
   }
   _addFragmentSelectionMap(
     fragment: InlineFragmentNode,
