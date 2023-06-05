@@ -172,61 +172,6 @@ class Plan {
       selectionMap.add(fragmentSubschema, splitFragment);
     }
   }
-  _addModifiedFragmentSelectionMap(
-    fragment,
-    fragmentSelectionMap,
-    selectionMap,
-    toSelections,
-  ) {
-    for (const [
-      fragmentSubschema,
-      fragmentSelections,
-    ] of fragmentSelectionMap) {
-      const splitFragment = {
-        ...fragment,
-        selectionSet: {
-          kind: graphql_1.Kind.SELECTION_SET,
-          selections: toSelections(fragmentSelections),
-        },
-      };
-      selectionMap.add(fragmentSubschema, splitFragment);
-    }
-  }
-  _addIdentifier(selections, identifier, includeIf) {
-    const identifierField = {
-      kind: graphql_1.Kind.FIELD,
-      name: {
-        kind: graphql_1.Kind.NAME,
-        value: '__typename',
-      },
-      alias: {
-        kind: graphql_1.Kind.NAME,
-        value: identifier,
-      },
-      directives: includeIf
-        ? [
-            {
-              kind: graphql_1.Kind.DIRECTIVE,
-              name: {
-                kind: graphql_1.Kind.NAME,
-                value: 'include',
-              },
-              arguments: [
-                {
-                  kind: graphql_1.Kind.ARGUMENT,
-                  name: {
-                    kind: graphql_1.Kind.NAME,
-                    value: 'if',
-                  },
-                  value: includeIf,
-                },
-              ],
-            },
-          ]
-        : undefined,
-    };
-    return [identifierField, ...selections];
-  }
   print(indent = 0) {
     const entries = [];
     if (this.selectionMap.size > 0) {

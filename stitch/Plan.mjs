@@ -168,61 +168,6 @@ export class Plan {
       selectionMap.add(fragmentSubschema, splitFragment);
     }
   }
-  _addModifiedFragmentSelectionMap(
-    fragment,
-    fragmentSelectionMap,
-    selectionMap,
-    toSelections,
-  ) {
-    for (const [
-      fragmentSubschema,
-      fragmentSelections,
-    ] of fragmentSelectionMap) {
-      const splitFragment = {
-        ...fragment,
-        selectionSet: {
-          kind: Kind.SELECTION_SET,
-          selections: toSelections(fragmentSelections),
-        },
-      };
-      selectionMap.add(fragmentSubschema, splitFragment);
-    }
-  }
-  _addIdentifier(selections, identifier, includeIf) {
-    const identifierField = {
-      kind: Kind.FIELD,
-      name: {
-        kind: Kind.NAME,
-        value: '__typename',
-      },
-      alias: {
-        kind: Kind.NAME,
-        value: identifier,
-      },
-      directives: includeIf
-        ? [
-            {
-              kind: Kind.DIRECTIVE,
-              name: {
-                kind: Kind.NAME,
-                value: 'include',
-              },
-              arguments: [
-                {
-                  kind: Kind.ARGUMENT,
-                  name: {
-                    kind: Kind.NAME,
-                    value: 'if',
-                  },
-                  value: includeIf,
-                },
-              ],
-            },
-          ]
-        : undefined,
-    };
-    return [identifierField, ...selections];
-  }
   print(indent = 0) {
     const entries = [];
     if (this.selectionMap.size > 0) {

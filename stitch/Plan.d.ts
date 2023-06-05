@@ -6,7 +6,6 @@ import type {
   InlineFragmentNode,
   SelectionNode,
   SelectionSetNode,
-  ValueNode,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
@@ -59,19 +58,6 @@ export declare class Plan {
     fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
-  _addModifiedFragmentSelectionMap(
-    fragment: InlineFragmentNode,
-    fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
-    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
-    toSelections: (
-      originalSelections: ReadonlyArray<SelectionNode>,
-    ) => Array<SelectionNode>,
-  ): void;
-  _addIdentifier(
-    selections: ReadonlyArray<SelectionNode>,
-    identifier: string,
-    includeIf: ValueNode | undefined,
-  ): Array<SelectionNode>;
   print(indent?: number): string;
   _printMap(indent: number): string;
   _printSubschemaSelections(

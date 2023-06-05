@@ -113,11 +113,6 @@ export class Executor {
         ),
     );
   }
-  _push(incrementalResult, push) {
-    push(incrementalResult).then(undefined, () => {
-      /* ignore */
-    });
-  }
   _getSubPlans(path) {
     let subPlans = this.plan.subPlans;
     for (const key of path) {

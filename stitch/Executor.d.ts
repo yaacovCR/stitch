@@ -1,11 +1,9 @@
-import type { Push } from '@repeaterjs/repeater';
 import type {
   DocumentNode,
   ExecutionResult,
   FragmentDefinitionNode,
   OperationDefinitionNode,
   SelectionNode,
-  SubsequentIncrementalExecutionResult,
 } from 'graphql';
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
@@ -61,10 +59,6 @@ export declare class Executor {
     fields: ObjMap<unknown>,
     result: PromiseOrValue<ExecutionResult>,
     path: Path,
-  ): void;
-  _push(
-    incrementalResult: SubsequentIncrementalExecutionResult,
-    push: Push<SubsequentIncrementalExecutionResult>,
   ): void;
   _getSubPlans(path: Path): ObjMap<Plan> | undefined;
   _handleInitialResult(
