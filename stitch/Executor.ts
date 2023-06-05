@@ -1,11 +1,9 @@
-import type { Push } from '@repeaterjs/repeater';
 import type {
   DocumentNode,
   ExecutionResult,
   FragmentDefinitionNode,
   OperationDefinitionNode,
   SelectionNode,
-  SubsequentIncrementalExecutionResult,
 } from 'graphql';
 import { GraphQLError, Kind } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
@@ -164,14 +162,6 @@ export class Executor {
           path,
         ),
     );
-  }
-  _push(
-    incrementalResult: SubsequentIncrementalExecutionResult,
-    push: Push<SubsequentIncrementalExecutionResult>,
-  ): void {
-    push(incrementalResult).then(undefined, () => {
-      /* ignore */
-    });
   }
   _getSubPlans(path: Path): ObjMap<Plan> | undefined {
     let subPlans = this.plan.subPlans;
