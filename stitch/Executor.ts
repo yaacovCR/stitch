@@ -20,11 +20,7 @@ interface GraphQLData {
   fields: ObjMap<unknown>;
   errors: Array<GraphQLError>;
   nulled: boolean;
-  promiseAggregator: PromiseAggregator<
-    ExecutionResult,
-    GraphQLError,
-    ExecutionResult
-  >;
+  promiseAggregator: PromiseAggregator;
 }
 interface Parent {
   [key: string | number]: unknown;
@@ -61,9 +57,7 @@ export class Executor {
       fields: Object.create(null),
       errors: [],
       nulled: false,
-      promiseAggregator: new PromiseAggregator(() =>
-        this._buildResponse(initialGraphQLData),
-      ),
+      promiseAggregator: new PromiseAggregator(),
     };
     for (const [
       subschema,
@@ -81,7 +75,12 @@ export class Executor {
         [],
       );
     }
-    return initialGraphQLData.promiseAggregator.return();
+    if (initialGraphQLData.promiseAggregator.isEmpty()) {
+      return this._buildResponse(initialGraphQLData);
+    }
+    return initialGraphQLData.promiseAggregator
+      .resolved()
+      .then(() => this._buildResponse(initialGraphQLData));
   }
   _createDocument(selections: Array<SelectionNode>): DocumentNode {
     return {
@@ -146,8 +145,7 @@ export class Executor {
       this._handleInitialResult(graphQLData, parent, fields, result, path);
       return;
     }
-    graphQLData.promiseAggregator.add(
-      result,
+    const promise = result.then(
       (resolved) =>
         this._handleInitialResult(graphQLData, parent, fields, resolved, path),
       (err) =>
@@ -162,6 +160,7 @@ export class Executor {
           path,
         ),
     );
+    graphQLData.promiseAggregator.add(promise);
   }
   _getSubPlans(path: Path): ObjMap<Plan> | undefined {
     let subPlans = this.plan.subPlans;

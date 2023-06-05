@@ -1,18 +1,14 @@
-import type { PromiseOrValue } from '../types/PromiseOrValue';
+import { inspect } from './inspect.ts';
 /**
  * @internal
  */
-export class PromiseAggregator<TResolved, TError, TReturn> {
+export class PromiseAggregator {
   _promiseCount: number;
-  _promise: Promise<void>;
+  _signal: Promise<void>;
   _trigger!: () => void;
-  _returner: () => TReturn;
-  constructor(returner: () => TReturn) {
+  constructor() {
     this._promiseCount = 0;
-    this._promise = new Promise<void>((resolve) => {
-      this._trigger = resolve;
-    });
-    this._returner = returner;
+    this._signal = new Promise<void>((resolve) => (this._trigger = resolve));
   }
   _increment(): void {
     this._promiseCount++;
@@ -23,27 +19,21 @@ export class PromiseAggregator<TResolved, TError, TReturn> {
       this._trigger();
     }
   }
-  add(
-    promise: Promise<TResolved>,
-    onFulfilled: (resolved: TResolved) => void,
-    onRejected: (err: TError) => void,
-  ): void {
+  add(promise: Promise<void>): void {
     this._increment();
     promise.then(
-      (resolved) => {
-        onFulfilled(resolved);
+      () => {
         this._decrement();
       },
       (err) => {
-        onRejected(err);
-        this._decrement();
+        throw new Error(`Error thrown by aggregated promise: ${inspect(err)}`);
       },
     );
   }
-  return(): PromiseOrValue<TReturn> {
-    if (this._promiseCount === 0) {
-      return this._returner();
-    }
-    return this._promise.then(() => this._returner());
+  isEmpty(): boolean {
+    return this._promiseCount === 0;
+  }
+  resolved(): Promise<void> {
+    return this._signal;
   }
 }
