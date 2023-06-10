@@ -7,7 +7,7 @@ import { invariant } from '../../utilities/invariant.js';
 
 import { Executor } from '../Executor.js';
 import { Plan } from '../Plan.js';
-import type { Subschema } from '../SuperSchema.js';
+import type { OperationContext, Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
 function getSubschema(schema: GraphQLSchema, rootValue: unknown): Subschema {
@@ -31,10 +31,9 @@ function createExecutor(
   invariant(queryType !== undefined);
 
   const plan = new Plan(
-    superSchema,
+    { superSchema, fragmentMap: {} } as OperationContext,
     queryType,
     operation.selectionSet.selections,
-    {},
   );
 
   return new Executor(plan, operation, [], undefined);

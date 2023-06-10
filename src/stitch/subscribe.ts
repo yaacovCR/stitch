@@ -9,7 +9,7 @@ import { invariant } from '../utilities/invariant.js';
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
 import { Executor } from './Executor.js';
-import { Plan } from './Plan.js';
+import { createPlan } from './Plan.js';
 
 export function subscribe(
   args: ExecutionArgs,
@@ -23,10 +23,8 @@ export function subscribe(
     return { errors: exeContext };
   }
 
-  const {
-    operationContext: { superSchema, operation, fragments, fragmentMap },
-    rawVariableValues,
-  } = exeContext;
+  const { operationContext, rawVariableValues } = exeContext;
+  const { superSchema, operation, fragments } = operationContext;
   invariant(operation.operation === OperationTypeNode.SUBSCRIPTION);
 
   const rootType = superSchema.getRootType(operation.operation);
@@ -40,11 +38,10 @@ export function subscribe(
     return { errors: [error] };
   }
 
-  const plan = new Plan(
-    superSchema,
+  const plan = createPlan(
+    operationContext,
     rootType,
     operation.selectionSet.selections,
-    fragmentMap,
   );
 
   const executor = new Executor(plan, operation, fragments, rawVariableValues);
