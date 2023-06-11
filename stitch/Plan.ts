@@ -1,6 +1,5 @@
 import type {
   FieldNode,
-  FragmentDefinitionNode,
   GraphQLCompositeType,
   GraphQLField,
   GraphQLObjectType,
@@ -24,28 +23,39 @@ import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { inlineRootFragments } from '../utilities/inlineRootFragments.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
-import type { Subschema, SuperSchema } from './SuperSchema';
+import { memoize3 } from '../utilities/memoize3.ts';
+import type { OperationContext, Subschema } from './SuperSchema';
+export const createPlan = memoize3(
+  (
+    operationContext: OperationContext,
+    parentType: GraphQLCompositeType,
+    selections: ReadonlyArray<SelectionNode>,
+  ) => new Plan(operationContext, parentType, selections),
+);
 /**
  * @internal
  */
 export class Plan {
-  superSchema: SuperSchema;
+  operationContext: OperationContext;
   parentType: GraphQLCompositeType;
-  fragmentMap: ObjMap<FragmentDefinitionNode>;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
   subPlans: ObjMap<Plan>;
   constructor(
-    superSchema: SuperSchema,
+    operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-    fragmentMap: ObjMap<FragmentDefinitionNode>,
   ) {
-    this.superSchema = superSchema;
+    this.operationContext = operationContext;
     this.parentType = parentType;
-    this.fragmentMap = fragmentMap;
     this.subPlans = Object.create(null);
-    const inlinedSelections = inlineRootFragments(selections, fragmentMap);
-    this.selectionMap = this._processSelections(parentType, inlinedSelections);
+    const inlinedSelections = inlineRootFragments(
+      selections,
+      operationContext.fragmentMap,
+    );
+    this.selectionMap = this._processSelections(
+      this.parentType,
+      inlinedSelections,
+    );
   }
   _processSelections(
     parentType: GraphQLCompositeType,
@@ -62,7 +72,7 @@ export class Plan {
           const typeName = selection.typeCondition?.name.value;
           const refinedType =
             typeName !== undefined
-              ? this.superSchema.getType(typeName)
+              ? this.operationContext.superSchema.getType(typeName)
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
@@ -87,7 +97,9 @@ export class Plan {
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
     const subschemaSetsByField =
-      this.superSchema.subschemaSetsByTypeAndField[parentType.name];
+      this.operationContext.superSchema.subschemaSetsByTypeAndField[
+        parentType.name
+      ];
     const subschemaSets = subschemaSetsByField[field.name.value];
     if (subschemaSets === undefined) {
       return;
@@ -107,10 +119,9 @@ export class Plan {
     }
     const fieldType = fieldDef.type;
     const fieldPlan = new Plan(
-      this.superSchema,
+      this.operationContext,
       getNamedType(fieldType) as GraphQLObjectType,
       field.selectionSet.selections,
-      this.fragmentMap,
     );
     const filteredSelections = fieldPlan.selectionMap.get(subschema);
     if (filteredSelections) {
@@ -165,7 +176,10 @@ export class Plan {
     if (field !== undefined) {
       return field;
     }
-    if (parentType === this.superSchema.mergedSchema.getQueryType()) {
+    if (
+      parentType ===
+      this.operationContext.superSchema.mergedSchema.getQueryType()
+    ) {
       switch (fieldName) {
         case SchemaMetaFieldDef.name:
           return SchemaMetaFieldDef;
@@ -232,7 +246,7 @@ export class Plan {
   ): string {
     const spaces = new Array(indent).fill(' ', 0, indent).join('');
     let result = '';
-    result += `${spaces}Subschema ${this.superSchema.getSubschemaId(
+    result += `${spaces}Subschema ${this.operationContext.superSchema.getSubschemaId(
       subschema,
     )}:\n`;
     result += `${spaces}  `;

@@ -4,7 +4,7 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
 import { Executor } from './Executor.ts';
-import { Plan } from './Plan.ts';
+import { createPlan } from './Plan.ts';
 export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -13,10 +13,8 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   if (!('operationContext' in exeContext)) {
     return { errors: exeContext };
   }
-  const {
-    operationContext: { superSchema, operation, fragments, fragmentMap },
-    rawVariableValues,
-  } = exeContext;
+  const { operationContext, rawVariableValues } = exeContext;
+  const { superSchema, operation, fragments } = operationContext;
   const rootType = superSchema.getRootType(operation.operation);
   if (rootType == null) {
     const error = new GraphQLError(
@@ -25,11 +23,10 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     );
     return { data: null, errors: [error] };
   }
-  const plan = new Plan(
-    superSchema,
+  const plan = createPlan(
+    operationContext,
     rootType,
     operation.selectionSet.selections,
-    fragmentMap,
   );
   const executor = new Executor(plan, operation, fragments, rawVariableValues);
   return executor.execute();

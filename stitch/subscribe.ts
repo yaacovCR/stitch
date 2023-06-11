@@ -6,7 +6,7 @@ import { invariant } from '../utilities/invariant.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
 import { Executor } from './Executor.ts';
-import { Plan } from './Plan.ts';
+import { createPlan } from './Plan.ts';
 export function subscribe(
   args: ExecutionArgs,
 ): PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>> {
@@ -17,10 +17,8 @@ export function subscribe(
   if (!('operationContext' in exeContext)) {
     return { errors: exeContext };
   }
-  const {
-    operationContext: { superSchema, operation, fragments, fragmentMap },
-    rawVariableValues,
-  } = exeContext;
+  const { operationContext, rawVariableValues } = exeContext;
+  const { superSchema, operation, fragments } = operationContext;
   operation.operation === OperationTypeNode.SUBSCRIPTION || invariant(false);
   const rootType = superSchema.getRootType(operation.operation);
   if (rootType == null) {
@@ -30,11 +28,10 @@ export function subscribe(
     );
     return { errors: [error] };
   }
-  const plan = new Plan(
-    superSchema,
+  const plan = createPlan(
+    operationContext,
     rootType,
     operation.selectionSet.selections,
-    fragmentMap,
   );
   const executor = new Executor(plan, operation, fragments, rawVariableValues);
   return executor.subscribe();

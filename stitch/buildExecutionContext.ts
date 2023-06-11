@@ -5,6 +5,7 @@ import type {
 } from 'graphql';
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
+import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.ts';
 import type { ExecutionContext, Subschema } from './SuperSchema.ts';
 import { SuperSchema } from './SuperSchema.ts';
 export interface ExecutionArgs {
@@ -32,8 +33,7 @@ export function buildExecutionContext(
   }
   const superSchema = new SuperSchema(subschemas);
   let operation: OperationDefinitionNode | undefined;
-  const fragments: Array<FragmentDefinitionNode> = [];
-  const fragmentMap: ObjMap<FragmentDefinitionNode> = Object.create(null);
+  let fragments: Array<FragmentDefinitionNode> = [];
   for (const definition of document.definitions) {
     switch (definition.kind) {
       case Kind.OPERATION_DEFINITION:
@@ -52,7 +52,6 @@ export function buildExecutionContext(
         break;
       case Kind.FRAGMENT_DEFINITION:
         fragments.push(definition);
-        fragmentMap[definition.name.value] = definition;
         break;
       default:
       // ignore non-executable definitions
@@ -75,6 +74,14 @@ export function buildExecutionContext(
   if (coercedVariableValues.errors) {
     return coercedVariableValues.errors;
   }
+  const coerced = coercedVariableValues.coerced;
+  operation = applySkipIncludeDirectives(operation, coerced);
+  const fragmentMap: ObjMap<FragmentDefinitionNode> = Object.create(null);
+  fragments = fragments.map((fragment) => {
+    const processedFragment = applySkipIncludeDirectives(fragment, coerced);
+    fragmentMap[fragment.name.value] = processedFragment;
+    return processedFragment;
+  });
   return {
     operationContext: {
       superSchema,
@@ -84,6 +91,6 @@ export function buildExecutionContext(
       variableDefinitions,
     },
     rawVariableValues,
-    coercedVariableValues: coercedVariableValues.coerced,
+    coercedVariableValues: coerced,
   };
 }
