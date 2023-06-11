@@ -1,7 +1,7 @@
 import { GraphQLError } from 'graphql';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
 import { Executor } from './Executor.mjs';
-import { Plan } from './Plan.mjs';
+import { createPlan } from './Plan.mjs';
 export function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -10,10 +10,8 @@ export function execute(args) {
   if (!('operationContext' in exeContext)) {
     return { errors: exeContext };
   }
-  const {
-    operationContext: { superSchema, operation, fragments, fragmentMap },
-    rawVariableValues,
-  } = exeContext;
+  const { operationContext, rawVariableValues } = exeContext;
+  const { superSchema, operation, fragments } = operationContext;
   const rootType = superSchema.getRootType(operation.operation);
   if (rootType == null) {
     const error = new GraphQLError(
@@ -22,11 +20,10 @@ export function execute(args) {
     );
     return { data: null, errors: [error] };
   }
-  const plan = new Plan(
-    superSchema,
+  const plan = createPlan(
+    operationContext,
     rootType,
     operation.selectionSet.selections,
-    fragmentMap,
   );
   const executor = new Executor(plan, operation, fragments, rawVariableValues);
   return executor.execute();

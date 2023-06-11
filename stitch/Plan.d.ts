@@ -1,6 +1,5 @@
 import type {
   FieldNode,
-  FragmentDefinitionNode,
   GraphQLCompositeType,
   GraphQLField,
   InlineFragmentNode,
@@ -9,21 +8,24 @@ import type {
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
-import type { Subschema, SuperSchema } from './SuperSchema';
+import type { OperationContext, Subschema } from './SuperSchema';
+export declare const createPlan: (
+  a1: OperationContext,
+  a2: GraphQLCompositeType,
+  a3: readonly SelectionNode[],
+) => Plan;
 /**
  * @internal
  */
 export declare class Plan {
-  superSchema: SuperSchema;
+  operationContext: OperationContext;
   parentType: GraphQLCompositeType;
-  fragmentMap: ObjMap<FragmentDefinitionNode>;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
   subPlans: ObjMap<Plan>;
   constructor(
-    superSchema: SuperSchema,
+    operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-    fragmentMap: ObjMap<FragmentDefinitionNode>,
   );
   _processSelections(
     parentType: GraphQLCompositeType,

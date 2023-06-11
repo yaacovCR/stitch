@@ -1,4 +1,5 @@
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
+import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.mjs';
 import { SuperSchema } from './SuperSchema.mjs';
 export function buildExecutionContext(args) {
   const {
@@ -13,8 +14,7 @@ export function buildExecutionContext(args) {
   }
   const superSchema = new SuperSchema(subschemas);
   let operation;
-  const fragments = [];
-  const fragmentMap = Object.create(null);
+  let fragments = [];
   for (const definition of document.definitions) {
     switch (definition.kind) {
       case Kind.OPERATION_DEFINITION:
@@ -33,7 +33,6 @@ export function buildExecutionContext(args) {
         break;
       case Kind.FRAGMENT_DEFINITION:
         fragments.push(definition);
-        fragmentMap[definition.name.value] = definition;
         break;
       default:
       // ignore non-executable definitions
@@ -56,6 +55,14 @@ export function buildExecutionContext(args) {
   if (coercedVariableValues.errors) {
     return coercedVariableValues.errors;
   }
+  const coerced = coercedVariableValues.coerced;
+  operation = applySkipIncludeDirectives(operation, coerced);
+  const fragmentMap = Object.create(null);
+  fragments = fragments.map((fragment) => {
+    const processedFragment = applySkipIncludeDirectives(fragment, coerced);
+    fragmentMap[fragment.name.value] = processedFragment;
+    return processedFragment;
+  });
   return {
     operationContext: {
       superSchema,
@@ -65,6 +72,6 @@ export function buildExecutionContext(args) {
       variableDefinitions,
     },
     rawVariableValues,
-    coercedVariableValues: coercedVariableValues.coerced,
+    coercedVariableValues: coerced,
   };
 }

@@ -1,5 +1,6 @@
 import { Kind } from 'graphql';
-export function inlineRootFragments(
+import { memoize2 } from './memoize2.mjs';
+function _inlineRootFragments(
   selections,
   fragmentMap,
   visitedFragments = new Set(),
@@ -15,7 +16,7 @@ export function inlineRootFragments(
           ...selection,
           selectionSet: {
             kind: Kind.SELECTION_SET,
-            selections: inlineRootFragments(
+            selections: _inlineRootFragments(
               selection.selectionSet.selections,
               fragmentMap,
               visitedFragments,
@@ -36,7 +37,7 @@ export function inlineRootFragments(
             typeCondition: fragment.typeCondition,
             selectionSet: {
               kind: Kind.SELECTION_SET,
-              selections: inlineRootFragments(
+              selections: _inlineRootFragments(
                 fragment.selectionSet.selections,
                 fragmentMap,
                 visitedFragments,
@@ -49,3 +50,4 @@ export function inlineRootFragments(
   }
   return newSelections;
 }
+export const inlineRootFragments = memoize2(_inlineRootFragments);

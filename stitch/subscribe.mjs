@@ -2,7 +2,7 @@ import { GraphQLError, OperationTypeNode } from 'graphql';
 import { invariant } from '../utilities/invariant.mjs';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
 import { Executor } from './Executor.mjs';
-import { Plan } from './Plan.mjs';
+import { createPlan } from './Plan.mjs';
 export function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -11,10 +11,8 @@ export function subscribe(args) {
   if (!('operationContext' in exeContext)) {
     return { errors: exeContext };
   }
-  const {
-    operationContext: { superSchema, operation, fragments, fragmentMap },
-    rawVariableValues,
-  } = exeContext;
+  const { operationContext, rawVariableValues } = exeContext;
+  const { superSchema, operation, fragments } = operationContext;
   operation.operation === OperationTypeNode.SUBSCRIPTION || invariant(false);
   const rootType = superSchema.getRootType(operation.operation);
   if (rootType == null) {
@@ -24,11 +22,10 @@ export function subscribe(args) {
     );
     return { errors: [error] };
   }
-  const plan = new Plan(
-    superSchema,
+  const plan = createPlan(
+    operationContext,
     rootType,
     operation.selectionSet.selections,
-    fragmentMap,
   );
   const executor = new Executor(plan, operation, fragments, rawVariableValues);
   return executor.subscribe();

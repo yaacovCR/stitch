@@ -2,6 +2,7 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.buildExecutionContext = void 0;
 const graphql_1 = require('graphql');
+const applySkipIncludeDirectives_js_1 = require('../utilities/applySkipIncludeDirectives.js');
 const SuperSchema_js_1 = require('./SuperSchema.js');
 function buildExecutionContext(args) {
   const {
@@ -16,8 +17,7 @@ function buildExecutionContext(args) {
   }
   const superSchema = new SuperSchema_js_1.SuperSchema(subschemas);
   let operation;
-  const fragments = [];
-  const fragmentMap = Object.create(null);
+  let fragments = [];
   for (const definition of document.definitions) {
     switch (definition.kind) {
       case graphql_1.Kind.OPERATION_DEFINITION:
@@ -36,7 +36,6 @@ function buildExecutionContext(args) {
         break;
       case graphql_1.Kind.FRAGMENT_DEFINITION:
         fragments.push(definition);
-        fragmentMap[definition.name.value] = definition;
         break;
       default:
       // ignore non-executable definitions
@@ -63,6 +62,21 @@ function buildExecutionContext(args) {
   if (coercedVariableValues.errors) {
     return coercedVariableValues.errors;
   }
+  const coerced = coercedVariableValues.coerced;
+  operation = (0, applySkipIncludeDirectives_js_1.applySkipIncludeDirectives)(
+    operation,
+    coerced,
+  );
+  const fragmentMap = Object.create(null);
+  fragments = fragments.map((fragment) => {
+    const processedFragment = (0,
+    applySkipIncludeDirectives_js_1.applySkipIncludeDirectives)(
+      fragment,
+      coerced,
+    );
+    fragmentMap[fragment.name.value] = processedFragment;
+    return processedFragment;
+  });
   return {
     operationContext: {
       superSchema,
@@ -72,7 +86,7 @@ function buildExecutionContext(args) {
       variableDefinitions,
     },
     rawVariableValues,
-    coercedVariableValues: coercedVariableValues.coerced,
+    coercedVariableValues: coerced,
   };
 }
 exports.buildExecutionContext = buildExecutionContext;

@@ -1,7 +1,6 @@
 import type { FragmentDefinitionNode, SelectionNode } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
-export declare function inlineRootFragments(
-  selections: ReadonlyArray<SelectionNode>,
-  fragmentMap: ObjMap<FragmentDefinitionNode>,
-  visitedFragments?: Set<string>,
-): Array<SelectionNode>;
+export declare const inlineRootFragments: (
+  a1: readonly SelectionNode[],
+  a2: ObjMap<FragmentDefinitionNode>,
+) => SelectionNode[];

@@ -16,10 +16,8 @@ function subscribe(args) {
   if (!('operationContext' in exeContext)) {
     return { errors: exeContext };
   }
-  const {
-    operationContext: { superSchema, operation, fragments, fragmentMap },
-    rawVariableValues,
-  } = exeContext;
+  const { operationContext, rawVariableValues } = exeContext;
+  const { superSchema, operation, fragments } = operationContext;
   operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION ||
     (0, invariant_js_1.invariant)(false);
   const rootType = superSchema.getRootType(operation.operation);
@@ -30,11 +28,10 @@ function subscribe(args) {
     );
     return { errors: [error] };
   }
-  const plan = new Plan_js_1.Plan(
-    superSchema,
+  const plan = (0, Plan_js_1.createPlan)(
+    operationContext,
     rootType,
     operation.selectionSet.selections,
-    fragmentMap,
   );
   const executor = new Executor_js_1.Executor(
     plan,

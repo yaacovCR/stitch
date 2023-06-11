@@ -2,7 +2,8 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.inlineRootFragments = void 0;
 const graphql_1 = require('graphql');
-function inlineRootFragments(
+const memoize2_js_1 = require('./memoize2.js');
+function _inlineRootFragments(
   selections,
   fragmentMap,
   visitedFragments = new Set(),
@@ -18,7 +19,7 @@ function inlineRootFragments(
           ...selection,
           selectionSet: {
             kind: graphql_1.Kind.SELECTION_SET,
-            selections: inlineRootFragments(
+            selections: _inlineRootFragments(
               selection.selectionSet.selections,
               fragmentMap,
               visitedFragments,
@@ -39,7 +40,7 @@ function inlineRootFragments(
             typeCondition: fragment.typeCondition,
             selectionSet: {
               kind: graphql_1.Kind.SELECTION_SET,
-              selections: inlineRootFragments(
+              selections: _inlineRootFragments(
                 fragment.selectionSet.selections,
                 fragmentMap,
                 visitedFragments,
@@ -52,4 +53,4 @@ function inlineRootFragments(
   }
   return newSelections;
 }
-exports.inlineRootFragments = inlineRootFragments;
+exports.inlineRootFragments = (0, memoize2_js_1.memoize2)(_inlineRootFragments);

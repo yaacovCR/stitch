@@ -15,10 +15,8 @@ function execute(args) {
   if (!('operationContext' in exeContext)) {
     return { errors: exeContext };
   }
-  const {
-    operationContext: { superSchema, operation, fragments, fragmentMap },
-    rawVariableValues,
-  } = exeContext;
+  const { operationContext, rawVariableValues } = exeContext;
+  const { superSchema, operation, fragments } = operationContext;
   const rootType = superSchema.getRootType(operation.operation);
   if (rootType == null) {
     const error = new graphql_1.GraphQLError(
@@ -27,11 +25,10 @@ function execute(args) {
     );
     return { data: null, errors: [error] };
   }
-  const plan = new Plan_js_1.Plan(
-    superSchema,
+  const plan = (0, Plan_js_1.createPlan)(
+    operationContext,
     rootType,
     operation.selectionSet.selections,
-    fragmentMap,
   );
   const executor = new Executor_js_1.Executor(
     plan,
