@@ -27,24 +27,24 @@ import { inspect } from '../utilities/inspect.js';
 import { invariant } from '../utilities/invariant.js';
 import { memoize3 } from '../utilities/memoize3.js';
 
-import type { OperationContext, Subschema } from './SuperSchema';
+import type { OperationContext, Subschema } from './SuperSchema.js';
 
-export const createPlan = memoize3(
+export const createFieldPlan = memoize3(
   (
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-  ) => new Plan(operationContext, parentType, selections),
+  ) => new FieldPlan(operationContext, parentType, selections),
 );
 
 /**
  * @internal
  */
-export class Plan {
+export class FieldPlan {
   operationContext: OperationContext;
   parentType: GraphQLCompositeType;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
-  subPlans: ObjMap<Plan>;
+  subFieldPlans: ObjMap<FieldPlan>;
 
   constructor(
     operationContext: OperationContext,
@@ -53,7 +53,7 @@ export class Plan {
   ) {
     this.operationContext = operationContext;
     this.parentType = parentType;
-    this.subPlans = Object.create(null);
+    this.subFieldPlans = Object.create(null);
 
     const inlinedSelections = inlineRootFragments(
       selections,
@@ -139,13 +139,13 @@ export class Plan {
 
     const fieldType = fieldDef.type;
 
-    const fieldPlan = new Plan(
+    const subFieldPlan = new FieldPlan(
       this.operationContext,
       getNamedType(fieldType) as GraphQLObjectType,
       field.selectionSet.selections,
     );
 
-    const filteredSelections = fieldPlan.selectionMap.get(subschema);
+    const filteredSelections = subFieldPlan.selectionMap.get(subschema);
 
     if (filteredSelections) {
       selections.push({
@@ -155,16 +155,16 @@ export class Plan {
           selections: filteredSelections,
         },
       });
-      fieldPlan.selectionMap.delete(subschema);
+      subFieldPlan.selectionMap.delete(subschema);
     }
 
     if (
-      fieldPlan.selectionMap.size > 0 ||
-      Object.values(fieldPlan.subPlans).length > 0
+      subFieldPlan.selectionMap.size > 0 ||
+      Object.values(subFieldPlan.subFieldPlans).length > 0
     ) {
       const responseKey = field.alias?.value ?? field.name.value;
 
-      this.subPlans[responseKey] = fieldPlan;
+      this.subFieldPlans[responseKey] = subFieldPlan;
     }
   }
 
@@ -262,9 +262,9 @@ export class Plan {
       entries.push(this._printMap(indent));
     }
 
-    const subPlans = Array.from(Object.entries(this.subPlans));
-    if (subPlans.length > 0) {
-      entries.push(this._printSubPlans(subPlans, indent));
+    const subFieldPlans = Array.from(Object.entries(this.subFieldPlans));
+    if (subFieldPlans.length > 0) {
+      entries.push(this._printSubFieldPlans(subFieldPlans, indent));
     }
 
     return entries.join('\n');
@@ -302,23 +302,27 @@ export class Plan {
     return result;
   }
 
-  _printSubPlans(
-    subPlans: ReadonlyArray<[string, Plan]>,
+  _printSubFieldPlans(
+    subFieldPlans: ReadonlyArray<[string, FieldPlan]>,
     indent: number,
   ): string {
-    return subPlans
-      .map(([responseKey, subPlan]) =>
-        this._printSubPlan(responseKey, subPlan, indent),
+    return subFieldPlans
+      .map(([responseKey, subFieldPlan]) =>
+        this._printSubFieldPlan(responseKey, subFieldPlan, indent),
       )
       .join('\n');
   }
 
-  _printSubPlan(responseKey: string, subPlan: Plan, indent: number): string {
+  _printSubFieldPlan(
+    responseKey: string,
+    subFieldPlan: FieldPlan,
+    indent: number,
+  ): string {
     const spaces = new Array(indent).fill(' ', 0, indent).join('');
-    let subPlanEntry = '';
-    subPlanEntry += `${spaces}SubPlan for '${responseKey}':\n`;
-    subPlanEntry += subPlan.print(indent + 2);
-    return subPlanEntry;
+    let subFieldPlanEntry = '';
+    subFieldPlanEntry += `${spaces}SubFieldPlan for '${responseKey}':\n`;
+    subFieldPlanEntry += subFieldPlan.print(indent + 2);
+    return subFieldPlanEntry;
   }
 
   _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string {
