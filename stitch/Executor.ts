@@ -13,8 +13,8 @@ import { isAsyncIterable } from '../predicates/isAsyncIterable.ts';
 import { isObjectLike } from '../predicates/isObjectLike.ts';
 import { isPromise } from '../predicates/isPromise.ts';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.ts';
+import type { FieldPlan } from './FieldPlan.ts';
 import { mapAsyncIterable } from './mapAsyncIterable.ts';
-import type { Plan } from './Plan.ts';
 type Path = ReadonlyArray<string | number>;
 interface GraphQLData {
   fields: ObjMap<unknown>;
@@ -29,7 +29,7 @@ interface Parent {
  * @internal
  */
 export class Executor {
-  plan: Plan;
+  fieldPlan: FieldPlan;
   operation: OperationDefinitionNode;
   fragments: ReadonlyArray<FragmentDefinitionNode>;
   rawVariableValues:
@@ -38,7 +38,7 @@ export class Executor {
       }
     | undefined;
   constructor(
-    plan: Plan,
+    fieldPlan: FieldPlan,
     operation: OperationDefinitionNode,
     fragments: ReadonlyArray<FragmentDefinitionNode>,
     rawVariableValues:
@@ -47,7 +47,7 @@ export class Executor {
         }
       | undefined,
   ) {
-    this.plan = plan;
+    this.fieldPlan = fieldPlan;
     this.operation = operation;
     this.fragments = fragments;
     this.rawVariableValues = rawVariableValues;
@@ -62,7 +62,7 @@ export class Executor {
     for (const [
       subschema,
       subschemaSelections,
-    ] of this.plan.selectionMap.entries()) {
+    ] of this.fieldPlan.selectionMap.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
@@ -100,7 +100,7 @@ export class Executor {
   subscribe(): PromiseOrValue<
     ExecutionResult | SimpleAsyncGenerator<ExecutionResult>
   > {
-    const iteration = this.plan.selectionMap.entries().next();
+    const iteration = this.fieldPlan.selectionMap.entries().next();
     if (iteration.done) {
       const error = new GraphQLError('Could not route subscription.', {
         nodes: this.operation,
@@ -162,18 +162,18 @@ export class Executor {
     );
     graphQLData.promiseAggregator.add(promise);
   }
-  _getSubPlans(path: Path): ObjMap<Plan> | undefined {
-    let subPlans = this.plan.subPlans;
+  _getSubFieldPlans(path: Path): ObjMap<FieldPlan> | undefined {
+    let subFieldPlans = this.fieldPlan.subFieldPlans;
     for (const key of path) {
       if (typeof key === 'number') {
         continue;
       }
-      if (subPlans[key] === undefined) {
+      if (subFieldPlans[key] === undefined) {
         return undefined;
       }
-      subPlans = subPlans[key].subPlans;
+      subFieldPlans = subFieldPlans[key].subFieldPlans;
     }
-    return subPlans;
+    return subFieldPlans;
   }
   _handleInitialResult(
     graphQLData: GraphQLData,
@@ -205,65 +205,81 @@ export class Executor {
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(fields, key, value);
     }
-    this._executeSubPlans(graphQLData, result.data, this.plan.subPlans, path);
+    this._executeSubFieldPlans(
+      graphQLData,
+      result.data,
+      this.fieldPlan.subFieldPlans,
+      path,
+    );
   }
-  _executeSubPlans(
+  _executeSubFieldPlans(
     graphQLData: GraphQLData,
     fields: ObjMap<unknown>,
-    subPlans: ObjMap<Plan>,
+    subFieldPlans: ObjMap<FieldPlan>,
     path: Path,
   ): void {
-    for (const [key, subPlan] of Object.entries(subPlans)) {
+    for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
       if (fields[key] !== undefined) {
-        this._executePossibleListSubPlan(
+        this._executePossibleListSubFieldPlan(
           graphQLData,
           fields,
           fields[key] as ObjMap<unknown> | Array<unknown>,
-          subPlan,
+          subFieldPlan,
           [...path, key],
         );
       }
     }
   }
-  _executePossibleListSubPlan(
+  _executePossibleListSubFieldPlan(
     graphQLData: GraphQLData,
     parent: Parent,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    plan: Plan,
+    fieldPlan: FieldPlan,
     path: Path,
   ): void {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
-        this._executePossibleListSubPlan(
+        this._executePossibleListSubFieldPlan(
           graphQLData,
           fieldsOrList as unknown as Parent,
           fieldsOrList[i] as ObjMap<unknown>,
-          plan,
+          fieldPlan,
           [...path, i],
         );
       }
       return;
     }
-    this._executeSubPlan(graphQLData, parent, fieldsOrList, plan, path);
+    this._executeSubFieldPlan(
+      graphQLData,
+      parent,
+      fieldsOrList,
+      fieldPlan,
+      path,
+    );
   }
-  _executeSubPlan(
+  _executeSubFieldPlan(
     graphQLData: GraphQLData,
     parent: Parent,
     fields: ObjMap<unknown>,
-    plan: Plan,
+    fieldPlan: FieldPlan,
     path: Path,
   ): void {
     for (const [
       subschema,
       subschemaSelections,
-    ] of plan.selectionMap.entries()) {
+    ] of fieldPlan.selectionMap.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
       this._handleMaybeAsyncResult(graphQLData, parent, fields, result, path);
     }
-    this._executeSubPlans(graphQLData, fields, plan.subPlans, path);
+    this._executeSubFieldPlans(
+      graphQLData,
+      fields,
+      fieldPlan.subFieldPlans,
+      path,
+    );
   }
   _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void {
     if (

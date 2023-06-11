@@ -4,7 +4,7 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
 import { Executor } from './Executor.ts';
-import { createPlan } from './Plan.ts';
+import { createFieldPlan } from './FieldPlan.ts';
 export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -23,11 +23,16 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     );
     return { data: null, errors: [error] };
   }
-  const plan = createPlan(
+  const fieldPlan = createFieldPlan(
     operationContext,
     rootType,
     operation.selectionSet.selections,
   );
-  const executor = new Executor(plan, operation, fragments, rawVariableValues);
+  const executor = new Executor(
+    fieldPlan,
+    operation,
+    fragments,
+    rawVariableValues,
+  );
   return executor.execute();
 }

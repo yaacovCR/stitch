@@ -6,7 +6,7 @@ import { invariant } from '../utilities/invariant.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
 import { Executor } from './Executor.ts';
-import { createPlan } from './Plan.ts';
+import { createFieldPlan } from './FieldPlan.ts';
 export function subscribe(
   args: ExecutionArgs,
 ): PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>> {
@@ -28,11 +28,16 @@ export function subscribe(
     );
     return { errors: [error] };
   }
-  const plan = createPlan(
+  const fieldPlan = createFieldPlan(
     operationContext,
     rootType,
     operation.selectionSet.selections,
   );
-  const executor = new Executor(plan, operation, fragments, rawVariableValues);
+  const executor = new Executor(
+    fieldPlan,
+    operation,
+    fragments,
+    rawVariableValues,
+  );
   return executor.subscribe();
 }
