@@ -8,7 +8,7 @@ import { dedent } from '../../__testUtils__/dedent.js';
 import { invariant } from '../../utilities/invariant.js';
 
 import { Plan } from '../Plan.js';
-import type { Subschema } from '../SuperSchema.js';
+import type { OperationContext, Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
 function getSubschema(schema: GraphQLSchema): Subschema {
@@ -31,10 +31,9 @@ function createPlan(
   invariant(queryType !== undefined);
 
   return new Plan(
-    superSchema,
+    { superSchema, fragmentMap: {} } as OperationContext,
     queryType,
     operation.selectionSet.selections,
-    {},
   );
 }
 
