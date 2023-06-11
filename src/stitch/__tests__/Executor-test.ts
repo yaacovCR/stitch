@@ -6,7 +6,7 @@ import { describe, it } from 'mocha';
 import { invariant } from '../../utilities/invariant.js';
 
 import { Executor } from '../Executor.js';
-import { Plan } from '../Plan.js';
+import { FieldPlan } from '../FieldPlan.js';
 import type { OperationContext, Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
@@ -30,13 +30,13 @@ function createExecutor(
 
   invariant(queryType !== undefined);
 
-  const plan = new Plan(
+  const fieldPlan = new FieldPlan(
     { superSchema, fragmentMap: {} } as OperationContext,
     queryType,
     operation.selectionSet.selections,
   );
 
-  return new Executor(plan, operation, [], undefined);
+  return new Executor(fieldPlan, operation, [], undefined);
 }
 
 describe('Executor', () => {

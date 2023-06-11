@@ -6,7 +6,7 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
 import { Executor } from './Executor.js';
-import { createPlan } from './Plan.js';
+import { createFieldPlan } from './FieldPlan.js';
 
 export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   // If a valid execution context cannot be created due to incorrect arguments,
@@ -32,13 +32,18 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     return { data: null, errors: [error] };
   }
 
-  const plan = createPlan(
+  const fieldPlan = createFieldPlan(
     operationContext,
     rootType,
     operation.selectionSet.selections,
   );
 
-  const executor = new Executor(plan, operation, fragments, rawVariableValues);
+  const executor = new Executor(
+    fieldPlan,
+    operation,
+    fragments,
+    rawVariableValues,
+  );
 
   return executor.execute();
 }

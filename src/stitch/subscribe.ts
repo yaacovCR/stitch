@@ -9,7 +9,7 @@ import { invariant } from '../utilities/invariant.js';
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
 import { Executor } from './Executor.js';
-import { createPlan } from './Plan.js';
+import { createFieldPlan } from './FieldPlan.js';
 
 export function subscribe(
   args: ExecutionArgs,
@@ -38,13 +38,18 @@ export function subscribe(
     return { errors: [error] };
   }
 
-  const plan = createPlan(
+  const fieldPlan = createFieldPlan(
     operationContext,
     rootType,
     operation.selectionSet.selections,
   );
 
-  const executor = new Executor(plan, operation, fragments, rawVariableValues);
+  const executor = new Executor(
+    fieldPlan,
+    operation,
+    fragments,
+    rawVariableValues,
+  );
 
   return executor.subscribe();
 }
