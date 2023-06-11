@@ -10,7 +10,7 @@ import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
-import type { Plan } from './Plan.js';
+import type { FieldPlan } from './FieldPlan.js';
 type Path = ReadonlyArray<string | number>;
 interface GraphQLData {
   fields: ObjMap<unknown>;
@@ -25,7 +25,7 @@ interface Parent {
  * @internal
  */
 export declare class Executor {
-  plan: Plan;
+  fieldPlan: FieldPlan;
   operation: OperationDefinitionNode;
   fragments: ReadonlyArray<FragmentDefinitionNode>;
   rawVariableValues:
@@ -34,7 +34,7 @@ export declare class Executor {
       }
     | undefined;
   constructor(
-    plan: Plan,
+    fieldPlan: FieldPlan,
     operation: OperationDefinitionNode,
     fragments: ReadonlyArray<FragmentDefinitionNode>,
     rawVariableValues:
@@ -56,7 +56,7 @@ export declare class Executor {
     result: PromiseOrValue<ExecutionResult>,
     path: Path,
   ): void;
-  _getSubPlans(path: Path): ObjMap<Plan> | undefined;
+  _getSubFieldPlans(path: Path): ObjMap<FieldPlan> | undefined;
   _handleInitialResult(
     graphQLData: GraphQLData,
     parent: Parent | undefined,
@@ -64,24 +64,24 @@ export declare class Executor {
     result: ExecutionResult,
     path: Path,
   ): void;
-  _executeSubPlans(
+  _executeSubFieldPlans(
     graphQLData: GraphQLData,
     fields: ObjMap<unknown>,
-    subPlans: ObjMap<Plan>,
+    subFieldPlans: ObjMap<FieldPlan>,
     path: Path,
   ): void;
-  _executePossibleListSubPlan(
+  _executePossibleListSubFieldPlan(
     graphQLData: GraphQLData,
     parent: Parent,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    plan: Plan,
+    fieldPlan: FieldPlan,
     path: Path,
   ): void;
-  _executeSubPlan(
+  _executeSubFieldPlan(
     graphQLData: GraphQLData,
     parent: Parent,
     fields: ObjMap<unknown>,
-    plan: Plan,
+    fieldPlan: FieldPlan,
     path: Path,
   ): void;
   _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void;

@@ -8,20 +8,20 @@ import type {
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
-import type { OperationContext, Subschema } from './SuperSchema';
-export declare const createPlan: (
+import type { OperationContext, Subschema } from './SuperSchema.js';
+export declare const createFieldPlan: (
   a1: OperationContext,
   a2: GraphQLCompositeType,
   a3: readonly SelectionNode[],
-) => Plan;
+) => FieldPlan;
 /**
  * @internal
  */
-export declare class Plan {
+export declare class FieldPlan {
   operationContext: OperationContext;
   parentType: GraphQLCompositeType;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
-  subPlans: ObjMap<Plan>;
+  subFieldPlans: ObjMap<FieldPlan>;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
@@ -64,10 +64,14 @@ export declare class Plan {
     selections: ReadonlyArray<SelectionNode>,
     indent: number,
   ): string;
-  _printSubPlans(
-    subPlans: ReadonlyArray<[string, Plan]>,
+  _printSubFieldPlans(
+    subFieldPlans: ReadonlyArray<[string, FieldPlan]>,
     indent: number,
   ): string;
-  _printSubPlan(responseKey: string, subPlan: Plan, indent: number): string;
+  _printSubFieldPlan(
+    responseKey: string,
+    subFieldPlan: FieldPlan,
+    indent: number,
+  ): string;
   _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string;
 }

@@ -1,24 +1,24 @@
 'use strict';
 Object.defineProperty(exports, '__esModule', { value: true });
-exports.Plan = exports.createPlan = void 0;
+exports.FieldPlan = exports.createFieldPlan = void 0;
 const graphql_1 = require('graphql');
 const AccumulatorMap_js_1 = require('../utilities/AccumulatorMap.js');
 const inlineRootFragments_js_1 = require('../utilities/inlineRootFragments.js');
 const inspect_js_1 = require('../utilities/inspect.js');
 const invariant_js_1 = require('../utilities/invariant.js');
 const memoize3_js_1 = require('../utilities/memoize3.js');
-exports.createPlan = (0, memoize3_js_1.memoize3)(
+exports.createFieldPlan = (0, memoize3_js_1.memoize3)(
   (operationContext, parentType, selections) =>
-    new Plan(operationContext, parentType, selections),
+    new FieldPlan(operationContext, parentType, selections),
 );
 /**
  * @internal
  */
-class Plan {
+class FieldPlan {
   constructor(operationContext, parentType, selections) {
     this.operationContext = operationContext;
     this.parentType = parentType;
-    this.subPlans = Object.create(null);
+    this.subFieldPlans = Object.create(null);
     const inlinedSelections = (0, inlineRootFragments_js_1.inlineRootFragments)(
       selections,
       operationContext.fragmentMap,
@@ -87,12 +87,12 @@ class Plan {
       return;
     }
     const fieldType = fieldDef.type;
-    const fieldPlan = new Plan(
+    const subFieldPlan = new FieldPlan(
       this.operationContext,
       (0, graphql_1.getNamedType)(fieldType),
       field.selectionSet.selections,
     );
-    const filteredSelections = fieldPlan.selectionMap.get(subschema);
+    const filteredSelections = subFieldPlan.selectionMap.get(subschema);
     if (filteredSelections) {
       selections.push({
         ...field,
@@ -101,14 +101,14 @@ class Plan {
           selections: filteredSelections,
         },
       });
-      fieldPlan.selectionMap.delete(subschema);
+      subFieldPlan.selectionMap.delete(subschema);
     }
     if (
-      fieldPlan.selectionMap.size > 0 ||
-      Object.values(fieldPlan.subPlans).length > 0
+      subFieldPlan.selectionMap.size > 0 ||
+      Object.values(subFieldPlan.subFieldPlans).length > 0
     ) {
       const responseKey = field.alias?.value ?? field.name.value;
-      this.subPlans[responseKey] = fieldPlan;
+      this.subFieldPlans[responseKey] = subFieldPlan;
     }
   }
   _getSubschemaAndSelections(subschemas, selectionMap) {
@@ -178,9 +178,9 @@ class Plan {
     if (this.selectionMap.size > 0) {
       entries.push(this._printMap(indent));
     }
-    const subPlans = Array.from(Object.entries(this.subPlans));
-    if (subPlans.length > 0) {
-      entries.push(this._printSubPlans(subPlans, indent));
+    const subFieldPlans = Array.from(Object.entries(this.subFieldPlans));
+    if (subFieldPlans.length > 0) {
+      entries.push(this._printSubFieldPlans(subFieldPlans, indent));
     }
     return entries.join('\n');
   }
@@ -210,23 +210,23 @@ class Plan {
     );
     return result;
   }
-  _printSubPlans(subPlans, indent) {
-    return subPlans
-      .map(([responseKey, subPlan]) =>
-        this._printSubPlan(responseKey, subPlan, indent),
+  _printSubFieldPlans(subFieldPlans, indent) {
+    return subFieldPlans
+      .map(([responseKey, subFieldPlan]) =>
+        this._printSubFieldPlan(responseKey, subFieldPlan, indent),
       )
       .join('\n');
   }
-  _printSubPlan(responseKey, subPlan, indent) {
+  _printSubFieldPlan(responseKey, subFieldPlan, indent) {
     const spaces = new Array(indent).fill(' ', 0, indent).join('');
-    let subPlanEntry = '';
-    subPlanEntry += `${spaces}SubPlan for '${responseKey}':\n`;
-    subPlanEntry += subPlan.print(indent + 2);
-    return subPlanEntry;
+    let subFieldPlanEntry = '';
+    subFieldPlanEntry += `${spaces}SubFieldPlan for '${responseKey}':\n`;
+    subFieldPlanEntry += subFieldPlan.print(indent + 2);
+    return subFieldPlanEntry;
   }
   _printSelectionSet(selectionSet, indent) {
     const spaces = new Array(indent).fill(' ', 0, indent).join('');
     return (0, graphql_1.print)(selectionSet).split('\n').join(`\n${spaces}`);
   }
 }
-exports.Plan = Plan;
+exports.FieldPlan = FieldPlan;

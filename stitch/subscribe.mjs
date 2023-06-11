@@ -2,7 +2,7 @@ import { GraphQLError, OperationTypeNode } from 'graphql';
 import { invariant } from '../utilities/invariant.mjs';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
 import { Executor } from './Executor.mjs';
-import { createPlan } from './Plan.mjs';
+import { createFieldPlan } from './FieldPlan.mjs';
 export function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -22,11 +22,16 @@ export function subscribe(args) {
     );
     return { errors: [error] };
   }
-  const plan = createPlan(
+  const fieldPlan = createFieldPlan(
     operationContext,
     rootType,
     operation.selectionSet.selections,
   );
-  const executor = new Executor(plan, operation, fragments, rawVariableValues);
+  const executor = new Executor(
+    fieldPlan,
+    operation,
+    fragments,
+    rawVariableValues,
+  );
   return executor.subscribe();
 }

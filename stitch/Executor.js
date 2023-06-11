@@ -11,8 +11,8 @@ const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
  * @internal
  */
 class Executor {
-  constructor(plan, operation, fragments, rawVariableValues) {
-    this.plan = plan;
+  constructor(fieldPlan, operation, fragments, rawVariableValues) {
+    this.fieldPlan = fieldPlan;
     this.operation = operation;
     this.fragments = fragments;
     this.rawVariableValues = rawVariableValues;
@@ -27,7 +27,7 @@ class Executor {
     for (const [
       subschema,
       subschemaSelections,
-    ] of this.plan.selectionMap.entries()) {
+    ] of this.fieldPlan.selectionMap.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
@@ -63,7 +63,7 @@ class Executor {
     };
   }
   subscribe() {
-    const iteration = this.plan.selectionMap.entries().next();
+    const iteration = this.fieldPlan.selectionMap.entries().next();
     if (iteration.done) {
       const error = new graphql_1.GraphQLError(
         'Could not route subscription.',
@@ -124,18 +124,18 @@ class Executor {
     );
     graphQLData.promiseAggregator.add(promise);
   }
-  _getSubPlans(path) {
-    let subPlans = this.plan.subPlans;
+  _getSubFieldPlans(path) {
+    let subFieldPlans = this.fieldPlan.subFieldPlans;
     for (const key of path) {
       if (typeof key === 'number') {
         continue;
       }
-      if (subPlans[key] === undefined) {
+      if (subFieldPlans[key] === undefined) {
         return undefined;
       }
-      subPlans = subPlans[key].subPlans;
+      subFieldPlans = subFieldPlans[key].subFieldPlans;
     }
-    return subPlans;
+    return subFieldPlans;
   }
   _handleInitialResult(graphQLData, parent, fields, result, path) {
     if (result.errors != null) {
@@ -161,48 +161,70 @@ class Executor {
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(fields, key, value);
     }
-    this._executeSubPlans(graphQLData, result.data, this.plan.subPlans, path);
+    this._executeSubFieldPlans(
+      graphQLData,
+      result.data,
+      this.fieldPlan.subFieldPlans,
+      path,
+    );
   }
-  _executeSubPlans(graphQLData, fields, subPlans, path) {
-    for (const [key, subPlan] of Object.entries(subPlans)) {
+  _executeSubFieldPlans(graphQLData, fields, subFieldPlans, path) {
+    for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
       if (fields[key] !== undefined) {
-        this._executePossibleListSubPlan(
+        this._executePossibleListSubFieldPlan(
           graphQLData,
           fields,
           fields[key],
-          subPlan,
+          subFieldPlan,
           [...path, key],
         );
       }
     }
   }
-  _executePossibleListSubPlan(graphQLData, parent, fieldsOrList, plan, path) {
+  _executePossibleListSubFieldPlan(
+    graphQLData,
+    parent,
+    fieldsOrList,
+    fieldPlan,
+    path,
+  ) {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
-        this._executePossibleListSubPlan(
+        this._executePossibleListSubFieldPlan(
           graphQLData,
           fieldsOrList,
           fieldsOrList[i],
-          plan,
+          fieldPlan,
           [...path, i],
         );
       }
       return;
     }
-    this._executeSubPlan(graphQLData, parent, fieldsOrList, plan, path);
+    this._executeSubFieldPlan(
+      graphQLData,
+      parent,
+      fieldsOrList,
+      fieldPlan,
+      path,
+    );
   }
-  _executeSubPlan(graphQLData, parent, fields, plan, path) {
+  _executeSubFieldPlan(graphQLData, parent, fields, fieldPlan, path) {
     for (const [
       subschema,
       subschemaSelections,
-    ] of plan.selectionMap.entries()) {
+    ] of fieldPlan.selectionMap.entries()) {
       const result = subschema.executor({
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
       this._handleMaybeAsyncResult(graphQLData, parent, fields, result, path);
     }
-    this._executeSubPlans(graphQLData, fields, plan.subPlans, path);
+    this._executeSubFieldPlans(
+      graphQLData,
+      fields,
+      fieldPlan.subFieldPlans,
+      path,
+    );
   }
   _deepMerge(fields, key, value) {
     if (

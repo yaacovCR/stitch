@@ -5,7 +5,7 @@ const graphql_1 = require('graphql');
 const invariant_js_1 = require('../utilities/invariant.js');
 const buildExecutionContext_js_1 = require('./buildExecutionContext.js');
 const Executor_js_1 = require('./Executor.js');
-const Plan_js_1 = require('./Plan.js');
+const FieldPlan_js_1 = require('./FieldPlan.js');
 function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -28,13 +28,13 @@ function subscribe(args) {
     );
     return { errors: [error] };
   }
-  const plan = (0, Plan_js_1.createPlan)(
+  const fieldPlan = (0, FieldPlan_js_1.createFieldPlan)(
     operationContext,
     rootType,
     operation.selectionSet.selections,
   );
   const executor = new Executor_js_1.Executor(
-    plan,
+    fieldPlan,
     operation,
     fragments,
     rawVariableValues,
