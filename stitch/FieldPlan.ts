@@ -109,7 +109,7 @@ export class FieldPlan {
       return;
     }
     const { subschema, selections } = this._getSubschemaAndSelections(
-      Array.from(subschemaSets),
+      subschemaSets,
       selectionMap,
     );
     if (!field.selectionSet) {
@@ -147,7 +147,7 @@ export class FieldPlan {
     }
   }
   _getSubschemaAndSelections(
-    subschemas: ReadonlyArray<Subschema>,
+    subschemas: Set<Subschema>,
     selectionMap: Map<Subschema, Array<SelectionNode>>,
   ): {
     subschema: Subschema;
@@ -161,7 +161,7 @@ export class FieldPlan {
       }
     }
     selections = [];
-    const subschema = subschemas[0];
+    const subschema = subschemas.values().next().value as Subschema;
     selectionMap.set(subschema, selections);
     return { subschema, selections };
   }
