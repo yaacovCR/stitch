@@ -52,7 +52,13 @@ export class Composer {
   }
   compose(): PromiseOrValue<ExecutionResult> {
     this.results.map((result) =>
-      this._handleMaybeAsyncResult(undefined, this.fields, result, []),
+      this._handleMaybeAsyncResult(
+        undefined,
+        this.fields,
+        this.fieldPlan,
+        result,
+        [],
+      ),
     );
     if (this.promiseAggregator.isEmpty()) {
       return this._buildResponse();
@@ -84,19 +90,22 @@ export class Composer {
   _handleMaybeAsyncResult(
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
+    fieldPlan: FieldPlan | undefined,
     result: PromiseOrValue<ExecutionResult>,
     path: Path,
   ): void {
     if (!isPromise(result)) {
-      this._handleResult(parent, fields, result, path);
+      this._handleResult(parent, fields, fieldPlan, result, path);
       return;
     }
     const promise = result.then(
-      (resolved) => this._handleResult(parent, fields, resolved, path),
+      (resolved) =>
+        this._handleResult(parent, fields, fieldPlan, resolved, path),
       (err) =>
         this._handleResult(
           parent,
           fields,
+          fieldPlan,
           {
             data: null,
             errors: [new GraphQLError(err.message, { originalError: err })],
@@ -109,6 +118,7 @@ export class Composer {
   _handleResult(
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
+    fieldPlan: FieldPlan | undefined,
     result: ExecutionResult,
     path: Path,
   ): void {
@@ -135,7 +145,13 @@ export class Composer {
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(fields, key, value);
     }
-    this._executeSubFieldPlans(result.data, this.fieldPlan.subFieldPlans, path);
+    if (fieldPlan !== undefined) {
+      this._executeSubFieldPlans(
+        result.data,
+        this.fieldPlan.subFieldPlans,
+        path,
+      );
+    }
   }
   _executeSubFieldPlans(
     fields: ObjMap<unknown>,
@@ -186,7 +202,7 @@ export class Composer {
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncResult(parent, fields, result, path);
+      this._handleMaybeAsyncResult(parent, fields, undefined, result, path);
     }
     this._executeSubFieldPlans(fields, fieldPlan.subFieldPlans, path);
   }
