@@ -1,5 +1,6 @@
 import type {
   FieldNode,
+  FragmentDefinitionNode,
   GraphQLCompositeType,
   GraphQLField,
   GraphQLObjectType,
@@ -20,7 +21,6 @@ import {
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
-import { inlineRootFragments } from '../utilities/inlineRootFragments.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
 import { memoize3 } from '../utilities/memoize3.ts';
@@ -40,6 +40,7 @@ export class FieldPlan {
   parentType: GraphQLCompositeType;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
   subFieldPlans: ObjMap<FieldPlan>;
+  visitedFragments: Set<string>;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
@@ -48,14 +49,8 @@ export class FieldPlan {
     this.operationContext = operationContext;
     this.parentType = parentType;
     this.subFieldPlans = Object.create(null);
-    const inlinedSelections = inlineRootFragments(
-      selections,
-      operationContext.fragmentMap,
-    );
-    this.selectionMap = this._processSelections(
-      this.parentType,
-      inlinedSelections,
-    );
+    this.visitedFragments = new Set();
+    this.selectionMap = this._processSelections(this.parentType, selections);
   }
   _processSelections(
     parentType: GraphQLCompositeType,
@@ -76,16 +71,25 @@ export class FieldPlan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addInlineFragment(refinedType, selection, selectionMap);
+          this._addFragment(refinedType, selection, selectionMap);
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
-          // Not reached
-          false ||
-            invariant(
-              false,
-              'Fragment spreads should be inlined prior to selections being split!',
-            );
+          const fragmentName = selection.name.value;
+          if (this.visitedFragments.has(fragmentName)) {
+            continue;
+          }
+          this.visitedFragments.add(fragmentName);
+          const fragment = this.operationContext.fragmentMap[fragmentName];
+          const typeName = fragment.typeCondition?.name.value;
+          const refinedType =
+            typeName !== undefined
+              ? this.operationContext.superSchema.getType(typeName)
+              : parentType;
+          isCompositeType(refinedType) ||
+            invariant(false, `Invalid type condition ${inspect(refinedType)}`);
+          this._addFragment(refinedType, fragment, selectionMap);
+          break;
         }
       }
     }
@@ -188,19 +192,18 @@ export class FieldPlan {
       }
     }
   }
-  _addInlineFragment(
+  _addFragment(
     parentType: GraphQLCompositeType,
-    fragment: InlineFragmentNode,
+    fragment: InlineFragmentNode | FragmentDefinitionNode,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
     const fragmentSelectionMap = this._processSelections(
       parentType,
       fragment.selectionSet.selections,
     );
-    this._addFragmentSelectionMap(fragment, fragmentSelectionMap, selectionMap);
+    this._addFragmentSelectionMap(fragmentSelectionMap, selectionMap);
   }
   _addFragmentSelectionMap(
-    fragment: InlineFragmentNode,
     fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
@@ -209,7 +212,7 @@ export class FieldPlan {
       fragmentSelections,
     ] of fragmentSelectionMap) {
       const splitFragment: InlineFragmentNode = {
-        ...fragment,
+        kind: Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: Kind.SELECTION_SET,
           selections: fragmentSelections,
