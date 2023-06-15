@@ -45,12 +45,14 @@ export declare class Composer {
   _handleMaybeAsyncResult(
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
+    fieldPlan: FieldPlan | undefined,
     result: PromiseOrValue<ExecutionResult>,
     path: Path,
   ): void;
   _handleResult(
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
+    fieldPlan: FieldPlan | undefined,
     result: ExecutionResult,
     path: Path,
   ): void;

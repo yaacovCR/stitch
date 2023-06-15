@@ -18,7 +18,13 @@ export class Composer {
   }
   compose() {
     this.results.map((result) =>
-      this._handleMaybeAsyncResult(undefined, this.fields, result, []),
+      this._handleMaybeAsyncResult(
+        undefined,
+        this.fields,
+        this.fieldPlan,
+        result,
+        [],
+      ),
     );
     if (this.promiseAggregator.isEmpty()) {
       return this._buildResponse();
@@ -47,17 +53,19 @@ export class Composer {
       ? { data: fieldsOrNull, errors: this.errors }
       : { data: fieldsOrNull };
   }
-  _handleMaybeAsyncResult(parent, fields, result, path) {
+  _handleMaybeAsyncResult(parent, fields, fieldPlan, result, path) {
     if (!isPromise(result)) {
-      this._handleResult(parent, fields, result, path);
+      this._handleResult(parent, fields, fieldPlan, result, path);
       return;
     }
     const promise = result.then(
-      (resolved) => this._handleResult(parent, fields, resolved, path),
+      (resolved) =>
+        this._handleResult(parent, fields, fieldPlan, resolved, path),
       (err) =>
         this._handleResult(
           parent,
           fields,
+          fieldPlan,
           {
             data: null,
             errors: [new GraphQLError(err.message, { originalError: err })],
@@ -67,7 +75,7 @@ export class Composer {
     );
     this.promiseAggregator.add(promise);
   }
-  _handleResult(parent, fields, result, path) {
+  _handleResult(parent, fields, fieldPlan, result, path) {
     if (result.errors != null) {
       this.errors.push(...result.errors);
     }
@@ -91,7 +99,13 @@ export class Composer {
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(fields, key, value);
     }
-    this._executeSubFieldPlans(result.data, this.fieldPlan.subFieldPlans, path);
+    if (fieldPlan !== undefined) {
+      this._executeSubFieldPlans(
+        result.data,
+        this.fieldPlan.subFieldPlans,
+        path,
+      );
+    }
   }
   _executeSubFieldPlans(fields, subFieldPlans, path) {
     for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
@@ -128,7 +142,7 @@ export class Composer {
         document: this._createDocument(subschemaSelections),
         variables: this.rawVariableValues,
       });
-      this._handleMaybeAsyncResult(parent, fields, result, path);
+      this._handleMaybeAsyncResult(parent, fields, undefined, result, path);
     }
     this._executeSubFieldPlans(fields, fieldPlan.subFieldPlans, path);
   }
