@@ -39,7 +39,7 @@ export declare class FieldPlan {
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
   _getSubschemaAndSelections(
-    subschemas: ReadonlyArray<Subschema>,
+    subschemas: Set<Subschema>,
     selectionMap: Map<Subschema, Array<SelectionNode>>,
   ): {
     subschema: Subschema;

@@ -78,7 +78,7 @@ export class FieldPlan {
       return;
     }
     const { subschema, selections } = this._getSubschemaAndSelections(
-      Array.from(subschemaSets),
+      subschemaSets,
       selectionMap,
     );
     if (!field.selectionSet) {
@@ -124,7 +124,7 @@ export class FieldPlan {
       }
     }
     selections = [];
-    const subschema = subschemas[0];
+    const subschema = subschemas.values().next().value;
     selectionMap.set(subschema, selections);
     return { subschema, selections };
   }
