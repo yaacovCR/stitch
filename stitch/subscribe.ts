@@ -1,12 +1,15 @@
-import type { ExecutionResult } from 'graphql';
-import { GraphQLError, OperationTypeNode } from 'graphql';
+import type { DocumentNode, ExecutionResult } from 'graphql';
+import { GraphQLError, Kind, OperationTypeNode } from 'graphql';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.ts';
+import { isAsyncIterable } from '../predicates/isAsyncIterable.ts';
+import { isPromise } from '../predicates/isPromise.ts';
 import { invariant } from '../utilities/invariant.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
-import { Executor } from './Executor.ts';
+import { Composer } from './Composer.ts';
 import { createFieldPlan } from './FieldPlan.ts';
+import { mapAsyncIterable } from './mapAsyncIterable.ts';
 export function subscribe(
   args: ExecutionArgs,
 ): PromiseOrValue<ExecutionResult | SimpleAsyncGenerator<ExecutionResult>> {
@@ -33,11 +36,65 @@ export function subscribe(
     rootType,
     operation.selectionSet.selections,
   );
-  const executor = new Executor(
-    fieldPlan,
-    operation,
-    fragments,
-    rawVariableValues,
-  );
-  return executor.subscribe();
+  const iteration = fieldPlan.selectionMap.entries().next();
+  if (iteration.done) {
+    const error = new GraphQLError('Could not route subscription.', {
+      nodes: operation,
+    });
+    return { errors: [error] };
+  }
+  const [subschema, subschemaSelections] = iteration.value;
+  const subscriber = subschema.subscriber;
+  if (!subscriber) {
+    const error = new GraphQLError(
+      'Subschema is not configured to execute subscription operation.',
+      { nodes: operation },
+    );
+    return { errors: [error] };
+  }
+  const document: DocumentNode = {
+    kind: Kind.DOCUMENT,
+    definitions: [
+      {
+        ...operation,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: subschemaSelections,
+        },
+      },
+      ...fragments,
+    ],
+  };
+  const result = subscriber({
+    document,
+    variables: rawVariableValues,
+  });
+  if (isPromise(result)) {
+    return result.then((resolved) => {
+      if (isAsyncIterable(resolved)) {
+        return mapAsyncIterable(resolved, (payload) => {
+          const composer = new Composer(
+            [payload],
+            fieldPlan,
+            fragments,
+            rawVariableValues,
+          );
+          return composer.compose();
+        });
+      }
+      return result;
+    });
+  }
+  if (isAsyncIterable(result)) {
+    return mapAsyncIterable(result, (payload) => {
+      const composer = new Composer(
+        [payload],
+        fieldPlan,
+        fragments,
+        rawVariableValues,
+      );
+      return composer.compose();
+    });
+  }
+  return result;
 }
