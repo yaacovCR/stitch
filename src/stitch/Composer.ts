@@ -20,13 +20,9 @@ import type { Subschema } from './SuperSchema.js';
 
 type Path = ReadonlyArray<string | number>;
 
-interface Parent {
-  [key: string | number]: unknown;
-}
-
 interface FetchPlan {
   subschemaSelections: ReadonlyArray<SelectionNode>;
-  parent: Parent;
+  parent: ObjMap<unknown>;
   target: ObjMap<unknown>;
   path: Path;
 }
@@ -113,7 +109,7 @@ export class Composer {
   }
 
   _handleMaybeAsyncResult(
-    parent: Parent | undefined,
+    parent: ObjMap<unknown> | undefined,
     fields: ObjMap<unknown>,
     fieldPlan: FieldPlan | undefined,
     result: PromiseOrValue<ExecutionResult>,
@@ -144,7 +140,7 @@ export class Composer {
   }
 
   _handleResult(
-    parent: Parent | undefined,
+    parent: ObjMap<unknown> | undefined,
     fields: ObjMap<unknown>,
     fieldPlan: FieldPlan | undefined,
     result: ExecutionResult,
@@ -227,7 +223,7 @@ export class Composer {
 
   _collectPossibleListSubQueries(
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
-    parent: Parent,
+    parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
     fieldPlan: FieldPlan,
     path: Path,
@@ -236,7 +232,7 @@ export class Composer {
       for (let i = 0; i < fieldsOrList.length; i++) {
         this._collectPossibleListSubQueries(
           subQueriesBySchema,
-          fieldsOrList as unknown as Parent,
+          fieldsOrList,
           fieldsOrList[i] as ObjMap<unknown>,
           fieldPlan,
           [...path, i],
@@ -251,7 +247,7 @@ export class Composer {
     ] of fieldPlan.selectionMap.entries()) {
       subQueriesBySchema.add(subschema, {
         subschemaSelections,
-        parent,
+        parent: parent as ObjMap<unknown>,
         target: fieldsOrList,
         path,
       });
