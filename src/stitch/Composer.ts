@@ -62,7 +62,13 @@ export class Composer {
 
   compose(): PromiseOrValue<ExecutionResult> {
     this.results.map((result) =>
-      this._handleMaybeAsyncResult(undefined, this.fields, result, []),
+      this._handleMaybeAsyncResult(
+        undefined,
+        this.fields,
+        this.fieldPlan,
+        result,
+        [],
+      ),
     );
 
     if (this.promiseAggregator.isEmpty()) {
@@ -100,20 +106,23 @@ export class Composer {
   _handleMaybeAsyncResult(
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
+    fieldPlan: FieldPlan | undefined,
     result: PromiseOrValue<ExecutionResult>,
     path: Path,
   ): void {
     if (!isPromise(result)) {
-      this._handleResult(parent, fields, result, path);
+      this._handleResult(parent, fields, fieldPlan, result, path);
       return;
     }
 
     const promise = result.then(
-      (resolved) => this._handleResult(parent, fields, resolved, path),
+      (resolved) =>
+        this._handleResult(parent, fields, fieldPlan, resolved, path),
       (err) =>
         this._handleResult(
           parent,
           fields,
+          fieldPlan,
           {
             data: null,
             errors: [new GraphQLError(err.message, { originalError: err })],
@@ -128,6 +137,7 @@ export class Composer {
   _handleResult(
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
+    fieldPlan: FieldPlan | undefined,
     result: ExecutionResult,
     path: Path,
   ): void {
@@ -158,7 +168,13 @@ export class Composer {
       this._deepMerge(fields, key, value);
     }
 
-    this._executeSubFieldPlans(result.data, this.fieldPlan.subFieldPlans, path);
+    if (fieldPlan !== undefined) {
+      this._executeSubFieldPlans(
+        result.data,
+        this.fieldPlan.subFieldPlans,
+        path,
+      );
+    }
   }
 
   _executeSubFieldPlans(
@@ -214,7 +230,7 @@ export class Composer {
         variables: this.rawVariableValues,
       });
 
-      this._handleMaybeAsyncResult(parent, fields, result, path);
+      this._handleMaybeAsyncResult(parent, fields, undefined, result, path);
     }
 
     this._executeSubFieldPlans(fields, fieldPlan.subFieldPlans, path);
