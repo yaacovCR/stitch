@@ -11,7 +11,7 @@ import { invariant } from '../utilities/invariant.js';
 
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
-import { Executor } from './Executor.js';
+import { Composer } from './Composer.js';
 import { createFieldPlan } from './FieldPlan.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
 
@@ -92,13 +92,13 @@ export function subscribe(
     return result.then((resolved) => {
       if (isAsyncIterable(resolved)) {
         return mapAsyncIterable(resolved, (payload) => {
-          const executor = new Executor(
+          const composer = new Composer(
             [payload],
             fieldPlan,
             fragments,
             rawVariableValues,
           );
-          return executor.execute();
+          return composer.compose();
         });
       }
 
@@ -108,13 +108,13 @@ export function subscribe(
 
   if (isAsyncIterable(result)) {
     return mapAsyncIterable(result, (payload) => {
-      const executor = new Executor(
+      const composer = new Composer(
         [payload],
         fieldPlan,
         fragments,
         rawVariableValues,
       );
-      return executor.execute();
+      return composer.compose();
     });
   }
 

@@ -5,7 +5,7 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
-import { Executor } from './Executor.js';
+import { Composer } from './Composer.js';
 import { createFieldPlan } from './FieldPlan.js';
 
 export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
@@ -66,12 +66,12 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     );
   }
 
-  const executor = new Executor(
+  const composer = new Composer(
     results,
     fieldPlan,
     fragments,
     rawVariableValues,
   );
 
-  return executor.execute();
+  return composer.compose();
 }

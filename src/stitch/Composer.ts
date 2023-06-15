@@ -25,7 +25,7 @@ interface Parent {
 /**
  * @internal
  */
-export class Executor {
+export class Composer {
   results: Array<PromiseOrValue<ExecutionResult>>;
   fieldPlan: FieldPlan;
   fragments: ReadonlyArray<FragmentDefinitionNode>;
@@ -60,7 +60,7 @@ export class Executor {
     this.promiseAggregator = new PromiseAggregator();
   }
 
-  execute(): PromiseOrValue<ExecutionResult> {
+  compose(): PromiseOrValue<ExecutionResult> {
     this.results.map((result) =>
       this._handleMaybeAsyncResult(undefined, this.fields, result, []),
     );

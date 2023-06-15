@@ -11,7 +11,7 @@ import { describe, it } from 'mocha';
 
 import { invariant } from '../../utilities/invariant.js';
 
-import { Executor } from '../Executor.js';
+import { Composer } from '../Composer.js';
 import { FieldPlan } from '../FieldPlan.js';
 import type { OperationContext, Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
@@ -28,10 +28,10 @@ function getSubschema(schema: GraphQLSchema, rootValue: unknown): Subschema {
   };
 }
 
-function createExecutor(
+function executeWithComposer(
   superSchema: SuperSchema,
   operation: OperationDefinitionNode,
-): Executor {
+): PromiseOrValue<ExecutionResult> {
   const queryType = superSchema.getRootType(OperationTypeNode.QUERY);
 
   invariant(queryType !== undefined);
@@ -68,10 +68,12 @@ function createExecutor(
     );
   }
 
-  return new Executor(results, fieldPlan, [], undefined);
+  const composer = new Composer(results, fieldPlan, [], undefined);
+
+  return composer.compose();
 }
 
-describe('Executor', () => {
+describe('Composer', () => {
   describe('stitching', () => {
     it('works to stitch introspection root fields', () => {
       const someSchema = buildSchema(`
@@ -112,9 +114,9 @@ describe('Executor', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           __schema: {
             queryType: {
@@ -168,9 +170,9 @@ describe('Executor', () => {
         noLocation: true,
       }).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: {
             someField: 'someField',
@@ -223,9 +225,9 @@ describe('Executor', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: {
             someField: {
@@ -273,9 +275,9 @@ describe('Executor', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: [
             {
@@ -328,9 +330,9 @@ describe('Executor', () => {
         noLocation: true,
       }).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: [
             {
@@ -402,9 +404,9 @@ describe('Executor', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: [
             {
