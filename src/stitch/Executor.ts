@@ -2,32 +2,21 @@ import type {
   DocumentNode,
   ExecutionResult,
   FragmentDefinitionNode,
-  OperationDefinitionNode,
   SelectionNode,
 } from 'graphql';
-import { GraphQLError, Kind } from 'graphql';
+import { GraphQLError, Kind, OperationTypeNode } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
-import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
 
-import { isAsyncIterable } from '../predicates/isAsyncIterable.js';
 import { isObjectLike } from '../predicates/isObjectLike.js';
 import { isPromise } from '../predicates/isPromise.js';
 
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 
 import type { FieldPlan } from './FieldPlan.js';
-import { mapAsyncIterable } from './mapAsyncIterable.js';
 
 type Path = ReadonlyArray<string | number>;
-
-interface GraphQLData {
-  fields: ObjMap<unknown>;
-  errors: Array<GraphQLError>;
-  nulled: boolean;
-  promiseAggregator: PromiseAggregator;
-}
 
 interface Parent {
   [key: string | number]: unknown;
@@ -37,8 +26,8 @@ interface Parent {
  * @internal
  */
 export class Executor {
+  results: Array<PromiseOrValue<ExecutionResult>>;
   fieldPlan: FieldPlan;
-  operation: OperationDefinitionNode;
   fragments: ReadonlyArray<FragmentDefinitionNode>;
   rawVariableValues:
     | {
@@ -46,9 +35,14 @@ export class Executor {
       }
     | undefined;
 
+  fields: ObjMap<unknown>;
+  errors: Array<GraphQLError>;
+  nulled: boolean;
+  promiseAggregator: PromiseAggregator;
+
   constructor(
+    results: Array<PromiseOrValue<ExecutionResult>>,
     fieldPlan: FieldPlan,
-    operation: OperationDefinitionNode,
     fragments: ReadonlyArray<FragmentDefinitionNode>,
     rawVariableValues:
       | {
@@ -56,45 +50,26 @@ export class Executor {
         }
       | undefined,
   ) {
+    this.results = results;
     this.fieldPlan = fieldPlan;
-    this.operation = operation;
     this.fragments = fragments;
     this.rawVariableValues = rawVariableValues;
+    this.fields = Object.create(null);
+    this.errors = [];
+    this.nulled = false;
+    this.promiseAggregator = new PromiseAggregator();
   }
 
   execute(): PromiseOrValue<ExecutionResult> {
-    const initialGraphQLData: GraphQLData = {
-      fields: Object.create(null),
-      errors: [],
-      nulled: false,
-      promiseAggregator: new PromiseAggregator(),
-    };
+    this.results.map((result) =>
+      this._handleMaybeAsyncResult(undefined, this.fields, result, []),
+    );
 
-    for (const [
-      subschema,
-      subschemaSelections,
-    ] of this.fieldPlan.selectionMap.entries()) {
-      const result = subschema.executor({
-        document: this._createDocument(subschemaSelections),
-        variables: this.rawVariableValues,
-      });
-
-      this._handleMaybeAsyncResult(
-        initialGraphQLData,
-        undefined,
-        initialGraphQLData.fields,
-        result,
-        [],
-      );
+    if (this.promiseAggregator.isEmpty()) {
+      return this._buildResponse();
     }
 
-    if (initialGraphQLData.promiseAggregator.isEmpty()) {
-      return this._buildResponse(initialGraphQLData);
-    }
-
-    return initialGraphQLData.promiseAggregator
-      .resolved()
-      .then(() => this._buildResponse(initialGraphQLData));
+    return this.promiseAggregator.resolved().then(() => this._buildResponse());
   }
 
   _createDocument(selections: Array<SelectionNode>): DocumentNode {
@@ -102,7 +77,8 @@ export class Executor {
       kind: Kind.DOCUMENT,
       definitions: [
         {
-          ...this.operation,
+          kind: Kind.OPERATION_DEFINITION,
+          operation: OperationTypeNode.QUERY,
           selectionSet: {
             kind: Kind.SELECTION_SET,
             selections,
@@ -113,71 +89,29 @@ export class Executor {
     };
   }
 
-  subscribe(): PromiseOrValue<
-    ExecutionResult | SimpleAsyncGenerator<ExecutionResult>
-  > {
-    const iteration = this.fieldPlan.selectionMap.entries().next();
-    if (iteration.done) {
-      const error = new GraphQLError('Could not route subscription.', {
-        nodes: this.operation,
-      });
+  _buildResponse(): ExecutionResult {
+    const fieldsOrNull = this.nulled ? null : this.fields;
 
-      return { errors: [error] };
-    }
-
-    const [subschema, subschemaSelections] = iteration.value;
-
-    const subscriber = subschema.subscriber;
-    if (!subscriber) {
-      const error = new GraphQLError(
-        'Subschema is not configured to execute subscription operation.',
-        { nodes: this.operation },
-      );
-
-      return { errors: [error] };
-    }
-
-    const document = this._createDocument(subschemaSelections);
-
-    const result = subscriber({
-      document,
-      variables: this.rawVariableValues,
-    });
-
-    if (isPromise(result)) {
-      return result.then((resolved) => this._handlePossibleStream(resolved));
-    }
-    return this._handlePossibleStream(result);
-  }
-
-  _buildResponse(initialGraphQLData: GraphQLData): ExecutionResult {
-    const fieldsOrNull = initialGraphQLData.nulled
-      ? null
-      : initialGraphQLData.fields;
-
-    return initialGraphQLData.errors.length > 0
-      ? { data: fieldsOrNull, errors: initialGraphQLData.errors }
+    return this.errors.length > 0
+      ? { data: fieldsOrNull, errors: this.errors }
       : { data: fieldsOrNull };
   }
 
   _handleMaybeAsyncResult(
-    graphQLData: GraphQLData,
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
     result: PromiseOrValue<ExecutionResult>,
     path: Path,
   ): void {
     if (!isPromise(result)) {
-      this._handleInitialResult(graphQLData, parent, fields, result, path);
+      this._handleResult(parent, fields, result, path);
       return;
     }
 
     const promise = result.then(
-      (resolved) =>
-        this._handleInitialResult(graphQLData, parent, fields, resolved, path),
+      (resolved) => this._handleResult(parent, fields, resolved, path),
       (err) =>
-        this._handleInitialResult(
-          graphQLData,
+        this._handleResult(
           parent,
           fields,
           {
@@ -188,32 +122,17 @@ export class Executor {
         ),
     );
 
-    graphQLData.promiseAggregator.add(promise);
+    this.promiseAggregator.add(promise);
   }
 
-  _getSubFieldPlans(path: Path): ObjMap<FieldPlan> | undefined {
-    let subFieldPlans = this.fieldPlan.subFieldPlans;
-    for (const key of path) {
-      if (typeof key === 'number') {
-        continue;
-      }
-      if (subFieldPlans[key] === undefined) {
-        return undefined;
-      }
-      subFieldPlans = subFieldPlans[key].subFieldPlans;
-    }
-    return subFieldPlans;
-  }
-
-  _handleInitialResult(
-    graphQLData: GraphQLData,
+  _handleResult(
     parent: Parent | undefined,
     fields: ObjMap<unknown>,
     result: ExecutionResult,
     path: Path,
   ): void {
     if (result.errors != null) {
-      graphQLData.errors.push(...result.errors);
+      this.errors.push(...result.errors);
     }
 
     const parentKey: string | number | undefined = path[path.length - 1];
@@ -221,13 +140,13 @@ export class Executor {
       if (parent[parentKey] === null) {
         return;
       }
-    } else if (graphQLData.nulled) {
+    } else if (this.nulled) {
       return;
     }
 
     if (result.data == null) {
       if (parentKey === undefined) {
-        graphQLData.nulled = true;
+        this.nulled = true;
       } else if (parent) {
         parent[parentKey] = null;
         // TODO: null bubbling?
@@ -239,16 +158,10 @@ export class Executor {
       this._deepMerge(fields, key, value);
     }
 
-    this._executeSubFieldPlans(
-      graphQLData,
-      result.data,
-      this.fieldPlan.subFieldPlans,
-      path,
-    );
+    this._executeSubFieldPlans(result.data, this.fieldPlan.subFieldPlans, path);
   }
 
   _executeSubFieldPlans(
-    graphQLData: GraphQLData,
     fields: ObjMap<unknown>,
     subFieldPlans: ObjMap<FieldPlan>,
     path: Path,
@@ -256,7 +169,6 @@ export class Executor {
     for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
       if (fields[key] !== undefined) {
         this._executePossibleListSubFieldPlan(
-          graphQLData,
           fields,
           fields[key] as ObjMap<unknown> | Array<unknown>,
           subFieldPlan,
@@ -267,7 +179,6 @@ export class Executor {
   }
 
   _executePossibleListSubFieldPlan(
-    graphQLData: GraphQLData,
     parent: Parent,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
     fieldPlan: FieldPlan,
@@ -276,7 +187,6 @@ export class Executor {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
         this._executePossibleListSubFieldPlan(
-          graphQLData,
           fieldsOrList as unknown as Parent,
           fieldsOrList[i] as ObjMap<unknown>,
           fieldPlan,
@@ -286,17 +196,10 @@ export class Executor {
       return;
     }
 
-    this._executeSubFieldPlan(
-      graphQLData,
-      parent,
-      fieldsOrList,
-      fieldPlan,
-      path,
-    );
+    this._executeSubFieldPlan(parent, fieldsOrList, fieldPlan, path);
   }
 
   _executeSubFieldPlan(
-    graphQLData: GraphQLData,
     parent: Parent,
     fields: ObjMap<unknown>,
     fieldPlan: FieldPlan,
@@ -311,15 +214,10 @@ export class Executor {
         variables: this.rawVariableValues,
       });
 
-      this._handleMaybeAsyncResult(graphQLData, parent, fields, result, path);
+      this._handleMaybeAsyncResult(parent, fields, result, path);
     }
 
-    this._executeSubFieldPlans(
-      graphQLData,
-      fields,
-      fieldPlan.subFieldPlans,
-      path,
-    );
+    this._executeSubFieldPlans(fields, fieldPlan.subFieldPlans, path);
   }
 
   _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void {
@@ -336,15 +234,5 @@ export class Executor {
       const subFields = fields[key] as ObjMap<unknown>;
       this._deepMerge(subFields, subKey, subValue);
     }
-  }
-
-  _handlePossibleStream<
-    T extends ExecutionResult | SimpleAsyncGenerator<ExecutionResult>,
-  >(result: T): PromiseOrValue<T> {
-    if (isAsyncIterable(result)) {
-      return mapAsyncIterable(result, (payload) => payload) as T;
-    }
-
-    return result;
   }
 }

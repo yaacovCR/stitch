@@ -1,6 +1,12 @@
 import { expect } from 'chai';
-import type { GraphQLSchema, OperationDefinitionNode } from 'graphql';
-import { buildSchema, execute, OperationTypeNode, parse } from 'graphql';
+import type {
+  DocumentNode,
+  ExecutionResult,
+  GraphQLSchema,
+  OperationDefinitionNode,
+} from 'graphql';
+import { buildSchema, execute, Kind, OperationTypeNode, parse } from 'graphql';
+import type { PromiseOrValue } from 'graphql/jsutils/PromiseOrValue.js';
 import { describe, it } from 'mocha';
 
 import { invariant } from '../../utilities/invariant.js';
@@ -36,7 +42,33 @@ function createExecutor(
     operation.selectionSet.selections,
   );
 
-  return new Executor(fieldPlan, operation, [], undefined);
+  const results: Array<PromiseOrValue<ExecutionResult>> = [];
+
+  for (const [
+    subschema,
+    subschemaSelections,
+  ] of fieldPlan.selectionMap.entries()) {
+    const document: DocumentNode = {
+      kind: Kind.DOCUMENT,
+      definitions: [
+        {
+          ...operation,
+          selectionSet: {
+            kind: Kind.SELECTION_SET,
+            selections: subschemaSelections,
+          },
+        },
+      ],
+    };
+
+    results.push(
+      subschema.executor({
+        document,
+      }),
+    );
+  }
+
+  return new Executor(results, fieldPlan, [], undefined);
 }
 
 describe('Executor', () => {

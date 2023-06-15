@@ -1,5 +1,5 @@
-import type { ExecutionResult } from 'graphql';
-import { GraphQLError } from 'graphql';
+import type { DocumentNode, ExecutionResult } from 'graphql';
+import { GraphQLError, Kind } from 'graphql';
 
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
@@ -38,9 +38,37 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     operation.selectionSet.selections,
   );
 
+  const results: Array<PromiseOrValue<ExecutionResult>> = [];
+
+  for (const [
+    subschema,
+    subschemaSelections,
+  ] of fieldPlan.selectionMap.entries()) {
+    const document: DocumentNode = {
+      kind: Kind.DOCUMENT,
+      definitions: [
+        {
+          ...operation,
+          selectionSet: {
+            kind: Kind.SELECTION_SET,
+            selections: subschemaSelections,
+          },
+        },
+        ...fragments,
+      ],
+    };
+
+    results.push(
+      subschema.executor({
+        document,
+        variables: rawVariableValues,
+      }),
+    );
+  }
+
   const executor = new Executor(
+    results,
     fieldPlan,
-    operation,
     fragments,
     rawVariableValues,
   );
