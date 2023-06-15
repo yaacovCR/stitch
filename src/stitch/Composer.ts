@@ -12,14 +12,23 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import { isObjectLike } from '../predicates/isObjectLike.js';
 import { isPromise } from '../predicates/isPromise.js';
 
+import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 
 import type { FieldPlan } from './FieldPlan.js';
+import type { Subschema } from './SuperSchema.js';
 
 type Path = ReadonlyArray<string | number>;
 
 interface Parent {
   [key: string | number]: unknown;
+}
+
+interface FetchPlan {
+  subschemaSelections: ReadonlyArray<SelectionNode>;
+  parent: Parent;
+  target: ObjMap<unknown>;
+  path: Path;
 }
 
 /**
@@ -78,7 +87,7 @@ export class Composer {
     return this.promiseAggregator.resolved().then(() => this._buildResponse());
   }
 
-  _createDocument(selections: Array<SelectionNode>): DocumentNode {
+  _createDocument(selections: ReadonlyArray<SelectionNode>): DocumentNode {
     return {
       kind: Kind.DOCUMENT,
       definitions: [
@@ -169,22 +178,44 @@ export class Composer {
     }
 
     if (fieldPlan !== undefined) {
-      this._executeSubFieldPlans(
+      const subQueriesBySchema = new AccumulatorMap<Subschema, FetchPlan>();
+      this._collectSubQueries(
+        subQueriesBySchema,
         result.data,
         this.fieldPlan.subFieldPlans,
         path,
       );
+      for (const [subschema, subQueries] of subQueriesBySchema) {
+        for (const subQuery of subQueries) {
+          // TODO: send one document per subschema
+          const subResult = subschema.executor({
+            document: this._createDocument(subQuery.subschemaSelections),
+            variables: this.rawVariableValues,
+          });
+
+          this._handleMaybeAsyncResult(
+            subQuery.parent,
+            subQuery.target,
+            // TODO: add multilayer plan support
+            undefined,
+            subResult,
+            subQuery.path,
+          );
+        }
+      }
     }
   }
 
-  _executeSubFieldPlans(
+  _collectSubQueries(
+    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
     subFieldPlans: ObjMap<FieldPlan>,
     path: Path,
   ): void {
     for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
       if (fields[key] !== undefined) {
-        this._executePossibleListSubFieldPlan(
+        this._collectPossibleListSubQueries(
+          subQueriesBySchema,
           fields,
           fields[key] as ObjMap<unknown> | Array<unknown>,
           subFieldPlan,
@@ -194,7 +225,8 @@ export class Composer {
     }
   }
 
-  _executePossibleListSubFieldPlan(
+  _collectPossibleListSubQueries(
+    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     parent: Parent,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
     fieldPlan: FieldPlan,
@@ -202,7 +234,8 @@ export class Composer {
   ): void {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
-        this._executePossibleListSubFieldPlan(
+        this._collectPossibleListSubQueries(
+          subQueriesBySchema,
           fieldsOrList as unknown as Parent,
           fieldsOrList[i] as ObjMap<unknown>,
           fieldPlan,
@@ -212,28 +245,24 @@ export class Composer {
       return;
     }
 
-    this._executeSubFieldPlan(parent, fieldsOrList, fieldPlan, path);
-  }
-
-  _executeSubFieldPlan(
-    parent: Parent,
-    fields: ObjMap<unknown>,
-    fieldPlan: FieldPlan,
-    path: Path,
-  ): void {
     for (const [
       subschema,
       subschemaSelections,
     ] of fieldPlan.selectionMap.entries()) {
-      const result = subschema.executor({
-        document: this._createDocument(subschemaSelections),
-        variables: this.rawVariableValues,
+      subQueriesBySchema.add(subschema, {
+        subschemaSelections,
+        parent,
+        target: fieldsOrList,
+        path,
       });
-
-      this._handleMaybeAsyncResult(parent, fields, undefined, result, path);
     }
 
-    this._executeSubFieldPlans(fields, fieldPlan.subFieldPlans, path);
+    this._collectSubQueries(
+      subQueriesBySchema,
+      fieldsOrList,
+      fieldPlan.subFieldPlans,
+      path,
+    );
   }
 
   _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void {
