@@ -3,7 +3,6 @@ Object.defineProperty(exports, '__esModule', { value: true });
 exports.FieldPlan = exports.createFieldPlan = void 0;
 const graphql_1 = require('graphql');
 const AccumulatorMap_js_1 = require('../utilities/AccumulatorMap.js');
-const inlineRootFragments_js_1 = require('../utilities/inlineRootFragments.js');
 const inspect_js_1 = require('../utilities/inspect.js');
 const invariant_js_1 = require('../utilities/invariant.js');
 const memoize3_js_1 = require('../utilities/memoize3.js');
@@ -19,14 +18,8 @@ class FieldPlan {
     this.operationContext = operationContext;
     this.parentType = parentType;
     this.subFieldPlans = Object.create(null);
-    const inlinedSelections = (0, inlineRootFragments_js_1.inlineRootFragments)(
-      selections,
-      operationContext.fragmentMap,
-    );
-    this.selectionMap = this._processSelections(
-      this.parentType,
-      inlinedSelections,
-    );
+    this.visitedFragments = new Set();
+    this.selectionMap = this._processSelections(this.parentType, selections);
   }
   _processSelections(parentType, selections) {
     const selectionMap = new AccumulatorMap_js_1.AccumulatorMap();
@@ -49,16 +42,30 @@ class FieldPlan {
                 refinedType,
               )}`,
             );
-          this._addInlineFragment(refinedType, selection, selectionMap);
+          this._addFragment(refinedType, selection, selectionMap);
           break;
         }
         case graphql_1.Kind.FRAGMENT_SPREAD: {
-          // Not reached
-          false ||
+          const fragmentName = selection.name.value;
+          if (this.visitedFragments.has(fragmentName)) {
+            continue;
+          }
+          this.visitedFragments.add(fragmentName);
+          const fragment = this.operationContext.fragmentMap[fragmentName];
+          const typeName = fragment.typeCondition?.name.value;
+          const refinedType =
+            typeName !== undefined
+              ? this.operationContext.superSchema.getType(typeName)
+              : parentType;
+          (0, graphql_1.isCompositeType)(refinedType) ||
             (0, invariant_js_1.invariant)(
               false,
-              'Fragment spreads should be inlined prior to selections being split!',
+              `Invalid type condition ${(0, inspect_js_1.inspect)(
+                refinedType,
+              )}`,
             );
+          this._addFragment(refinedType, fragment, selectionMap);
+          break;
         }
       }
     }
@@ -151,20 +158,20 @@ class FieldPlan {
       }
     }
   }
-  _addInlineFragment(parentType, fragment, selectionMap) {
+  _addFragment(parentType, fragment, selectionMap) {
     const fragmentSelectionMap = this._processSelections(
       parentType,
       fragment.selectionSet.selections,
     );
-    this._addFragmentSelectionMap(fragment, fragmentSelectionMap, selectionMap);
+    this._addFragmentSelectionMap(fragmentSelectionMap, selectionMap);
   }
-  _addFragmentSelectionMap(fragment, fragmentSelectionMap, selectionMap) {
+  _addFragmentSelectionMap(fragmentSelectionMap, selectionMap) {
     for (const [
       fragmentSubschema,
       fragmentSelections,
     ] of fragmentSelectionMap) {
       const splitFragment = {
-        ...fragment,
+        kind: graphql_1.Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: graphql_1.Kind.SELECTION_SET,
           selections: fragmentSelections,

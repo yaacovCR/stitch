@@ -1,5 +1,6 @@
 import type {
   FieldNode,
+  FragmentDefinitionNode,
   GraphQLCompositeType,
   GraphQLField,
   InlineFragmentNode,
@@ -22,6 +23,7 @@ export declare class FieldPlan {
   parentType: GraphQLCompositeType;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
   subFieldPlans: ObjMap<FieldPlan>;
+  visitedFragments: Set<string>;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
@@ -47,13 +49,12 @@ export declare class FieldPlan {
     parentType: GraphQLCompositeType,
     fieldName: string,
   ): GraphQLField<any, any> | undefined;
-  _addInlineFragment(
+  _addFragment(
     parentType: GraphQLCompositeType,
-    fragment: InlineFragmentNode,
+    fragment: InlineFragmentNode | FragmentDefinitionNode,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
   _addFragmentSelectionMap(
-    fragment: InlineFragmentNode,
     fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
