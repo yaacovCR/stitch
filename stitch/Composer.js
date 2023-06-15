@@ -4,6 +4,7 @@ exports.Composer = void 0;
 const graphql_1 = require('graphql');
 const isObjectLike_js_1 = require('../predicates/isObjectLike.js');
 const isPromise_js_1 = require('../predicates/isPromise.js');
+const AccumulatorMap_js_1 = require('../utilities/AccumulatorMap.js');
 const PromiseAggregator_js_1 = require('../utilities/PromiseAggregator.js');
 /**
  * @internal
@@ -105,17 +106,37 @@ class Composer {
       this._deepMerge(fields, key, value);
     }
     if (fieldPlan !== undefined) {
-      this._executeSubFieldPlans(
+      const subQueriesBySchema = new AccumulatorMap_js_1.AccumulatorMap();
+      this._collectSubQueries(
+        subQueriesBySchema,
         result.data,
         this.fieldPlan.subFieldPlans,
         path,
       );
+      for (const [subschema, subQueries] of subQueriesBySchema) {
+        for (const subQuery of subQueries) {
+          // TODO: send one document per subschema
+          const subResult = subschema.executor({
+            document: this._createDocument(subQuery.subschemaSelections),
+            variables: this.rawVariableValues,
+          });
+          this._handleMaybeAsyncResult(
+            subQuery.parent,
+            subQuery.target,
+            // TODO: add multilayer plan support
+            undefined,
+            subResult,
+            subQuery.path,
+          );
+        }
+      }
     }
   }
-  _executeSubFieldPlans(fields, subFieldPlans, path) {
+  _collectSubQueries(subQueriesBySchema, fields, subFieldPlans, path) {
     for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
       if (fields[key] !== undefined) {
-        this._executePossibleListSubFieldPlan(
+        this._collectPossibleListSubQueries(
+          subQueriesBySchema,
           fields,
           fields[key],
           subFieldPlan,
@@ -124,10 +145,17 @@ class Composer {
       }
     }
   }
-  _executePossibleListSubFieldPlan(parent, fieldsOrList, fieldPlan, path) {
+  _collectPossibleListSubQueries(
+    subQueriesBySchema,
+    parent,
+    fieldsOrList,
+    fieldPlan,
+    path,
+  ) {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
-        this._executePossibleListSubFieldPlan(
+        this._collectPossibleListSubQueries(
+          subQueriesBySchema,
           fieldsOrList,
           fieldsOrList[i],
           fieldPlan,
@@ -136,20 +164,23 @@ class Composer {
       }
       return;
     }
-    this._executeSubFieldPlan(parent, fieldsOrList, fieldPlan, path);
-  }
-  _executeSubFieldPlan(parent, fields, fieldPlan, path) {
     for (const [
       subschema,
       subschemaSelections,
     ] of fieldPlan.selectionMap.entries()) {
-      const result = subschema.executor({
-        document: this._createDocument(subschemaSelections),
-        variables: this.rawVariableValues,
+      subQueriesBySchema.add(subschema, {
+        subschemaSelections,
+        parent: parent,
+        target: fieldsOrList,
+        path,
       });
-      this._handleMaybeAsyncResult(parent, fields, undefined, result, path);
     }
-    this._executeSubFieldPlans(fields, fieldPlan.subFieldPlans, path);
+    this._collectSubQueries(
+      subQueriesBySchema,
+      fieldsOrList,
+      fieldPlan.subFieldPlans,
+      path,
+    );
   }
   _deepMerge(fields, key, value) {
     if (

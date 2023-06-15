@@ -7,11 +7,16 @@ import type {
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
+import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 import type { FieldPlan } from './FieldPlan.js';
+import type { Subschema } from './SuperSchema.js';
 type Path = ReadonlyArray<string | number>;
-interface Parent {
-  [key: string | number]: unknown;
+interface FetchPlan {
+  subschemaSelections: ReadonlyArray<SelectionNode>;
+  parent: ObjMap<unknown>;
+  target: ObjMap<unknown>;
+  path: Path;
 }
 /**
  * @internal
@@ -40,36 +45,32 @@ export declare class Composer {
       | undefined,
   );
   compose(): PromiseOrValue<ExecutionResult>;
-  _createDocument(selections: Array<SelectionNode>): DocumentNode;
+  _createDocument(selections: ReadonlyArray<SelectionNode>): DocumentNode;
   _buildResponse(): ExecutionResult;
   _handleMaybeAsyncResult(
-    parent: Parent | undefined,
+    parent: ObjMap<unknown> | undefined,
     fields: ObjMap<unknown>,
     fieldPlan: FieldPlan | undefined,
     result: PromiseOrValue<ExecutionResult>,
     path: Path,
   ): void;
   _handleResult(
-    parent: Parent | undefined,
+    parent: ObjMap<unknown> | undefined,
     fields: ObjMap<unknown>,
     fieldPlan: FieldPlan | undefined,
     result: ExecutionResult,
     path: Path,
   ): void;
-  _executeSubFieldPlans(
+  _collectSubQueries(
+    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
     subFieldPlans: ObjMap<FieldPlan>,
     path: Path,
   ): void;
-  _executePossibleListSubFieldPlan(
-    parent: Parent,
+  _collectPossibleListSubQueries(
+    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
+    parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    fieldPlan: FieldPlan,
-    path: Path,
-  ): void;
-  _executeSubFieldPlan(
-    parent: Parent,
-    fields: ObjMap<unknown>,
     fieldPlan: FieldPlan,
     path: Path,
   ): void;
