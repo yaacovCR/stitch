@@ -1,6 +1,6 @@
-import { GraphQLError } from 'graphql';
+import { GraphQLError, Kind } from 'graphql';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
-import { Executor } from './Executor.mjs';
+import { Composer } from './Composer.mjs';
 import { createFieldPlan } from './FieldPlan.mjs';
 export function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
@@ -25,11 +25,36 @@ export function execute(args) {
     rootType,
     operation.selectionSet.selections,
   );
-  const executor = new Executor(
+  const results = [];
+  for (const [
+    subschema,
+    subschemaSelections,
+  ] of fieldPlan.selectionMap.entries()) {
+    const document = {
+      kind: Kind.DOCUMENT,
+      definitions: [
+        {
+          ...operation,
+          selectionSet: {
+            kind: Kind.SELECTION_SET,
+            selections: subschemaSelections,
+          },
+        },
+        ...fragments,
+      ],
+    };
+    results.push(
+      subschema.executor({
+        document,
+        variables: rawVariableValues,
+      }),
+    );
+  }
+  const composer = new Composer(
+    results,
     fieldPlan,
-    operation,
     fragments,
     rawVariableValues,
   );
-  return executor.execute();
+  return composer.compose();
 }
