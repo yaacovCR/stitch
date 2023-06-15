@@ -1,11 +1,17 @@
 import { expect } from 'chai';
-import type { GraphQLSchema, OperationDefinitionNode } from 'graphql';
-import { buildSchema, execute, OperationTypeNode, parse } from 'graphql';
+import type {
+  DocumentNode,
+  ExecutionResult,
+  GraphQLSchema,
+  OperationDefinitionNode,
+} from 'graphql';
+import { buildSchema, execute, Kind, OperationTypeNode, parse } from 'graphql';
+import type { PromiseOrValue } from 'graphql/jsutils/PromiseOrValue.js';
 import { describe, it } from 'mocha';
 
 import { invariant } from '../../utilities/invariant.js';
 
-import { Executor } from '../Executor.js';
+import { Composer } from '../Composer.js';
 import { FieldPlan } from '../FieldPlan.js';
 import type { OperationContext, Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
@@ -22,10 +28,10 @@ function getSubschema(schema: GraphQLSchema, rootValue: unknown): Subschema {
   };
 }
 
-function createExecutor(
+function executeWithComposer(
   superSchema: SuperSchema,
   operation: OperationDefinitionNode,
-): Executor {
+): PromiseOrValue<ExecutionResult> {
   const queryType = superSchema.getRootType(OperationTypeNode.QUERY);
 
   invariant(queryType !== undefined);
@@ -36,10 +42,38 @@ function createExecutor(
     operation.selectionSet.selections,
   );
 
-  return new Executor(fieldPlan, operation, [], undefined);
+  const results: Array<PromiseOrValue<ExecutionResult>> = [];
+
+  for (const [
+    subschema,
+    subschemaSelections,
+  ] of fieldPlan.selectionMap.entries()) {
+    const document: DocumentNode = {
+      kind: Kind.DOCUMENT,
+      definitions: [
+        {
+          ...operation,
+          selectionSet: {
+            kind: Kind.SELECTION_SET,
+            selections: subschemaSelections,
+          },
+        },
+      ],
+    };
+
+    results.push(
+      subschema.executor({
+        document,
+      }),
+    );
+  }
+
+  const composer = new Composer(results, fieldPlan, [], undefined);
+
+  return composer.compose();
 }
 
-describe('Executor', () => {
+describe('Composer', () => {
   describe('stitching', () => {
     it('works to stitch introspection root fields', () => {
       const someSchema = buildSchema(`
@@ -80,9 +114,9 @@ describe('Executor', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           __schema: {
             queryType: {
@@ -136,9 +170,9 @@ describe('Executor', () => {
         noLocation: true,
       }).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: {
             someField: 'someField',
@@ -191,9 +225,9 @@ describe('Executor', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: {
             someField: {
@@ -241,9 +275,9 @@ describe('Executor', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: [
             {
@@ -296,9 +330,9 @@ describe('Executor', () => {
         noLocation: true,
       }).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: [
             {
@@ -370,9 +404,9 @@ describe('Executor', () => {
         { noLocation: true },
       ).definitions[0] as OperationDefinitionNode;
 
-      const executor = createExecutor(superSchema, operation);
+      const result = executeWithComposer(superSchema, operation);
 
-      expect(executor.execute()).to.deep.equal({
+      expect(result).to.deep.equal({
         data: {
           someObject: [
             {
