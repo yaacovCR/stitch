@@ -5,7 +5,6 @@ import type {
   GraphQLField,
   InlineFragmentNode,
   SelectionNode,
-  SelectionSetNode,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
@@ -63,21 +62,4 @@ export declare class FieldPlan {
     ownSelections: Array<SelectionNode>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
-  print(indent?: number): string;
-  _printMap(indent: number): string;
-  _printSubschemaSelections(
-    subschema: Subschema,
-    selections: ReadonlyArray<SelectionNode>,
-    indent: number,
-  ): string;
-  _printSubFieldPlans(
-    subFieldPlans: ReadonlyArray<[string, FieldPlan]>,
-    indent: number,
-  ): string;
-  _printSubFieldPlan(
-    responseKey: string,
-    subFieldPlan: FieldPlan,
-    indent: number,
-  ): string;
-  _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string;
 }
