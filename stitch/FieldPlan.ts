@@ -38,29 +38,42 @@ export const createFieldPlan = memoize3(
 export class FieldPlan {
   operationContext: OperationContext;
   parentType: GraphQLCompositeType;
+  ownSelections: ReadonlyArray<SelectionNode>;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
   subFieldPlans: ObjMap<FieldPlan>;
   visitedFragments: Set<string>;
+  subschema: Subschema | undefined;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
+    subschema?: Subschema | undefined,
   ) {
     this.operationContext = operationContext;
     this.parentType = parentType;
     this.subFieldPlans = Object.create(null);
     this.visitedFragments = new Set();
-    this.selectionMap = this._processSelections(this.parentType, selections);
+    this.subschema = subschema;
+    const { ownSelections, selectionMap } = this._processSelections(
+      this.parentType,
+      selections,
+    );
+    this.ownSelections = ownSelections;
+    this.selectionMap = selectionMap;
   }
   _processSelections(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-  ): AccumulatorMap<Subschema, SelectionNode> {
+  ): {
+    ownSelections: Array<SelectionNode>;
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>;
+  } {
+    const ownSelections: Array<SelectionNode> = [];
     const selectionMap = new AccumulatorMap<Subschema, SelectionNode>();
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addField(parentType, selection, selectionMap);
+          this._addField(parentType, selection, ownSelections, selectionMap);
           break;
         }
         case Kind.INLINE_FRAGMENT: {
@@ -71,7 +84,12 @@ export class FieldPlan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addFragment(refinedType, selection, selectionMap);
+          this._addFragment(
+            refinedType,
+            selection,
+            ownSelections,
+            selectionMap,
+          );
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -88,16 +106,20 @@ export class FieldPlan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addFragment(refinedType, fragment, selectionMap);
+          this._addFragment(refinedType, fragment, ownSelections, selectionMap);
           break;
         }
       }
     }
-    return selectionMap;
+    return {
+      ownSelections,
+      selectionMap,
+    };
   }
   _addField(
     parentType: GraphQLCompositeType,
     field: FieldNode,
+    ownSelections: Array<SelectionNode>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
     const subschemaSetsByField =
@@ -110,6 +132,7 @@ export class FieldPlan {
     }
     const { subschema, selections } = this._getSubschemaAndSelections(
       subschemaSets,
+      ownSelections,
       selectionMap,
     );
     if (!field.selectionSet) {
@@ -126,17 +149,16 @@ export class FieldPlan {
       this.operationContext,
       getNamedType(fieldType) as GraphQLObjectType,
       field.selectionSet.selections,
+      subschema,
     );
-    const filteredSelections = subFieldPlan.selectionMap.get(subschema);
-    if (filteredSelections) {
+    if (subFieldPlan.ownSelections.length) {
       selections.push({
         ...field,
         selectionSet: {
           kind: Kind.SELECTION_SET,
-          selections: filteredSelections,
+          selections: subFieldPlan.ownSelections,
         },
       });
-      subFieldPlan.selectionMap.delete(subschema);
     }
     if (
       subFieldPlan.selectionMap.size > 0 ||
@@ -148,11 +170,15 @@ export class FieldPlan {
   }
   _getSubschemaAndSelections(
     subschemas: Set<Subschema>,
+    ownSelections: Array<SelectionNode>,
     selectionMap: Map<Subschema, Array<SelectionNode>>,
   ): {
     subschema: Subschema;
     selections: Array<SelectionNode>;
   } {
+    if (this.subschema !== undefined && subschemas.has(this.subschema)) {
+      return { subschema: this.subschema, selections: ownSelections };
+    }
     let selections: Array<SelectionNode> | undefined;
     for (const subschema of subschemas) {
       selections = selectionMap.get(subschema);
@@ -195,18 +221,23 @@ export class FieldPlan {
   _addFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode | FragmentDefinitionNode,
+    ownSelections: Array<SelectionNode>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
-    const fragmentSelectionMap = this._processSelections(
-      parentType,
-      fragment.selectionSet.selections,
-    );
-    this._addFragmentSelectionMap(fragmentSelectionMap, selectionMap);
-  }
-  _addFragmentSelectionMap(
-    fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
-    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
-  ): void {
+    const {
+      ownSelections: fragmentOwnSelections,
+      selectionMap: fragmentSelectionMap,
+    } = this._processSelections(parentType, fragment.selectionSet.selections);
+    if (fragmentOwnSelections.length > 0) {
+      const splitFragment: InlineFragmentNode = {
+        kind: Kind.INLINE_FRAGMENT,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: fragmentOwnSelections,
+        },
+      };
+      ownSelections.push(splitFragment);
+    }
     for (const [
       fragmentSubschema,
       fragmentSelections,
