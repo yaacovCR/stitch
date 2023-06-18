@@ -8,6 +8,7 @@ import { dedent } from '../../__testUtils__/dedent.js';
 import { invariant } from '../../utilities/invariant.js';
 
 import { FieldPlan } from '../FieldPlan.js';
+import { printPlan } from '../printPlan.js';
 import type { OperationContext, Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
@@ -75,7 +76,7 @@ describe('FieldPlan', () => {
 
     const fieldPlan = createFieldPlan(superSchema, operation);
 
-    expect(fieldPlan.print()).to.equal(dedent`
+    expect(printPlan(fieldPlan)).to.equal(dedent`
       Map:
         Subschema 0:
           {
@@ -137,7 +138,7 @@ describe('FieldPlan', () => {
 
     const fieldPlan = createFieldPlan(superSchema, operation);
 
-    expect(fieldPlan.print()).to.equal(dedent`
+    expect(printPlan(fieldPlan)).to.equal(dedent`
       Map:
         Subschema 0:
           {
@@ -196,7 +197,7 @@ describe('FieldPlan', () => {
 
     const fieldPlan = createFieldPlan(superSchema, operation);
 
-    expect(fieldPlan.print()).to.equal(dedent`
+    expect(printPlan(fieldPlan)).to.equal(dedent`
       Map:
         Subschema 0:
           {
@@ -261,7 +262,7 @@ describe('FieldPlan', () => {
 
     const fieldPlan = createFieldPlan(superSchema, operation);
 
-    expect(fieldPlan.print()).to.equal(dedent`
+    expect(printPlan(fieldPlan)).to.equal(dedent`
       Map:
         Subschema 0:
           {
