@@ -6,7 +6,6 @@ import type {
   GraphQLObjectType,
   InlineFragmentNode,
   SelectionNode,
-  SelectionSetNode,
 } from 'graphql';
 import {
   getNamedType,
@@ -14,7 +13,6 @@ import {
   isInterfaceType,
   isObjectType,
   Kind,
-  print,
   SchemaMetaFieldDef,
   TypeMetaFieldDef,
   TypeNameMetaFieldDef,
@@ -251,71 +249,5 @@ export class FieldPlan {
       };
       selectionMap.add(fragmentSubschema, splitFragment);
     }
-  }
-  print(indent = 0): string {
-    const entries = [];
-    if (this.selectionMap.size > 0) {
-      entries.push(this._printMap(indent));
-    }
-    const subFieldPlans = Array.from(Object.entries(this.subFieldPlans));
-    if (subFieldPlans.length > 0) {
-      entries.push(this._printSubFieldPlans(subFieldPlans, indent));
-    }
-    return entries.join('\n');
-  }
-  _printMap(indent: number): string {
-    const spaces = new Array(indent).fill(' ', 0, indent).join('');
-    let result = `${spaces}Map:\n`;
-    result += Array.from(this.selectionMap.entries())
-      .map(([subschema, selections]) =>
-        this._printSubschemaSelections(subschema, selections, indent + 2),
-      )
-      .join('\n');
-    return result;
-  }
-  _printSubschemaSelections(
-    subschema: Subschema,
-    selections: ReadonlyArray<SelectionNode>,
-    indent: number,
-  ): string {
-    const spaces = new Array(indent).fill(' ', 0, indent).join('');
-    let result = '';
-    result += `${spaces}Subschema ${this.operationContext.superSchema.getSubschemaId(
-      subschema,
-    )}:\n`;
-    result += `${spaces}  `;
-    result += this._printSelectionSet(
-      {
-        kind: Kind.SELECTION_SET,
-        selections,
-      },
-      indent + 2,
-    );
-    return result;
-  }
-  _printSubFieldPlans(
-    subFieldPlans: ReadonlyArray<[string, FieldPlan]>,
-    indent: number,
-  ): string {
-    return subFieldPlans
-      .map(([responseKey, subFieldPlan]) =>
-        this._printSubFieldPlan(responseKey, subFieldPlan, indent),
-      )
-      .join('\n');
-  }
-  _printSubFieldPlan(
-    responseKey: string,
-    subFieldPlan: FieldPlan,
-    indent: number,
-  ): string {
-    const spaces = new Array(indent).fill(' ', 0, indent).join('');
-    let subFieldPlanEntry = '';
-    subFieldPlanEntry += `${spaces}SubFieldPlan for '${responseKey}':\n`;
-    subFieldPlanEntry += subFieldPlan.print(indent + 2);
-    return subFieldPlanEntry;
-  }
-  _printSelectionSet(selectionSet: SelectionSetNode, indent: number): string {
-    const spaces = new Array(indent).fill(' ', 0, indent).join('');
-    return print(selectionSet).split('\n').join(`\n${spaces}`);
   }
 }
