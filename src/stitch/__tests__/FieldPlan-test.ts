@@ -147,11 +147,12 @@ describe('FieldPlan', () => {
             }
           }
       SubFieldPlan for 'someObject':
-        Map:
-          Subschema 1:
-            {
-              anotherField
-            }
+        Plan for type 'SomeObject':
+          Map:
+            Subschema 1:
+              {
+                anotherField
+              }
     `);
   });
 
@@ -208,12 +209,14 @@ describe('FieldPlan', () => {
             }
           }
       SubFieldPlan for 'someObject':
-        SubFieldPlan for 'someField':
-          Map:
-            Subschema 1:
-              {
-                anotherNestedField
-              }
+        Plan for type 'SomeObject':
+          SubFieldPlan for 'someField':
+            Plan for type 'SomeNestedObject':
+              Map:
+                Subschema 1:
+                  {
+                    anotherNestedField
+                  }
     `);
   });
 
@@ -273,13 +276,14 @@ describe('FieldPlan', () => {
             }
           }
       SubFieldPlan for 'someObject':
-        Map:
-          Subschema 1:
-            {
-              anotherField {
-                someField
+        Plan for type 'SomeObject':
+          Map:
+            Subschema 1:
+              {
+                anotherField {
+                  someField
+                }
               }
-            }
     `);
   });
 });

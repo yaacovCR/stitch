@@ -2,6 +2,7 @@ import type { SelectionNode, SelectionSetNode } from 'graphql';
 import { Kind, print } from 'graphql';
 
 import type { FieldPlan } from './FieldPlan';
+import type { SubFieldPlan } from './SubFieldPlan';
 import type { Subschema, SuperSchema } from './SuperSchema';
 
 export function printPlan(plan: FieldPlan, indent = 0): string {
@@ -55,7 +56,7 @@ function printSubschemaSelections(
 }
 
 function printSubFieldPlans(
-  subFieldPlans: ReadonlyArray<[string, FieldPlan]>,
+  subFieldPlans: ReadonlyArray<[string, SubFieldPlan]>,
   indent: number,
 ): string {
   return subFieldPlans
@@ -67,13 +68,28 @@ function printSubFieldPlans(
 
 function printSubFieldPlan(
   responseKey: string,
-  subFieldPlan: FieldPlan,
+  subFieldPlan: SubFieldPlan,
   indent: number,
 ): string {
   const spaces = new Array(indent).fill(' ', 0, indent).join('');
   let subFieldPlanEntry = '';
   subFieldPlanEntry += `${spaces}SubFieldPlan for '${responseKey}':\n`;
-  subFieldPlanEntry += printPlan(subFieldPlan, indent + 2);
+
+  const entries = [];
+  for (const [type, fieldPlan] of subFieldPlan.fieldPlans.entries()) {
+    let entry = `${spaces}  Plan for type '${type.name}':\n`;
+    entry += printPlan(fieldPlan, indent + 4);
+    entries.push(entry);
+  }
+
+  const subSubFieldPlans = Array.from(
+    Object.entries(subFieldPlan.subFieldPlans),
+  );
+  if (subSubFieldPlans.length > 0) {
+    entries.push(printSubFieldPlans(subSubFieldPlans, indent + 2));
+  }
+
+  subFieldPlanEntry += entries.join('\n');
   return subFieldPlanEntry;
 }
 
