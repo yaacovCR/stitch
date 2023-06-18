@@ -21,25 +21,33 @@ export declare const createFieldPlan: (
 export declare class FieldPlan {
   operationContext: OperationContext;
   parentType: GraphQLCompositeType;
+  ownSelections: ReadonlyArray<SelectionNode>;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
   subFieldPlans: ObjMap<FieldPlan>;
   visitedFragments: Set<string>;
+  subschema: Subschema | undefined;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
+    subschema?: Subschema | undefined,
   );
   _processSelections(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-  ): AccumulatorMap<Subschema, SelectionNode>;
+  ): {
+    ownSelections: Array<SelectionNode>;
+    selectionMap: AccumulatorMap<Subschema, SelectionNode>;
+  };
   _addField(
     parentType: GraphQLCompositeType,
     field: FieldNode,
+    ownSelections: Array<SelectionNode>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
   _getSubschemaAndSelections(
     subschemas: Set<Subschema>,
+    ownSelections: Array<SelectionNode>,
     selectionMap: Map<Subschema, Array<SelectionNode>>,
   ): {
     subschema: Subschema;
@@ -52,10 +60,7 @@ export declare class FieldPlan {
   _addFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode | FragmentDefinitionNode,
-    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
-  ): void;
-  _addFragmentSelectionMap(
-    fragmentSelectionMap: Map<Subschema, Array<SelectionNode>>,
+    ownSelections: Array<SelectionNode>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
   print(indent?: number): string;

@@ -14,19 +14,26 @@ exports.createFieldPlan = (0, memoize3_js_1.memoize3)(
  * @internal
  */
 class FieldPlan {
-  constructor(operationContext, parentType, selections) {
+  constructor(operationContext, parentType, selections, subschema) {
     this.operationContext = operationContext;
     this.parentType = parentType;
     this.subFieldPlans = Object.create(null);
     this.visitedFragments = new Set();
-    this.selectionMap = this._processSelections(this.parentType, selections);
+    this.subschema = subschema;
+    const { ownSelections, selectionMap } = this._processSelections(
+      this.parentType,
+      selections,
+    );
+    this.ownSelections = ownSelections;
+    this.selectionMap = selectionMap;
   }
   _processSelections(parentType, selections) {
+    const ownSelections = [];
     const selectionMap = new AccumulatorMap_js_1.AccumulatorMap();
     for (const selection of selections) {
       switch (selection.kind) {
         case graphql_1.Kind.FIELD: {
-          this._addField(parentType, selection, selectionMap);
+          this._addField(parentType, selection, ownSelections, selectionMap);
           break;
         }
         case graphql_1.Kind.INLINE_FRAGMENT: {
@@ -42,7 +49,12 @@ class FieldPlan {
                 refinedType,
               )}`,
             );
-          this._addFragment(refinedType, selection, selectionMap);
+          this._addFragment(
+            refinedType,
+            selection,
+            ownSelections,
+            selectionMap,
+          );
           break;
         }
         case graphql_1.Kind.FRAGMENT_SPREAD: {
@@ -64,14 +76,17 @@ class FieldPlan {
                 refinedType,
               )}`,
             );
-          this._addFragment(refinedType, fragment, selectionMap);
+          this._addFragment(refinedType, fragment, ownSelections, selectionMap);
           break;
         }
       }
     }
-    return selectionMap;
+    return {
+      ownSelections,
+      selectionMap,
+    };
   }
-  _addField(parentType, field, selectionMap) {
+  _addField(parentType, field, ownSelections, selectionMap) {
     const subschemaSetsByField =
       this.operationContext.superSchema.subschemaSetsByTypeAndField[
         parentType.name
@@ -82,6 +97,7 @@ class FieldPlan {
     }
     const { subschema, selections } = this._getSubschemaAndSelections(
       subschemaSets,
+      ownSelections,
       selectionMap,
     );
     if (!field.selectionSet) {
@@ -98,17 +114,16 @@ class FieldPlan {
       this.operationContext,
       (0, graphql_1.getNamedType)(fieldType),
       field.selectionSet.selections,
+      subschema,
     );
-    const filteredSelections = subFieldPlan.selectionMap.get(subschema);
-    if (filteredSelections) {
+    if (subFieldPlan.ownSelections.length) {
       selections.push({
         ...field,
         selectionSet: {
           kind: graphql_1.Kind.SELECTION_SET,
-          selections: filteredSelections,
+          selections: subFieldPlan.ownSelections,
         },
       });
-      subFieldPlan.selectionMap.delete(subschema);
     }
     if (
       subFieldPlan.selectionMap.size > 0 ||
@@ -118,7 +133,10 @@ class FieldPlan {
       this.subFieldPlans[responseKey] = subFieldPlan;
     }
   }
-  _getSubschemaAndSelections(subschemas, selectionMap) {
+  _getSubschemaAndSelections(subschemas, ownSelections, selectionMap) {
+    if (this.subschema !== undefined && subschemas.has(this.subschema)) {
+      return { subschema: this.subschema, selections: ownSelections };
+    }
     let selections;
     for (const subschema of subschemas) {
       selections = selectionMap.get(subschema);
@@ -158,14 +176,21 @@ class FieldPlan {
       }
     }
   }
-  _addFragment(parentType, fragment, selectionMap) {
-    const fragmentSelectionMap = this._processSelections(
-      parentType,
-      fragment.selectionSet.selections,
-    );
-    this._addFragmentSelectionMap(fragmentSelectionMap, selectionMap);
-  }
-  _addFragmentSelectionMap(fragmentSelectionMap, selectionMap) {
+  _addFragment(parentType, fragment, ownSelections, selectionMap) {
+    const {
+      ownSelections: fragmentOwnSelections,
+      selectionMap: fragmentSelectionMap,
+    } = this._processSelections(parentType, fragment.selectionSet.selections);
+    if (fragmentOwnSelections.length > 0) {
+      const splitFragment = {
+        kind: graphql_1.Kind.INLINE_FRAGMENT,
+        selectionSet: {
+          kind: graphql_1.Kind.SELECTION_SET,
+          selections: fragmentOwnSelections,
+        },
+      };
+      ownSelections.push(splitFragment);
+    }
     for (const [
       fragmentSubschema,
       fragmentSelections,
