@@ -116,10 +116,7 @@ class FieldPlan {
         },
       });
     }
-    if (
-      subFieldPlan.fieldPlans.size > 0 ||
-      Object.values(subFieldPlan.subFieldPlans).length > 0
-    ) {
+    if (subFieldPlan.fieldPlans.size > 0) {
       const responseKey = field.alias?.value ?? field.name.value;
       this.subFieldPlans[responseKey] = subFieldPlan;
     }

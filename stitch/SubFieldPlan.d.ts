@@ -6,7 +6,6 @@ import type {
   InlineFragmentNode,
   SelectionNode,
 } from 'graphql';
-import type { ObjMap } from '../types/ObjMap.js';
 import type { FieldPlan } from './FieldPlan.js';
 import type {
   OperationContext,
@@ -24,7 +23,6 @@ export declare class SubFieldPlan {
   fieldPlans: Map<GraphQLObjectType, FieldPlan>;
   visitedFragments: Set<string>;
   subschema: Subschema;
-  subFieldPlans: ObjMap<SubFieldPlan>;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,

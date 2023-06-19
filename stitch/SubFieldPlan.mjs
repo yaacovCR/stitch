@@ -12,7 +12,6 @@ export class SubFieldPlan {
     this.superSchema = operationContext.superSchema;
     this.visitedFragments = new Set();
     this.subschema = subschema;
-    this.subFieldPlans = Object.create(null);
     const { ownSelections, otherSelections } = this._processSelections(
       parentType,
       selections,
