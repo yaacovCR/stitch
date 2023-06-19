@@ -42,13 +42,18 @@ import {
   GraphQLUnionType,
   isCompositeType,
   isInputType,
+  isInterfaceType,
   isListType,
   isNonNullType,
+  isObjectType,
   isSpecifiedScalarType,
   isUnionType,
   Kind,
   OperationTypeNode,
   print,
+  SchemaMetaFieldDef,
+  TypeMetaFieldDef,
+  TypeNameMetaFieldDef,
   valueFromAST,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap';
@@ -56,6 +61,7 @@ import type { PromiseOrValue } from '../types/PromiseOrValue';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { inspect } from '../utilities/inspect.ts';
+import { invariant } from '../utilities/invariant.ts';
 import { printPathArray } from '../utilities/printPathArray.ts';
 export interface OperationContext {
   superSchema: SuperSchema;
@@ -476,6 +482,30 @@ export class SuperSchema {
       return new GraphQLNonNull(this._getMergedType(type.ofType));
     }
     return this.mergedTypes[type.name];
+  }
+  getFieldDef(
+    parentType: GraphQLCompositeType,
+    fieldName: string,
+  ): GraphQLField<any, any> | undefined {
+    if (fieldName === '__typename') {
+      return TypeNameMetaFieldDef;
+    }
+    isObjectType(parentType) ||
+      isInterfaceType(parentType) ||
+      invariant(false, `Invalid parent type ${inspect(parentType)}.`);
+    const fields = parentType.getFields();
+    const field = fields[fieldName];
+    if (field !== undefined) {
+      return field;
+    }
+    if (parentType === this.mergedSchema.getQueryType()) {
+      switch (fieldName) {
+        case SchemaMetaFieldDef.name:
+          return SchemaMetaFieldDef;
+        case TypeMetaFieldDef.name:
+          return TypeMetaFieldDef;
+      }
+    }
   }
   getRootType(operation: OperationTypeNode): GraphQLObjectType | undefined {
     return this.mergedRootTypes[operation];
