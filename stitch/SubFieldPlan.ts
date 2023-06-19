@@ -46,10 +46,7 @@ export class SubFieldPlan {
     this.otherSelections = otherSelections;
     let possibleTypes: ReadonlyArray<GraphQLObjectType>;
     if (isAbstractType(parentType)) {
-      possibleTypes =
-        this.operationContext.superSchema.mergedSchema.getPossibleTypes(
-          parentType,
-        );
+      possibleTypes = this.superSchema.getPossibleTypes(parentType);
     } else {
       possibleTypes = [parentType];
     }
