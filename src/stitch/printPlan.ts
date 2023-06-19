@@ -82,13 +82,6 @@ function printSubFieldPlan(
     entries.push(entry);
   }
 
-  const subSubFieldPlans = Array.from(
-    Object.entries(subFieldPlan.subFieldPlans),
-  );
-  if (subSubFieldPlans.length > 0) {
-    entries.push(printSubFieldPlans(subSubFieldPlans, indent + 2));
-  }
-
   subFieldPlanEntry += entries.join('\n');
   return subFieldPlanEntry;
 }
