@@ -16,6 +16,7 @@ import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 
 import type { FieldPlan } from './FieldPlan.js';
+import type { SubFieldPlan } from './SubFieldPlan.js';
 import type { Subschema } from './SuperSchema.js';
 
 type Path = ReadonlyArray<string | number>;
@@ -205,7 +206,7 @@ export class Composer {
   _collectSubQueries(
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
-    subFieldPlans: ObjMap<FieldPlan>,
+    subFieldPlans: ObjMap<SubFieldPlan>,
     path: Path,
   ): void {
     for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
@@ -225,7 +226,7 @@ export class Composer {
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    fieldPlan: FieldPlan,
+    subFieldPlan: SubFieldPlan,
     path: Path,
   ): void {
     if (Array.isArray(fieldsOrList)) {
@@ -234,12 +235,16 @@ export class Composer {
           subQueriesBySchema,
           fieldsOrList,
           fieldsOrList[i] as ObjMap<unknown>,
-          fieldPlan,
+          subFieldPlan,
           [...path, i],
         );
       }
       return;
     }
+
+    // TODO: add typename selector to properly determine type
+    const fieldPlan = subFieldPlan.fieldPlans.values().next()
+      .value as FieldPlan;
 
     for (const [
       subschema,
