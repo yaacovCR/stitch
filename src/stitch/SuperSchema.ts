@@ -3,6 +3,7 @@ import type {
   DocumentNode,
   ExecutionResult,
   FragmentDefinitionNode,
+  GraphQLAbstractType,
   GraphQLArgument,
   GraphQLArgumentConfig,
   GraphQLCompositeType,
@@ -42,18 +43,13 @@ import {
   GraphQLUnionType,
   isCompositeType,
   isInputType,
-  isInterfaceType,
   isListType,
   isNonNullType,
-  isObjectType,
   isSpecifiedScalarType,
   isUnionType,
   Kind,
   OperationTypeNode,
   print,
-  SchemaMetaFieldDef,
-  TypeMetaFieldDef,
-  TypeNameMetaFieldDef,
   valueFromAST,
 } from 'graphql';
 
@@ -63,7 +59,6 @@ import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator';
 
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { inspect } from '../utilities/inspect.js';
-import { invariant } from '../utilities/invariant.js';
 import { printPathArray } from '../utilities/printPathArray.js';
 
 export interface OperationContext {
@@ -522,31 +517,13 @@ export class SuperSchema {
     parentType: GraphQLCompositeType,
     fieldName: string,
   ): GraphQLField<any, any> | undefined {
-    if (fieldName === '__typename') {
-      return TypeNameMetaFieldDef;
-    }
+    return this.mergedSchema.getField(parentType, fieldName);
+  }
 
-    invariant(
-      isObjectType(parentType) || isInterfaceType(parentType),
-      `Invalid parent type ${inspect(parentType)}.`,
-    );
-
-    const fields = parentType.getFields();
-
-    const field = fields[fieldName];
-
-    if (field !== undefined) {
-      return field;
-    }
-
-    if (parentType === this.mergedSchema.getQueryType()) {
-      switch (fieldName) {
-        case SchemaMetaFieldDef.name:
-          return SchemaMetaFieldDef;
-        case TypeMetaFieldDef.name:
-          return TypeMetaFieldDef;
-      }
-    }
+  getPossibleTypes(
+    abstractType: GraphQLAbstractType,
+  ): ReadonlyArray<GraphQLObjectType> {
+    return this.mergedSchema.getPossibleTypes(abstractType);
   }
 
   getRootType(operation: OperationTypeNode): GraphQLObjectType | undefined {
