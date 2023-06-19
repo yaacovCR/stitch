@@ -1,6 +1,6 @@
 import type {
   FieldNode,
-  FragmentDefinitionNode,
+  FragmentSpreadNode,
   GraphQLCompositeType,
   GraphQLField,
   GraphQLObjectType,
@@ -109,6 +109,7 @@ export class SubFieldPlan {
           this._addFragment(
             refinedType,
             selection,
+            selection.selectionSet.selections,
             ownSelections,
             otherSelections,
           );
@@ -130,7 +131,8 @@ export class SubFieldPlan {
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
           this._addFragment(
             refinedType,
-            fragment,
+            selection,
+            fragment.selectionSet.selections,
             ownSelections,
             otherSelections,
           );
@@ -225,16 +227,18 @@ export class SubFieldPlan {
   }
   _addFragment(
     parentType: GraphQLCompositeType,
-    fragment: InlineFragmentNode | FragmentDefinitionNode,
+    node: InlineFragmentNode | FragmentSpreadNode,
+    selections: ReadonlyArray<SelectionNode>,
     ownSelections: Array<SelectionNode>,
     otherSelections: Array<SelectionNode>,
   ): void {
     const {
       ownSelections: fragmentOwnSelections,
       otherSelections: fragmentOtherSelections,
-    } = this._processSelections(parentType, fragment.selectionSet.selections);
+    } = this._processSelections(parentType, selections);
     if (fragmentOwnSelections.length > 0) {
       const splitFragment: InlineFragmentNode = {
+        ...node,
         kind: Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: Kind.SELECTION_SET,
@@ -245,6 +249,7 @@ export class SubFieldPlan {
     }
     if (fragmentOtherSelections.length > 0) {
       const splitFragment: InlineFragmentNode = {
+        ...node,
         kind: Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: Kind.SELECTION_SET,

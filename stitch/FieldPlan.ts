@@ -1,6 +1,6 @@
 import type {
   FieldNode,
-  FragmentDefinitionNode,
+  FragmentSpreadNode,
   GraphQLCompositeType,
   GraphQLField,
   GraphQLObjectType,
@@ -71,7 +71,12 @@ export class FieldPlan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addFragment(refinedType, selection, selectionMap);
+          this._addFragment(
+            refinedType,
+            selection,
+            selection.selectionSet.selections,
+            selectionMap,
+          );
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -88,7 +93,12 @@ export class FieldPlan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addFragment(refinedType, fragment, selectionMap);
+          this._addFragment(
+            refinedType,
+            selection,
+            fragment.selectionSet.selections,
+            selectionMap,
+          );
           break;
         }
       }
@@ -184,18 +194,20 @@ export class FieldPlan {
   }
   _addFragment(
     parentType: GraphQLCompositeType,
-    fragment: InlineFragmentNode | FragmentDefinitionNode,
+    node: InlineFragmentNode | FragmentSpreadNode,
+    selections: ReadonlyArray<SelectionNode>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
     const fragmentSelectionMap = this._processSelections(
       parentType,
-      fragment.selectionSet.selections,
+      selections,
     );
     for (const [
       fragmentSubschema,
       fragmentSelections,
     ] of fragmentSelectionMap) {
       const splitFragment: InlineFragmentNode = {
+        ...node,
         kind: Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: Kind.SELECTION_SET,

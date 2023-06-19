@@ -17,13 +17,13 @@ export function collectSubFields(
   fieldNodes = emptyArray as Array<FieldNode>,
   visitedFragmentNames = new Set<string>(),
 ): ReadonlyArray<FieldNode> {
+  let newFieldNodes: ReadonlyArray<FieldNode> = fieldNodes;
   const schema = operationContext.superSchema.mergedSchema;
   const fragmentMap = operationContext.fragmentMap;
   for (const selection of selections) {
     switch (selection.kind) {
       case Kind.FIELD: {
-        // eslint-disable-next-line no-param-reassign
-        fieldNodes = appendToArray(fieldNodes, selection);
+        newFieldNodes = appendToArray(fieldNodes, selection);
         break;
       }
       case Kind.INLINE_FRAGMENT: {
@@ -36,10 +36,10 @@ export function collectSubFields(
         ) {
           continue;
         }
-        collectSubFields(
+        newFieldNodes = collectSubFields(
           operationContext,
           runtimeType,
-          selections,
+          selection.selectionSet.selections,
           fieldNodes,
           visitedFragmentNames,
         );
@@ -58,7 +58,7 @@ export function collectSubFields(
           continue;
         }
         visitedFragmentNames.add(fragName);
-        collectSubFields(
+        newFieldNodes = collectSubFields(
           operationContext,
           runtimeType,
           fragment.selectionSet.selections,
@@ -69,7 +69,7 @@ export function collectSubFields(
       }
     }
   }
-  return fieldNodes;
+  return newFieldNodes;
 }
 /**
  * Determines if a fragment is applicable to the given type.
