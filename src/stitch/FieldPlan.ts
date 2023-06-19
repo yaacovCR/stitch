@@ -2,21 +2,11 @@ import type {
   FieldNode,
   FragmentSpreadNode,
   GraphQLCompositeType,
-  GraphQLField,
   GraphQLObjectType,
   InlineFragmentNode,
   SelectionNode,
 } from 'graphql';
-import {
-  getNamedType,
-  isCompositeType,
-  isInterfaceType,
-  isObjectType,
-  Kind,
-  SchemaMetaFieldDef,
-  TypeMetaFieldDef,
-  TypeNameMetaFieldDef,
-} from 'graphql';
+import { getNamedType, isCompositeType, Kind } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap.js';
 
@@ -26,7 +16,11 @@ import { invariant } from '../utilities/invariant.js';
 import { memoize3 } from '../utilities/memoize3.js';
 
 import { SubFieldPlan } from './SubFieldPlan.js';
-import type { OperationContext, Subschema } from './SuperSchema.js';
+import type {
+  OperationContext,
+  Subschema,
+  SuperSchema,
+} from './SuperSchema.js';
 
 export const createFieldPlan = memoize3(
   (
@@ -41,7 +35,7 @@ export const createFieldPlan = memoize3(
  */
 export class FieldPlan {
   operationContext: OperationContext;
-  parentType: GraphQLCompositeType;
+  superSchema: SuperSchema;
   selectionMap: Map<Subschema, Array<SelectionNode>>;
   subFieldPlans: ObjMap<SubFieldPlan>;
   visitedFragments: Set<string>;
@@ -52,11 +46,11 @@ export class FieldPlan {
     selections: ReadonlyArray<SelectionNode>,
   ) {
     this.operationContext = operationContext;
-    this.parentType = parentType;
+    this.superSchema = operationContext.superSchema;
     this.subFieldPlans = Object.create(null);
     this.visitedFragments = new Set();
 
-    const selectionMap = this._processSelections(this.parentType, selections);
+    const selectionMap = this._processSelections(parentType, selections);
     this.selectionMap = selectionMap;
   }
 
@@ -131,9 +125,7 @@ export class FieldPlan {
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void {
     const subschemaSetsByField =
-      this.operationContext.superSchema.subschemaSetsByTypeAndField[
-        parentType.name
-      ];
+      this.superSchema.subschemaSetsByTypeAndField[parentType.name];
 
     const subschemaSets = subschemaSetsByField[field.name.value];
 
@@ -149,7 +141,7 @@ export class FieldPlan {
     }
 
     const fieldName = field.name.value;
-    const fieldDef = this._getFieldDef(parentType, fieldName);
+    const fieldDef = this.superSchema.getFieldDef(parentType, fieldName);
 
     if (!fieldDef) {
       return;
@@ -197,40 +189,6 @@ export class FieldPlan {
     }
 
     return subschemas.values().next().value as Subschema;
-  }
-
-  _getFieldDef(
-    parentType: GraphQLCompositeType,
-    fieldName: string,
-  ): GraphQLField<any, any> | undefined {
-    if (fieldName === '__typename') {
-      return TypeNameMetaFieldDef;
-    }
-
-    invariant(
-      isObjectType(parentType) || isInterfaceType(parentType),
-      `Invalid parent type ${inspect(parentType)}.`,
-    );
-
-    const fields = parentType.getFields();
-
-    const field = fields[fieldName];
-
-    if (field !== undefined) {
-      return field;
-    }
-
-    if (
-      parentType ===
-      this.operationContext.superSchema.mergedSchema.getQueryType()
-    ) {
-      switch (fieldName) {
-        case SchemaMetaFieldDef.name:
-          return SchemaMetaFieldDef;
-        case TypeMetaFieldDef.name:
-          return TypeMetaFieldDef;
-      }
-    }
   }
 
   _addFragment(
