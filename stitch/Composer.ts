@@ -12,6 +12,7 @@ import { isPromise } from '../predicates/isPromise.ts';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.ts';
 import type { FieldPlan } from './FieldPlan.ts';
+import type { SubFieldPlan } from './SubFieldPlan.ts';
 import type { Subschema } from './SuperSchema.ts';
 type Path = ReadonlyArray<string | number>;
 interface FetchPlan {
@@ -180,7 +181,7 @@ export class Composer {
   _collectSubQueries(
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
-    subFieldPlans: ObjMap<FieldPlan>,
+    subFieldPlans: ObjMap<SubFieldPlan>,
     path: Path,
   ): void {
     for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
@@ -199,7 +200,7 @@ export class Composer {
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    fieldPlan: FieldPlan,
+    subFieldPlan: SubFieldPlan,
     path: Path,
   ): void {
     if (Array.isArray(fieldsOrList)) {
@@ -208,12 +209,15 @@ export class Composer {
           subQueriesBySchema,
           fieldsOrList,
           fieldsOrList[i] as ObjMap<unknown>,
-          fieldPlan,
+          subFieldPlan,
           [...path, i],
         );
       }
       return;
     }
+    // TODO: add typename selector to properly determine type
+    const fieldPlan = subFieldPlan.fieldPlans.values().next()
+      .value as FieldPlan;
     for (const [
       subschema,
       subschemaSelections,
