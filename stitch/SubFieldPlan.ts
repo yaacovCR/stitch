@@ -7,7 +7,6 @@ import type {
   SelectionNode,
 } from 'graphql';
 import { getNamedType, isAbstractType, isCompositeType, Kind } from 'graphql';
-import type { ObjMap } from '../types/ObjMap.ts';
 import { collectSubFields } from '../utilities/collectSubFields.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
@@ -29,7 +28,6 @@ export class SubFieldPlan {
   fieldPlans: Map<GraphQLObjectType, FieldPlan>;
   visitedFragments: Set<string>;
   subschema: Subschema;
-  subFieldPlans: ObjMap<SubFieldPlan>;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
@@ -40,7 +38,6 @@ export class SubFieldPlan {
     this.superSchema = operationContext.superSchema;
     this.visitedFragments = new Set();
     this.subschema = subschema;
-    this.subFieldPlans = Object.create(null);
     const { ownSelections, otherSelections } = this._processSelections(
       parentType,
       selections,
