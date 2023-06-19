@@ -76,6 +76,7 @@ class SubFieldPlan {
           this._addFragment(
             refinedType,
             selection,
+            selection.selectionSet.selections,
             ownSelections,
             otherSelections,
           );
@@ -102,7 +103,8 @@ class SubFieldPlan {
             );
           this._addFragment(
             refinedType,
-            fragment,
+            selection,
+            fragment.selectionSet.selections,
             ownSelections,
             otherSelections,
           );
@@ -190,13 +192,14 @@ class SubFieldPlan {
       }
     }
   }
-  _addFragment(parentType, fragment, ownSelections, otherSelections) {
+  _addFragment(parentType, node, selections, ownSelections, otherSelections) {
     const {
       ownSelections: fragmentOwnSelections,
       otherSelections: fragmentOtherSelections,
-    } = this._processSelections(parentType, fragment.selectionSet.selections);
+    } = this._processSelections(parentType, selections);
     if (fragmentOwnSelections.length > 0) {
       const splitFragment = {
+        ...node,
         kind: graphql_1.Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: graphql_1.Kind.SELECTION_SET,
@@ -207,6 +210,7 @@ class SubFieldPlan {
     }
     if (fragmentOtherSelections.length > 0) {
       const splitFragment = {
+        ...node,
         kind: graphql_1.Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: graphql_1.Kind.SELECTION_SET,

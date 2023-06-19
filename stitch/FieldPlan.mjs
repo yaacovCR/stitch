@@ -45,7 +45,12 @@ export class FieldPlan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addFragment(refinedType, selection, selectionMap);
+          this._addFragment(
+            refinedType,
+            selection,
+            selection.selectionSet.selections,
+            selectionMap,
+          );
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -62,7 +67,12 @@ export class FieldPlan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addFragment(refinedType, fragment, selectionMap);
+          this._addFragment(
+            refinedType,
+            selection,
+            fragment.selectionSet.selections,
+            selectionMap,
+          );
           break;
         }
       }
@@ -146,16 +156,17 @@ export class FieldPlan {
       }
     }
   }
-  _addFragment(parentType, fragment, selectionMap) {
+  _addFragment(parentType, node, selections, selectionMap) {
     const fragmentSelectionMap = this._processSelections(
       parentType,
-      fragment.selectionSet.selections,
+      selections,
     );
     for (const [
       fragmentSubschema,
       fragmentSelections,
     ] of fragmentSelectionMap) {
       const splitFragment = {
+        ...node,
         kind: Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: Kind.SELECTION_SET,

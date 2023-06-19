@@ -10,13 +10,13 @@ function collectSubFields(
   fieldNodes = appendToArray_js_1.emptyArray,
   visitedFragmentNames = new Set(),
 ) {
+  let newFieldNodes = fieldNodes;
   const schema = operationContext.superSchema.mergedSchema;
   const fragmentMap = operationContext.fragmentMap;
   for (const selection of selections) {
     switch (selection.kind) {
       case graphql_1.Kind.FIELD: {
-        // eslint-disable-next-line no-param-reassign
-        fieldNodes = (0, appendToArray_js_1.appendToArray)(
+        newFieldNodes = (0, appendToArray_js_1.appendToArray)(
           fieldNodes,
           selection,
         );
@@ -32,10 +32,10 @@ function collectSubFields(
         ) {
           continue;
         }
-        collectSubFields(
+        newFieldNodes = collectSubFields(
           operationContext,
           runtimeType,
-          selections,
+          selection.selectionSet.selections,
           fieldNodes,
           visitedFragmentNames,
         );
@@ -54,7 +54,7 @@ function collectSubFields(
           continue;
         }
         visitedFragmentNames.add(fragName);
-        collectSubFields(
+        newFieldNodes = collectSubFields(
           operationContext,
           runtimeType,
           fragment.selectionSet.selections,
@@ -65,7 +65,7 @@ function collectSubFields(
       }
     }
   }
-  return fieldNodes;
+  return newFieldNodes;
 }
 exports.collectSubFields = collectSubFields;
 /**

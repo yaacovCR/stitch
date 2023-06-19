@@ -1,6 +1,6 @@
 import type {
   FieldNode,
-  FragmentDefinitionNode,
+  FragmentSpreadNode,
   GraphQLCompositeType,
   GraphQLField,
   InlineFragmentNode,
@@ -48,7 +48,8 @@ export declare class FieldPlan {
   ): GraphQLField<any, any> | undefined;
   _addFragment(
     parentType: GraphQLCompositeType,
-    fragment: InlineFragmentNode | FragmentDefinitionNode,
+    node: InlineFragmentNode | FragmentSpreadNode,
+    selections: ReadonlyArray<SelectionNode>,
     selectionMap: AccumulatorMap<Subschema, SelectionNode>,
   ): void;
 }

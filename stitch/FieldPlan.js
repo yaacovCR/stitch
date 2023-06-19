@@ -44,7 +44,12 @@ class FieldPlan {
                 refinedType,
               )}`,
             );
-          this._addFragment(refinedType, selection, selectionMap);
+          this._addFragment(
+            refinedType,
+            selection,
+            selection.selectionSet.selections,
+            selectionMap,
+          );
           break;
         }
         case graphql_1.Kind.FRAGMENT_SPREAD: {
@@ -66,7 +71,12 @@ class FieldPlan {
                 refinedType,
               )}`,
             );
-          this._addFragment(refinedType, fragment, selectionMap);
+          this._addFragment(
+            refinedType,
+            selection,
+            fragment.selectionSet.selections,
+            selectionMap,
+          );
           break;
         }
       }
@@ -153,16 +163,17 @@ class FieldPlan {
       }
     }
   }
-  _addFragment(parentType, fragment, selectionMap) {
+  _addFragment(parentType, node, selections, selectionMap) {
     const fragmentSelectionMap = this._processSelections(
       parentType,
-      fragment.selectionSet.selections,
+      selections,
     );
     for (const [
       fragmentSubschema,
       fragmentSelections,
     ] of fragmentSelectionMap) {
       const splitFragment = {
+        ...node,
         kind: graphql_1.Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: graphql_1.Kind.SELECTION_SET,

@@ -1,6 +1,6 @@
 import type {
   FieldNode,
-  FragmentDefinitionNode,
+  FragmentSpreadNode,
   GraphQLCompositeType,
   GraphQLField,
   GraphQLObjectType,
@@ -47,7 +47,8 @@ export declare class SubFieldPlan {
   ): GraphQLField<any, any> | undefined;
   _addFragment(
     parentType: GraphQLCompositeType,
-    fragment: InlineFragmentNode | FragmentDefinitionNode,
+    node: InlineFragmentNode | FragmentSpreadNode,
+    selections: ReadonlyArray<SelectionNode>,
     ownSelections: Array<SelectionNode>,
     otherSelections: Array<SelectionNode>,
   ): void;
