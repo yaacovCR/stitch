@@ -14,23 +14,17 @@ import {
   GraphQLUnionType,
   isCompositeType,
   isInputType,
-  isInterfaceType,
   isListType,
   isNonNullType,
-  isObjectType,
   isSpecifiedScalarType,
   isUnionType,
   Kind,
   OperationTypeNode,
   print,
-  SchemaMetaFieldDef,
-  TypeMetaFieldDef,
-  TypeNameMetaFieldDef,
   valueFromAST,
 } from 'graphql';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.mjs';
 import { inspect } from '../utilities/inspect.mjs';
-import { invariant } from '../utilities/invariant.mjs';
 import { printPathArray } from '../utilities/printPathArray.mjs';
 const operations = [
   OperationTypeNode.QUERY,
@@ -342,25 +336,10 @@ export class SuperSchema {
     return this.mergedTypes[type.name];
   }
   getFieldDef(parentType, fieldName) {
-    if (fieldName === '__typename') {
-      return TypeNameMetaFieldDef;
-    }
-    isObjectType(parentType) ||
-      isInterfaceType(parentType) ||
-      invariant(false, `Invalid parent type ${inspect(parentType)}.`);
-    const fields = parentType.getFields();
-    const field = fields[fieldName];
-    if (field !== undefined) {
-      return field;
-    }
-    if (parentType === this.mergedSchema.getQueryType()) {
-      switch (fieldName) {
-        case SchemaMetaFieldDef.name:
-          return SchemaMetaFieldDef;
-        case TypeMetaFieldDef.name:
-          return TypeMetaFieldDef;
-      }
-    }
+    return this.mergedSchema.getField(parentType, fieldName);
+  }
+  getPossibleTypes(abstractType) {
+    return this.mergedSchema.getPossibleTypes(abstractType);
   }
   getRootType(operation) {
     return this.mergedRootTypes[operation];

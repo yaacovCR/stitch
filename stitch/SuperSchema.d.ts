@@ -3,6 +3,7 @@ import type {
   DocumentNode,
   ExecutionResult,
   FragmentDefinitionNode,
+  GraphQLAbstractType,
   GraphQLArgument,
   GraphQLArgumentConfig,
   GraphQLCompositeType,
@@ -165,6 +166,9 @@ export declare class SuperSchema {
     parentType: GraphQLCompositeType,
     fieldName: string,
   ): GraphQLField<any, any> | undefined;
+  getPossibleTypes(
+    abstractType: GraphQLAbstractType,
+  ): ReadonlyArray<GraphQLObjectType>;
   getRootType(operation: OperationTypeNode): GraphQLObjectType | undefined;
   getType(name: string): GraphQLNamedType | undefined;
   /**

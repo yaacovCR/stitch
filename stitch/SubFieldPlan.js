@@ -23,10 +23,7 @@ class SubFieldPlan {
     this.otherSelections = otherSelections;
     let possibleTypes;
     if ((0, graphql_1.isAbstractType)(parentType)) {
-      possibleTypes =
-        this.operationContext.superSchema.mergedSchema.getPossibleTypes(
-          parentType,
-        );
+      possibleTypes = this.superSchema.getPossibleTypes(parentType);
     } else {
       possibleTypes = [parentType];
     }

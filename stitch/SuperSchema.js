@@ -4,7 +4,6 @@ exports.SuperSchema = void 0;
 const graphql_1 = require('graphql');
 const AccumulatorMap_js_1 = require('../utilities/AccumulatorMap.js');
 const inspect_js_1 = require('../utilities/inspect.js');
-const invariant_js_1 = require('../utilities/invariant.js');
 const printPathArray_js_1 = require('../utilities/printPathArray.js');
 const operations = [
   graphql_1.OperationTypeNode.QUERY,
@@ -317,28 +316,10 @@ class SuperSchema {
     return this.mergedTypes[type.name];
   }
   getFieldDef(parentType, fieldName) {
-    if (fieldName === '__typename') {
-      return graphql_1.TypeNameMetaFieldDef;
-    }
-    (0, graphql_1.isObjectType)(parentType) ||
-      (0, graphql_1.isInterfaceType)(parentType) ||
-      (0, invariant_js_1.invariant)(
-        false,
-        `Invalid parent type ${(0, inspect_js_1.inspect)(parentType)}.`,
-      );
-    const fields = parentType.getFields();
-    const field = fields[fieldName];
-    if (field !== undefined) {
-      return field;
-    }
-    if (parentType === this.mergedSchema.getQueryType()) {
-      switch (fieldName) {
-        case graphql_1.SchemaMetaFieldDef.name:
-          return graphql_1.SchemaMetaFieldDef;
-        case graphql_1.TypeMetaFieldDef.name:
-          return graphql_1.TypeMetaFieldDef;
-      }
-    }
+    return this.mergedSchema.getField(parentType, fieldName);
+  }
+  getPossibleTypes(abstractType) {
+    return this.mergedSchema.getPossibleTypes(abstractType);
   }
   getRootType(operation) {
     return this.mergedRootTypes[operation];
