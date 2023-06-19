@@ -1,14 +1,4 @@
-import {
-  getNamedType,
-  isAbstractType,
-  isCompositeType,
-  isInterfaceType,
-  isObjectType,
-  Kind,
-  SchemaMetaFieldDef,
-  TypeMetaFieldDef,
-  TypeNameMetaFieldDef,
-} from 'graphql';
+import { getNamedType, isAbstractType, isCompositeType, Kind } from 'graphql';
 import { collectSubFields } from '../utilities/collectSubFields.mjs';
 import { inspect } from '../utilities/inspect.mjs';
 import { invariant } from '../utilities/invariant.mjs';
@@ -19,12 +9,12 @@ import { createFieldPlan } from './FieldPlan.mjs';
 export class SubFieldPlan {
   constructor(operationContext, parentType, selections, subschema) {
     this.operationContext = operationContext;
-    this.parentType = parentType;
+    this.superSchema = operationContext.superSchema;
     this.visitedFragments = new Set();
     this.subschema = subschema;
     this.subFieldPlans = Object.create(null);
     const { ownSelections, otherSelections } = this._processSelections(
-      this.parentType,
+      parentType,
       selections,
     );
     this.ownSelections = ownSelections;
@@ -132,7 +122,7 @@ export class SubFieldPlan {
       return;
     }
     const fieldName = field.name.value;
-    const fieldDef = this._getFieldDef(parentType, fieldName);
+    const fieldDef = this.superSchema.getFieldDef(parentType, fieldName);
     if (!fieldDef) {
       return;
     }
@@ -160,30 +150,6 @@ export class SubFieldPlan {
           selections: subFieldPlan.otherSelections,
         },
       });
-    }
-  }
-  _getFieldDef(parentType, fieldName) {
-    if (fieldName === '__typename') {
-      return TypeNameMetaFieldDef;
-    }
-    isObjectType(parentType) ||
-      isInterfaceType(parentType) ||
-      invariant(false, `Invalid parent type ${inspect(parentType)}.`);
-    const fields = parentType.getFields();
-    const field = fields[fieldName];
-    if (field !== undefined) {
-      return field;
-    }
-    if (
-      parentType ===
-      this.operationContext.superSchema.mergedSchema.getQueryType()
-    ) {
-      switch (fieldName) {
-        case SchemaMetaFieldDef.name:
-          return SchemaMetaFieldDef;
-        case TypeMetaFieldDef.name:
-          return TypeMetaFieldDef;
-      }
     }
   }
   _addFragment(parentType, node, selections, ownSelections, otherSelections) {

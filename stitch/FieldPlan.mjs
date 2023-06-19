@@ -1,13 +1,4 @@
-import {
-  getNamedType,
-  isCompositeType,
-  isInterfaceType,
-  isObjectType,
-  Kind,
-  SchemaMetaFieldDef,
-  TypeMetaFieldDef,
-  TypeNameMetaFieldDef,
-} from 'graphql';
+import { getNamedType, isCompositeType, Kind } from 'graphql';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.mjs';
 import { inspect } from '../utilities/inspect.mjs';
 import { invariant } from '../utilities/invariant.mjs';
@@ -23,10 +14,10 @@ export const createFieldPlan = memoize3(
 export class FieldPlan {
   constructor(operationContext, parentType, selections) {
     this.operationContext = operationContext;
-    this.parentType = parentType;
+    this.superSchema = operationContext.superSchema;
     this.subFieldPlans = Object.create(null);
     this.visitedFragments = new Set();
-    const selectionMap = this._processSelections(this.parentType, selections);
+    const selectionMap = this._processSelections(parentType, selections);
     this.selectionMap = selectionMap;
   }
   _processSelections(parentType, selections) {
@@ -81,9 +72,7 @@ export class FieldPlan {
   }
   _addField(parentType, field, selectionMap) {
     const subschemaSetsByField =
-      this.operationContext.superSchema.subschemaSetsByTypeAndField[
-        parentType.name
-      ];
+      this.superSchema.subschemaSetsByTypeAndField[parentType.name];
     const subschemaSets = subschemaSetsByField[field.name.value];
     if (subschemaSets === undefined) {
       return;
@@ -94,7 +83,7 @@ export class FieldPlan {
       return;
     }
     const fieldName = field.name.value;
-    const fieldDef = this._getFieldDef(parentType, fieldName);
+    const fieldDef = this.superSchema.getFieldDef(parentType, fieldName);
     if (!fieldDef) {
       return;
     }
@@ -131,30 +120,6 @@ export class FieldPlan {
       }
     }
     return subschemas.values().next().value;
-  }
-  _getFieldDef(parentType, fieldName) {
-    if (fieldName === '__typename') {
-      return TypeNameMetaFieldDef;
-    }
-    isObjectType(parentType) ||
-      isInterfaceType(parentType) ||
-      invariant(false, `Invalid parent type ${inspect(parentType)}.`);
-    const fields = parentType.getFields();
-    const field = fields[fieldName];
-    if (field !== undefined) {
-      return field;
-    }
-    if (
-      parentType ===
-      this.operationContext.superSchema.mergedSchema.getQueryType()
-    ) {
-      switch (fieldName) {
-        case SchemaMetaFieldDef.name:
-          return SchemaMetaFieldDef;
-        case TypeMetaFieldDef.name:
-          return TypeMetaFieldDef;
-      }
-    }
   }
   _addFragment(parentType, node, selections, selectionMap) {
     const fragmentSelectionMap = this._processSelections(

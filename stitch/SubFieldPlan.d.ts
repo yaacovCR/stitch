@@ -2,20 +2,23 @@ import type {
   FieldNode,
   FragmentSpreadNode,
   GraphQLCompositeType,
-  GraphQLField,
   GraphQLObjectType,
   InlineFragmentNode,
   SelectionNode,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import type { FieldPlan } from './FieldPlan.js';
-import type { OperationContext, Subschema } from './SuperSchema.js';
+import type {
+  OperationContext,
+  Subschema,
+  SuperSchema,
+} from './SuperSchema.js';
 /**
  * @internal
  */
 export declare class SubFieldPlan {
   operationContext: OperationContext;
-  parentType: GraphQLCompositeType;
+  superSchema: SuperSchema;
   ownSelections: ReadonlyArray<SelectionNode>;
   otherSelections: ReadonlyArray<SelectionNode>;
   fieldPlans: Map<GraphQLObjectType, FieldPlan>;
@@ -41,10 +44,6 @@ export declare class SubFieldPlan {
     ownSelections: Array<SelectionNode>,
     otherSelections: Array<SelectionNode>,
   ): void;
-  _getFieldDef(
-    parentType: GraphQLCompositeType,
-    fieldName: string,
-  ): GraphQLField<any, any> | undefined;
   _addFragment(
     parentType: GraphQLCompositeType,
     node: InlineFragmentNode | FragmentSpreadNode,

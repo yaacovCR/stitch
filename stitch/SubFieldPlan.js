@@ -12,12 +12,12 @@ const FieldPlan_js_1 = require('./FieldPlan.js');
 class SubFieldPlan {
   constructor(operationContext, parentType, selections, subschema) {
     this.operationContext = operationContext;
-    this.parentType = parentType;
+    this.superSchema = operationContext.superSchema;
     this.visitedFragments = new Set();
     this.subschema = subschema;
     this.subFieldPlans = Object.create(null);
     const { ownSelections, otherSelections } = this._processSelections(
-      this.parentType,
+      parentType,
       selections,
     );
     this.ownSelections = ownSelections;
@@ -135,7 +135,7 @@ class SubFieldPlan {
       return;
     }
     const fieldName = field.name.value;
-    const fieldDef = this._getFieldDef(parentType, fieldName);
+    const fieldDef = this.superSchema.getFieldDef(parentType, fieldName);
     if (!fieldDef) {
       return;
     }
@@ -163,33 +163,6 @@ class SubFieldPlan {
           selections: subFieldPlan.otherSelections,
         },
       });
-    }
-  }
-  _getFieldDef(parentType, fieldName) {
-    if (fieldName === '__typename') {
-      return graphql_1.TypeNameMetaFieldDef;
-    }
-    (0, graphql_1.isObjectType)(parentType) ||
-      (0, graphql_1.isInterfaceType)(parentType) ||
-      (0, invariant_js_1.invariant)(
-        false,
-        `Invalid parent type ${(0, inspect_js_1.inspect)(parentType)}.`,
-      );
-    const fields = parentType.getFields();
-    const field = fields[fieldName];
-    if (field !== undefined) {
-      return field;
-    }
-    if (
-      parentType ===
-      this.operationContext.superSchema.mergedSchema.getQueryType()
-    ) {
-      switch (fieldName) {
-        case graphql_1.SchemaMetaFieldDef.name:
-          return graphql_1.SchemaMetaFieldDef;
-        case graphql_1.TypeMetaFieldDef.name:
-          return graphql_1.TypeMetaFieldDef;
-      }
     }
   }
   _addFragment(parentType, node, selections, ownSelections, otherSelections) {

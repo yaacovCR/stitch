@@ -161,6 +161,10 @@ export declare class SuperSchema {
   _getMergedType(type: GraphQLOutputType): GraphQLOutputType;
   _getMergedType(type: GraphQLInputType): GraphQLInputType;
   _getMergedType(type: GraphQLType): GraphQLType;
+  getFieldDef(
+    parentType: GraphQLCompositeType,
+    fieldName: string,
+  ): GraphQLField<any, any> | undefined;
   getRootType(operation: OperationTypeNode): GraphQLObjectType | undefined;
   getType(name: string): GraphQLNamedType | undefined;
   /**

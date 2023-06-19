@@ -17,10 +17,10 @@ exports.createFieldPlan = (0, memoize3_js_1.memoize3)(
 class FieldPlan {
   constructor(operationContext, parentType, selections) {
     this.operationContext = operationContext;
-    this.parentType = parentType;
+    this.superSchema = operationContext.superSchema;
     this.subFieldPlans = Object.create(null);
     this.visitedFragments = new Set();
-    const selectionMap = this._processSelections(this.parentType, selections);
+    const selectionMap = this._processSelections(parentType, selections);
     this.selectionMap = selectionMap;
   }
   _processSelections(parentType, selections) {
@@ -85,9 +85,7 @@ class FieldPlan {
   }
   _addField(parentType, field, selectionMap) {
     const subschemaSetsByField =
-      this.operationContext.superSchema.subschemaSetsByTypeAndField[
-        parentType.name
-      ];
+      this.superSchema.subschemaSetsByTypeAndField[parentType.name];
     const subschemaSets = subschemaSetsByField[field.name.value];
     if (subschemaSets === undefined) {
       return;
@@ -98,7 +96,7 @@ class FieldPlan {
       return;
     }
     const fieldName = field.name.value;
-    const fieldDef = this._getFieldDef(parentType, fieldName);
+    const fieldDef = this.superSchema.getFieldDef(parentType, fieldName);
     if (!fieldDef) {
       return;
     }
@@ -135,33 +133,6 @@ class FieldPlan {
       }
     }
     return subschemas.values().next().value;
-  }
-  _getFieldDef(parentType, fieldName) {
-    if (fieldName === '__typename') {
-      return graphql_1.TypeNameMetaFieldDef;
-    }
-    (0, graphql_1.isObjectType)(parentType) ||
-      (0, graphql_1.isInterfaceType)(parentType) ||
-      (0, invariant_js_1.invariant)(
-        false,
-        `Invalid parent type ${(0, inspect_js_1.inspect)(parentType)}.`,
-      );
-    const fields = parentType.getFields();
-    const field = fields[fieldName];
-    if (field !== undefined) {
-      return field;
-    }
-    if (
-      parentType ===
-      this.operationContext.superSchema.mergedSchema.getQueryType()
-    ) {
-      switch (fieldName) {
-        case graphql_1.SchemaMetaFieldDef.name:
-          return graphql_1.SchemaMetaFieldDef;
-        case graphql_1.TypeMetaFieldDef.name:
-          return graphql_1.TypeMetaFieldDef;
-      }
-    }
   }
   _addFragment(parentType, node, selections, selectionMap) {
     const fragmentSelectionMap = this._processSelections(
