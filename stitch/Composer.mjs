@@ -144,7 +144,7 @@ export class Composer {
     subQueriesBySchema,
     parent,
     fieldsOrList,
-    fieldPlan,
+    subFieldPlan,
     path,
   ) {
     if (Array.isArray(fieldsOrList)) {
@@ -153,12 +153,14 @@ export class Composer {
           subQueriesBySchema,
           fieldsOrList,
           fieldsOrList[i],
-          fieldPlan,
+          subFieldPlan,
           [...path, i],
         );
       }
       return;
     }
+    // TODO: add typename selector to properly determine type
+    const fieldPlan = subFieldPlan.fieldPlans.values().next().value;
     for (const [
       subschema,
       subschemaSelections,

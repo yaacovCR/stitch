@@ -3,45 +3,44 @@ import type {
   FragmentDefinitionNode,
   GraphQLCompositeType,
   GraphQLField,
+  GraphQLObjectType,
   InlineFragmentNode,
   SelectionNode,
 } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
-import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
-import { SubFieldPlan } from './SubFieldPlan.js';
+import type { FieldPlan } from './FieldPlan.js';
 import type { OperationContext, Subschema } from './SuperSchema.js';
-export declare const createFieldPlan: (
-  a1: OperationContext,
-  a2: GraphQLCompositeType,
-  a3: readonly SelectionNode[],
-) => FieldPlan;
 /**
  * @internal
  */
-export declare class FieldPlan {
+export declare class SubFieldPlan {
   operationContext: OperationContext;
   parentType: GraphQLCompositeType;
-  selectionMap: Map<Subschema, Array<SelectionNode>>;
-  subFieldPlans: ObjMap<SubFieldPlan>;
+  ownSelections: ReadonlyArray<SelectionNode>;
+  otherSelections: ReadonlyArray<SelectionNode>;
+  fieldPlans: Map<GraphQLObjectType, FieldPlan>;
   visitedFragments: Set<string>;
+  subschema: Subschema;
+  subFieldPlans: ObjMap<SubFieldPlan>;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
+    subschema: Subschema,
   );
   _processSelections(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-  ): AccumulatorMap<Subschema, SelectionNode>;
+  ): {
+    ownSelections: Array<SelectionNode>;
+    otherSelections: Array<SelectionNode>;
+  };
   _addField(
     parentType: GraphQLCompositeType,
     field: FieldNode,
-    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
+    ownSelections: Array<SelectionNode>,
+    otherSelections: Array<SelectionNode>,
   ): void;
-  _getSubschema(
-    subschemas: Set<Subschema>,
-    selectionMap: Map<Subschema, Array<SelectionNode>>,
-  ): Subschema;
   _getFieldDef(
     parentType: GraphQLCompositeType,
     fieldName: string,
@@ -49,6 +48,7 @@ export declare class FieldPlan {
   _addFragment(
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode | FragmentDefinitionNode,
-    selectionMap: AccumulatorMap<Subschema, SelectionNode>,
+    ownSelections: Array<SelectionNode>,
+    otherSelections: Array<SelectionNode>,
   ): void;
 }

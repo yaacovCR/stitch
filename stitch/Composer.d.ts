@@ -10,6 +10,7 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 import type { FieldPlan } from './FieldPlan.js';
+import type { SubFieldPlan } from './SubFieldPlan.js';
 import type { Subschema } from './SuperSchema.js';
 type Path = ReadonlyArray<string | number>;
 interface FetchPlan {
@@ -64,14 +65,14 @@ export declare class Composer {
   _collectSubQueries(
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
-    subFieldPlans: ObjMap<FieldPlan>,
+    subFieldPlans: ObjMap<SubFieldPlan>,
     path: Path,
   ): void;
   _collectPossibleListSubQueries(
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    fieldPlan: FieldPlan,
+    subFieldPlan: SubFieldPlan,
     path: Path,
   ): void;
   _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void;

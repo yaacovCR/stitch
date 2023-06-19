@@ -1,5 +1,6 @@
 import {
   getNamedType,
+  isAbstractType,
   isCompositeType,
   isInterfaceType,
   isObjectType,
@@ -8,33 +9,62 @@ import {
   TypeMetaFieldDef,
   TypeNameMetaFieldDef,
 } from 'graphql';
-import { AccumulatorMap } from '../utilities/AccumulatorMap.mjs';
+import { collectSubFields } from '../utilities/collectSubFields.mjs';
 import { inspect } from '../utilities/inspect.mjs';
 import { invariant } from '../utilities/invariant.mjs';
-import { memoize3 } from '../utilities/memoize3.mjs';
-import { SubFieldPlan } from './SubFieldPlan.mjs';
-export const createFieldPlan = memoize3(
-  (operationContext, parentType, selections) =>
-    new FieldPlan(operationContext, parentType, selections),
-);
+import { createFieldPlan } from './FieldPlan.mjs';
 /**
  * @internal
  */
-export class FieldPlan {
-  constructor(operationContext, parentType, selections) {
+export class SubFieldPlan {
+  constructor(operationContext, parentType, selections, subschema) {
     this.operationContext = operationContext;
     this.parentType = parentType;
-    this.subFieldPlans = Object.create(null);
     this.visitedFragments = new Set();
-    const selectionMap = this._processSelections(this.parentType, selections);
-    this.selectionMap = selectionMap;
+    this.subschema = subschema;
+    this.subFieldPlans = Object.create(null);
+    const { ownSelections, otherSelections } = this._processSelections(
+      this.parentType,
+      selections,
+    );
+    this.ownSelections = ownSelections;
+    this.otherSelections = otherSelections;
+    let possibleTypes;
+    if (isAbstractType(parentType)) {
+      possibleTypes =
+        this.operationContext.superSchema.mergedSchema.getPossibleTypes(
+          parentType,
+        );
+    } else {
+      possibleTypes = [parentType];
+    }
+    this.fieldPlans = new Map();
+    for (const type of possibleTypes) {
+      const fieldNodes = collectSubFields(
+        this.operationContext,
+        type,
+        otherSelections,
+      );
+      const fieldPlan = createFieldPlan(
+        this.operationContext,
+        type,
+        fieldNodes,
+      );
+      if (
+        fieldPlan.selectionMap.size > 0 ||
+        Object.values(fieldPlan.subFieldPlans).length > 0
+      ) {
+        this.fieldPlans.set(type, fieldPlan);
+      }
+    }
   }
   _processSelections(parentType, selections) {
-    const selectionMap = new AccumulatorMap();
+    const ownSelections = [];
+    const otherSelections = [];
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addField(parentType, selection, selectionMap);
+          this._addField(parentType, selection, ownSelections, otherSelections);
           break;
         }
         case Kind.INLINE_FRAGMENT: {
@@ -45,7 +75,12 @@ export class FieldPlan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addFragment(refinedType, selection, selectionMap);
+          this._addFragment(
+            refinedType,
+            selection,
+            ownSelections,
+            otherSelections,
+          );
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
@@ -62,25 +97,36 @@ export class FieldPlan {
               : parentType;
           isCompositeType(refinedType) ||
             invariant(false, `Invalid type condition ${inspect(refinedType)}`);
-          this._addFragment(refinedType, fragment, selectionMap);
+          this._addFragment(
+            refinedType,
+            fragment,
+            ownSelections,
+            otherSelections,
+          );
           break;
         }
       }
     }
-    return selectionMap;
+    return {
+      ownSelections,
+      otherSelections,
+    };
   }
-  _addField(parentType, field, selectionMap) {
+  _addField(parentType, field, ownSelections, otherSelections) {
     const subschemaSetsByField =
       this.operationContext.superSchema.subschemaSetsByTypeAndField[
         parentType.name
       ];
-    const subschemaSets = subschemaSetsByField[field.name.value];
-    if (subschemaSets === undefined) {
+    const subschemaSet = subschemaSetsByField[field.name.value];
+    if (subschemaSet === undefined) {
       return;
     }
-    const subschema = this._getSubschema(subschemaSets, selectionMap);
     if (!field.selectionSet) {
-      selectionMap.add(subschema, field);
+      if (subschemaSet.has(this.subschema)) {
+        ownSelections.push(field);
+      } else {
+        otherSelections.push(field);
+      }
       return;
     }
     const fieldName = field.name.value;
@@ -93,10 +139,10 @@ export class FieldPlan {
       this.operationContext,
       getNamedType(fieldType),
       field.selectionSet.selections,
-      subschema,
+      this.subschema,
     );
     if (subFieldPlan.ownSelections.length) {
-      selectionMap.add(subschema, {
+      ownSelections.push({
         ...field,
         selectionSet: {
           kind: Kind.SELECTION_SET,
@@ -104,23 +150,15 @@ export class FieldPlan {
         },
       });
     }
-    if (
-      subFieldPlan.fieldPlans.size > 0 ||
-      Object.values(subFieldPlan.subFieldPlans).length > 0
-    ) {
-      const responseKey = field.alias?.value ?? field.name.value;
-      this.subFieldPlans[responseKey] = subFieldPlan;
+    if (subFieldPlan.otherSelections.length) {
+      otherSelections.push({
+        ...field,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: subFieldPlan.otherSelections,
+        },
+      });
     }
-  }
-  _getSubschema(subschemas, selectionMap) {
-    let selections;
-    for (const subschema of subschemas) {
-      selections = selectionMap.get(subschema);
-      if (selections) {
-        return subschema;
-      }
-    }
-    return subschemas.values().next().value;
   }
   _getFieldDef(parentType, fieldName) {
     if (fieldName === '__typename') {
@@ -146,23 +184,30 @@ export class FieldPlan {
       }
     }
   }
-  _addFragment(parentType, fragment, selectionMap) {
-    const fragmentSelectionMap = this._processSelections(
-      parentType,
-      fragment.selectionSet.selections,
-    );
-    for (const [
-      fragmentSubschema,
-      fragmentSelections,
-    ] of fragmentSelectionMap) {
+  _addFragment(parentType, fragment, ownSelections, otherSelections) {
+    const {
+      ownSelections: fragmentOwnSelections,
+      otherSelections: fragmentOtherSelections,
+    } = this._processSelections(parentType, fragment.selectionSet.selections);
+    if (fragmentOwnSelections.length > 0) {
       const splitFragment = {
         kind: Kind.INLINE_FRAGMENT,
         selectionSet: {
           kind: Kind.SELECTION_SET,
-          selections: fragmentSelections,
+          selections: fragmentOwnSelections,
         },
       };
-      selectionMap.add(fragmentSubschema, splitFragment);
+      ownSelections.push(splitFragment);
+    }
+    if (fragmentOtherSelections.length > 0) {
+      const splitFragment = {
+        kind: Kind.INLINE_FRAGMENT,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: fragmentOtherSelections,
+        },
+      };
+      otherSelections.push(splitFragment);
     }
   }
 }
