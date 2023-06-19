@@ -220,6 +220,85 @@ describe('FieldPlan', () => {
     `);
   });
 
+  it('works to split sub-subfields when using inline fragments', () => {
+    const someSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        someField: SomeNestedObject
+      }
+
+      type SomeNestedObject {
+        someNestedField: String
+      }
+    `);
+
+    const anotherSchema = buildSchema(`
+      type Query {
+        someObject: SomeObject
+      }
+
+      type SomeObject {
+        someField: SomeNestedObject
+      }
+
+      type SomeNestedObject {
+        anotherNestedField: String
+      }
+    `);
+
+    const someSubschema = getSubschema(someSchema);
+    const anotherSubschema = getSubschema(anotherSchema);
+    const superSchema = new SuperSchema([someSubschema, anotherSubschema]);
+
+    const operation = parse(
+      `{
+        someObject {
+          someField {
+            someNestedField
+          }
+        }
+        ... {
+          someObject {
+            ... {
+              someField {
+                ... {
+                  anotherNestedField  
+                }
+              }
+            }
+          }
+        }
+      }`,
+      { noLocation: true },
+    ).definitions[0] as OperationDefinitionNode;
+
+    const fieldPlan = createFieldPlan(superSchema, operation);
+
+    expect(printPlan(fieldPlan)).to.equal(dedent`
+      Map:
+        Subschema 0:
+          {
+            someObject {
+              someField {
+                someNestedField
+              }
+            }
+          }
+      SubFieldPlan for 'someObject':
+        Plan for type 'SomeObject':
+          SubFieldPlan for 'someField':
+            Plan for type 'SomeNestedObject':
+              Map:
+                Subschema 1:
+                  {
+                    anotherNestedField
+                  }
+    `);
+  });
+
   it('works to split fields with subfields', () => {
     const someSchema = buildSchema(`
       type Query {
