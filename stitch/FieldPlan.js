@@ -15,11 +15,12 @@ exports.createFieldPlan = (0, memoize3_js_1.memoize3)(
  * @internal
  */
 class FieldPlan {
-  constructor(operationContext, parentType, selections) {
+  constructor(operationContext, parentType, selections, nested = 0) {
     this.operationContext = operationContext;
     this.superSchema = operationContext.superSchema;
     this.subFieldPlans = Object.create(null);
     this.visitedFragments = new Set();
+    this.nested = nested;
     const selectionMap = this._processSelections(parentType, selections);
     this.selectionMap = selectionMap;
   }
@@ -106,6 +107,7 @@ class FieldPlan {
       (0, graphql_1.getNamedType)(fieldType),
       field.selectionSet.selections,
       subschema,
+      this.nested,
     );
     if (subFieldPlan.ownSelections.length) {
       selectionMap.add(subschema, {

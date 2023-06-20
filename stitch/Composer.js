@@ -5,6 +5,8 @@ const graphql_1 = require('graphql');
 const isObjectLike_js_1 = require('../predicates/isObjectLike.js');
 const isPromise_js_1 = require('../predicates/isPromise.js');
 const AccumulatorMap_js_1 = require('../utilities/AccumulatorMap.js');
+const inspect_js_1 = require('../utilities/inspect.js');
+const invariant_js_1 = require('../utilities/invariant.js');
 const PromiseAggregator_js_1 = require('../utilities/PromiseAggregator.js');
 /**
  * @internal
@@ -164,8 +166,25 @@ class Composer {
       }
       return;
     }
-    // TODO: add typename selector to properly determine type
-    const fieldPlan = subFieldPlan.fieldPlans.values().next().value;
+    const typeName = fieldsOrList.__stitching__typename;
+    typeName != null ||
+      (0, invariant_js_1.invariant)(
+        false,
+        `Missing entry '__stitching__typename' in response ${(0,
+        inspect_js_1.inspect)(fieldsOrList)}.`,
+      );
+    const type = subFieldPlan.superSchema.getType(typeName);
+    (0, graphql_1.isObjectType)(type) ||
+      (0, invariant_js_1.invariant)(
+        false,
+        `Expected Object type, received '${typeName}'.`,
+      );
+    const fieldPlan = subFieldPlan.fieldPlans.get(type);
+    fieldPlan !== undefined ||
+      (0, invariant_js_1.invariant)(
+        false,
+        `Missing field plan for type '${typeName}'.`,
+      );
     for (const [
       subschema,
       subschemaSelections,

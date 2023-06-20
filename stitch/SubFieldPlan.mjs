@@ -1,17 +1,24 @@
-import { getNamedType, isAbstractType, isCompositeType, Kind } from 'graphql';
+import {
+  getNamedType,
+  isAbstractType,
+  isCompositeType,
+  Kind,
+  TypeNameMetaFieldDef,
+} from 'graphql';
 import { collectSubFields } from '../utilities/collectSubFields.mjs';
 import { inspect } from '../utilities/inspect.mjs';
 import { invariant } from '../utilities/invariant.mjs';
-import { createFieldPlan } from './FieldPlan.mjs';
+import { FieldPlan } from './FieldPlan.mjs';
 /**
  * @internal
  */
 export class SubFieldPlan {
-  constructor(operationContext, parentType, selections, subschema) {
+  constructor(operationContext, parentType, selections, subschema, nested) {
     this.operationContext = operationContext;
     this.superSchema = operationContext.superSchema;
     this.visitedFragments = new Set();
     this.subschema = subschema;
+    this.nested = nested;
     const { ownSelections, otherSelections } = this._processSelections(
       parentType,
       selections,
@@ -31,10 +38,11 @@ export class SubFieldPlan {
         type,
         otherSelections,
       );
-      const fieldPlan = createFieldPlan(
+      const fieldPlan = new FieldPlan(
         this.operationContext,
         type,
         fieldNodes,
+        nested + 1,
       );
       if (
         fieldPlan.selectionMap.size > 0 ||
@@ -42,6 +50,19 @@ export class SubFieldPlan {
       ) {
         this.fieldPlans.set(type, fieldPlan);
       }
+    }
+    if (this.nested < 1 && this.fieldPlans.size > 0) {
+      ownSelections.push({
+        kind: Kind.FIELD,
+        name: {
+          kind: Kind.NAME,
+          value: TypeNameMetaFieldDef.name,
+        },
+        alias: {
+          kind: Kind.NAME,
+          value: '__stitching__typename',
+        },
+      });
     }
   }
   _processSelections(parentType, selections) {
@@ -128,6 +149,7 @@ export class SubFieldPlan {
       getNamedType(fieldType),
       field.selectionSet.selections,
       this.subschema,
+      this.nested,
     );
     if (subFieldPlan.ownSelections.length) {
       ownSelections.push({

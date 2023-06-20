@@ -6,7 +6,7 @@ import type {
   InlineFragmentNode,
   SelectionNode,
 } from 'graphql';
-import type { FieldPlan } from './FieldPlan.js';
+import { FieldPlan } from './FieldPlan.js';
 import type {
   OperationContext,
   Subschema,
@@ -23,11 +23,13 @@ export declare class SubFieldPlan {
   fieldPlans: Map<GraphQLObjectType, FieldPlan>;
   visitedFragments: Set<string>;
   subschema: Subschema;
+  nested: number;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
+    nested: number,
   );
   _processSelections(
     parentType: GraphQLCompositeType,

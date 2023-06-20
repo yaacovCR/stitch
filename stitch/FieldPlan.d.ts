@@ -27,10 +27,12 @@ export declare class FieldPlan {
   selectionMap: Map<Subschema, Array<SelectionNode>>;
   subFieldPlans: ObjMap<SubFieldPlan>;
   visitedFragments: Set<string>;
+  nested: number;
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
+    nested?: number,
   );
   _processSelections(
     parentType: GraphQLCompositeType,

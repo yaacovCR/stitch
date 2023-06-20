@@ -10,11 +10,12 @@ const FieldPlan_js_1 = require('./FieldPlan.js');
  * @internal
  */
 class SubFieldPlan {
-  constructor(operationContext, parentType, selections, subschema) {
+  constructor(operationContext, parentType, selections, subschema, nested) {
     this.operationContext = operationContext;
     this.superSchema = operationContext.superSchema;
     this.visitedFragments = new Set();
     this.subschema = subschema;
+    this.nested = nested;
     const { ownSelections, otherSelections } = this._processSelections(
       parentType,
       selections,
@@ -34,10 +35,11 @@ class SubFieldPlan {
         type,
         otherSelections,
       );
-      const fieldPlan = (0, FieldPlan_js_1.createFieldPlan)(
+      const fieldPlan = new FieldPlan_js_1.FieldPlan(
         this.operationContext,
         type,
         fieldNodes,
+        nested + 1,
       );
       if (
         fieldPlan.selectionMap.size > 0 ||
@@ -45,6 +47,19 @@ class SubFieldPlan {
       ) {
         this.fieldPlans.set(type, fieldPlan);
       }
+    }
+    if (this.nested < 1 && this.fieldPlans.size > 0) {
+      ownSelections.push({
+        kind: graphql_1.Kind.FIELD,
+        name: {
+          kind: graphql_1.Kind.NAME,
+          value: graphql_1.TypeNameMetaFieldDef.name,
+        },
+        alias: {
+          kind: graphql_1.Kind.NAME,
+          value: '__stitching__typename',
+        },
+      });
     }
   }
   _processSelections(parentType, selections) {
@@ -141,6 +156,7 @@ class SubFieldPlan {
       (0, graphql_1.getNamedType)(fieldType),
       field.selectionSet.selections,
       this.subschema,
+      this.nested,
     );
     if (subFieldPlan.ownSelections.length) {
       ownSelections.push({

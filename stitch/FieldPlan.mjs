@@ -12,11 +12,12 @@ export const createFieldPlan = memoize3(
  * @internal
  */
 export class FieldPlan {
-  constructor(operationContext, parentType, selections) {
+  constructor(operationContext, parentType, selections, nested = 0) {
     this.operationContext = operationContext;
     this.superSchema = operationContext.superSchema;
     this.subFieldPlans = Object.create(null);
     this.visitedFragments = new Set();
+    this.nested = nested;
     const selectionMap = this._processSelections(parentType, selections);
     this.selectionMap = selectionMap;
   }
@@ -93,6 +94,7 @@ export class FieldPlan {
       getNamedType(fieldType),
       field.selectionSet.selections,
       subschema,
+      this.nested,
     );
     if (subFieldPlan.ownSelections.length) {
       selectionMap.add(subschema, {
