@@ -260,7 +260,7 @@ module.exports = {
     'accessor-pairs': 'error',
     'arrow-body-style': 'error',
     'block-scoped-var': 'error',
-    camelcase: 'error',
+    camelcase: 'off', // TODO: re-enable
     'capitalized-comments': 'off', // TODO: consider
     'class-methods-use-this': 'off',
     complexity: 'off',

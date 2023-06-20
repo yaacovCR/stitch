@@ -144,6 +144,7 @@ describe('FieldPlan', () => {
           {
             someObject {
               someField
+              __stitching__typename: __typename
             }
           }
       SubFieldPlan for 'someObject':
@@ -205,7 +206,9 @@ describe('FieldPlan', () => {
             someObject {
               someField {
                 someNestedField
+                __stitching__typename: __typename
               }
+              __stitching__typename: __typename
             }
           }
       SubFieldPlan for 'someObject':
@@ -286,6 +289,16 @@ describe('FieldPlan', () => {
                 someNestedField
               }
             }
+            ... {
+              someObject {
+                ... {
+                  someField {
+                    __stitching__typename: __typename
+                  }
+                }
+                __stitching__typename: __typename
+              }
+            }
           }
       SubFieldPlan for 'someObject':
         Plan for type 'SomeObject':
@@ -352,6 +365,10 @@ describe('FieldPlan', () => {
               someField {
                 someField
               }
+              anotherField {
+                __stitching__typename: __typename
+              }
+              __stitching__typename: __typename
             }
           }
       SubFieldPlan for 'someObject':
