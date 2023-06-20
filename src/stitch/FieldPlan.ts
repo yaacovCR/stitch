@@ -39,16 +39,19 @@ export class FieldPlan {
   selectionMap: Map<Subschema, Array<SelectionNode>>;
   subFieldPlans: ObjMap<SubFieldPlan>;
   visitedFragments: Set<string>;
+  nested: number;
 
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
+    nested = 0,
   ) {
     this.operationContext = operationContext;
     this.superSchema = operationContext.superSchema;
     this.subFieldPlans = Object.create(null);
     this.visitedFragments = new Set();
+    this.nested = nested;
 
     const selectionMap = this._processSelections(parentType, selections);
     this.selectionMap = selectionMap;
@@ -154,6 +157,7 @@ export class FieldPlan {
       getNamedType(fieldType) as GraphQLObjectType,
       field.selectionSet.selections,
       subschema,
+      this.nested,
     );
 
     if (subFieldPlan.ownSelections.length) {

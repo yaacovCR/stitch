@@ -6,14 +6,19 @@ import type {
   InlineFragmentNode,
   SelectionNode,
 } from 'graphql';
-import { getNamedType, isAbstractType, isCompositeType, Kind } from 'graphql';
+import {
+  getNamedType,
+  isAbstractType,
+  isCompositeType,
+  Kind,
+  TypeNameMetaFieldDef,
+} from 'graphql';
 
 import { collectSubFields } from '../utilities/collectSubFields.js';
 import { inspect } from '../utilities/inspect.js';
 import { invariant } from '../utilities/invariant.js';
 
-import type { FieldPlan } from './FieldPlan.js';
-import { createFieldPlan } from './FieldPlan.js';
+import { FieldPlan } from './FieldPlan.js';
 import type {
   OperationContext,
   Subschema,
@@ -31,17 +36,20 @@ export class SubFieldPlan {
   fieldPlans: Map<GraphQLObjectType, FieldPlan>;
   visitedFragments: Set<string>;
   subschema: Subschema;
+  nested: number;
 
   constructor(
     operationContext: OperationContext,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
+    nested: number,
   ) {
     this.operationContext = operationContext;
     this.superSchema = operationContext.superSchema;
     this.visitedFragments = new Set();
     this.subschema = subschema;
+    this.nested = nested;
 
     const { ownSelections, otherSelections } = this._processSelections(
       parentType,
@@ -64,10 +72,11 @@ export class SubFieldPlan {
         type,
         otherSelections,
       );
-      const fieldPlan = createFieldPlan(
+      const fieldPlan = new FieldPlan(
         this.operationContext,
         type,
         fieldNodes,
+        nested + 1,
       );
       if (
         fieldPlan.selectionMap.size > 0 ||
@@ -75,6 +84,20 @@ export class SubFieldPlan {
       ) {
         this.fieldPlans.set(type, fieldPlan);
       }
+    }
+
+    if (this.nested < 1 && this.fieldPlans.size > 0) {
+      ownSelections.push({
+        kind: Kind.FIELD,
+        name: {
+          kind: Kind.NAME,
+          value: TypeNameMetaFieldDef.name,
+        },
+        alias: {
+          kind: Kind.NAME,
+          value: '__stitching__typename',
+        },
+      });
     }
   }
 
@@ -192,6 +215,7 @@ export class SubFieldPlan {
       getNamedType(fieldType) as GraphQLObjectType,
       field.selectionSet.selections,
       this.subschema,
+      this.nested,
     );
 
     if (subFieldPlan.ownSelections.length) {

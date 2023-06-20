@@ -4,7 +4,7 @@ import type {
   FragmentDefinitionNode,
   SelectionNode,
 } from 'graphql';
-import { GraphQLError, Kind, OperationTypeNode } from 'graphql';
+import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
@@ -13,6 +13,8 @@ import { isObjectLike } from '../predicates/isObjectLike.js';
 import { isPromise } from '../predicates/isPromise.js';
 
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
+import { inspect } from '../utilities/inspect.js';
+import { invariant } from '../utilities/invariant.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 
 import type { FieldPlan } from './FieldPlan.js';
@@ -242,9 +244,31 @@ export class Composer {
       return;
     }
 
-    // TODO: add typename selector to properly determine type
-    const fieldPlan = subFieldPlan.fieldPlans.values().next()
-      .value as FieldPlan;
+    const typeName = fieldsOrList.__stitching__typename as
+      | string
+      | undefined
+      | null;
+
+    invariant(
+      typeName != null,
+      `Missing entry '__stitching__typename' in response ${inspect(
+        fieldsOrList,
+      )}.`,
+    );
+
+    const type = subFieldPlan.superSchema.getType(typeName);
+
+    invariant(
+      isObjectType(type),
+      `Expected Object type, received '${typeName}'.`,
+    );
+
+    const fieldPlan = subFieldPlan.fieldPlans.get(type);
+
+    invariant(
+      fieldPlan !== undefined,
+      `Missing field plan for type '${typeName}'.`,
+    );
 
     for (const [
       subschema,
