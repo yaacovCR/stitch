@@ -57,7 +57,7 @@ function applyDirectivesToSelection(
     return node;
   }
 
-  let newDirectives = emptyArray as Array<DirectiveNode>;
+  let newDirectives = emptyArray as ReadonlyArray<DirectiveNode>;
 
   for (const directive of directives) {
     const directiveName = directive.name.value;
