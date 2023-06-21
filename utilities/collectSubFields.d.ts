@@ -5,6 +5,6 @@ export declare function collectSubFields(
   operationContext: OperationContext,
   runtimeType: GraphQLObjectType,
   selections: ReadonlyArray<SelectionNode>,
-  fieldNodes?: FieldNode[],
+  fieldNodes?: readonly FieldNode[],
   visitedFragmentNames?: Set<string>,
 ): ReadonlyArray<FieldNode>;

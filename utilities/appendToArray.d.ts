@@ -1,2 +1,5 @@
-export declare const emptyArray: Array<object>;
-export declare const appendToArray: <T extends object>(a1: T[], a2: T) => T[];
+export declare const emptyArray: ReadonlyArray<object>;
+export declare const appendToArray: <T extends object>(
+  a1: readonly T[],
+  a2: T,
+) => T[];
