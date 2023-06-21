@@ -350,7 +350,7 @@ export function visitWithMemo(
       parent = ancestors.pop();
       if (isEdited) {
         if (inArray) {
-          let arr: Array<any> = emptyArray;
+          let arr: ReadonlyArray<any> = emptyArray;
           for (let arrIndex = 0; arrIndex < node.length; arrIndex++) {
             const editValue = edits.get(arrIndex);
             if (editValue === undefined) {

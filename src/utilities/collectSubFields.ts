@@ -18,7 +18,7 @@ export function collectSubFields(
   operationContext: OperationContext,
   runtimeType: GraphQLObjectType,
   selections: ReadonlyArray<SelectionNode>,
-  fieldNodes = emptyArray as Array<FieldNode>,
+  fieldNodes = emptyArray as ReadonlyArray<FieldNode>,
   visitedFragmentNames = new Set<string>(),
 ): ReadonlyArray<FieldNode> {
   let newFieldNodes: ReadonlyArray<FieldNode> = fieldNodes;
