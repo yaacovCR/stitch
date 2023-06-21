@@ -1,15 +1,22 @@
 import { expect } from 'chai';
 import type { GraphQLSchema, OperationDefinitionNode } from 'graphql';
-import { buildSchema, execute, OperationTypeNode, parse } from 'graphql';
+import {
+  buildSchema,
+  execute,
+  GraphQLError,
+  OperationTypeNode,
+  parse,
+} from 'graphql';
 import { describe, it } from 'mocha';
 
 import { dedent } from '../../__testUtils__/dedent.js';
 
 import { invariant } from '../../utilities/invariant.js';
 
-import { FieldPlan } from '../FieldPlan.js';
+import type { FieldPlan } from '../Planner.js';
+import { Planner } from '../Planner.js';
 import { printPlan } from '../printPlan.js';
-import type { OperationContext, Subschema } from '../SuperSchema.js';
+import type { Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
 function getSubschema(schema: GraphQLSchema): Subschema {
@@ -31,11 +38,13 @@ function createFieldPlan(
 
   invariant(queryType !== undefined);
 
-  return new FieldPlan(
-    { superSchema, fragmentMap: {} } as OperationContext,
-    queryType,
-    operation.selectionSet.selections,
-  );
+  const planner = new Planner(superSchema, operation, [], {}, []);
+
+  const fieldPlan = planner.createRootFieldPlan();
+
+  invariant(!(fieldPlan instanceof GraphQLError));
+
+  return fieldPlan;
 }
 
 describe('FieldPlan', () => {
@@ -147,7 +156,7 @@ describe('FieldPlan', () => {
               __stitching__typename: __typename
             }
           }
-      SubFieldPlan for 'someObject':
+      StitchTree for 'someObject':
         Plan for type 'SomeObject':
           Map:
             Subschema 1:
@@ -211,9 +220,9 @@ describe('FieldPlan', () => {
               __stitching__typename: __typename
             }
           }
-      SubFieldPlan for 'someObject':
+      StitchTree for 'someObject':
         Plan for type 'SomeObject':
-          SubFieldPlan for 'someField':
+          StitchTree for 'someField':
             Plan for type 'SomeNestedObject':
               Map:
                 Subschema 1:
@@ -300,9 +309,9 @@ describe('FieldPlan', () => {
               }
             }
           }
-      SubFieldPlan for 'someObject':
+      StitchTree for 'someObject':
         Plan for type 'SomeObject':
-          SubFieldPlan for 'someField':
+          StitchTree for 'someField':
             Plan for type 'SomeNestedObject':
               Map:
                 Subschema 1:
@@ -371,7 +380,7 @@ describe('FieldPlan', () => {
               __stitching__typename: __typename
             }
           }
-      SubFieldPlan for 'someObject':
+      StitchTree for 'someObject':
         Plan for type 'SomeObject':
           Map:
             Subschema 1:

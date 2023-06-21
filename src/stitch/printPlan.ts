@@ -1,20 +1,19 @@
 import type { SelectionNode, SelectionSetNode } from 'graphql';
 import { Kind, print } from 'graphql';
 
-import type { FieldPlan } from './FieldPlan';
-import type { SubFieldPlan } from './SubFieldPlan';
-import type { Subschema, SuperSchema } from './SuperSchema';
+import type { FieldPlan, StitchTree } from './Planner.js';
+import type { Subschema, SuperSchema } from './SuperSchema.js';
 
 export function printPlan(plan: FieldPlan, indent = 0): string {
-  const superSchema = plan.operationContext.superSchema;
+  const superSchema = plan.superSchema;
   const entries = [];
   if (plan.selectionMap.size > 0) {
     entries.push(printMap(superSchema, plan.selectionMap, indent));
   }
 
-  const subFieldPlans = Array.from(Object.entries(plan.subFieldPlans));
-  if (subFieldPlans.length > 0) {
-    entries.push(printSubFieldPlans(subFieldPlans, indent));
+  const stitchTrees = Array.from(Object.entries(plan.stitchTrees));
+  if (stitchTrees.length > 0) {
+    entries.push(printStitchTrees(stitchTrees, indent));
   }
 
   return entries.join('\n');
@@ -55,35 +54,35 @@ function printSubschemaSelections(
   return result;
 }
 
-function printSubFieldPlans(
-  subFieldPlans: ReadonlyArray<[string, SubFieldPlan]>,
+function printStitchTrees(
+  stitchTrees: ReadonlyArray<[string, StitchTree]>,
   indent: number,
 ): string {
-  return subFieldPlans
-    .map(([responseKey, subFieldPlan]) =>
-      printSubFieldPlan(responseKey, subFieldPlan, indent),
+  return stitchTrees
+    .map(([responseKey, stitchTree]) =>
+      printStitchTree(responseKey, stitchTree, indent),
     )
     .join('\n');
 }
 
-function printSubFieldPlan(
+function printStitchTree(
   responseKey: string,
-  subFieldPlan: SubFieldPlan,
+  stitchTree: StitchTree,
   indent: number,
 ): string {
   const spaces = new Array(indent).fill(' ', 0, indent).join('');
-  let subFieldPlanEntry = '';
-  subFieldPlanEntry += `${spaces}SubFieldPlan for '${responseKey}':\n`;
+  let stitchTreeEntry = '';
+  stitchTreeEntry += `${spaces}StitchTree for '${responseKey}':\n`;
 
   const entries = [];
-  for (const [type, fieldPlan] of subFieldPlan.fieldPlans.entries()) {
+  for (const [type, fieldPlan] of stitchTree.fieldPlans.entries()) {
     let entry = `${spaces}  Plan for type '${type.name}':\n`;
     entry += printPlan(fieldPlan, indent + 4);
     entries.push(entry);
   }
 
-  subFieldPlanEntry += entries.join('\n');
-  return subFieldPlanEntry;
+  stitchTreeEntry += entries.join('\n');
+  return stitchTreeEntry;
 }
 
 function printSelectionSet(

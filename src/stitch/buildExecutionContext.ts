@@ -9,8 +9,18 @@ import type { ObjMap } from '../types/ObjMap.js';
 
 import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.js';
 
-import type { ExecutionContext, Subschema } from './SuperSchema.js';
+import { Planner } from './Planner.js';
+import type { Subschema } from './SuperSchema.js';
 import { SuperSchema } from './SuperSchema.js';
+
+export interface ExecutionContext {
+  superSchema: SuperSchema;
+  operation: OperationDefinitionNode;
+  fragments: Array<FragmentDefinitionNode>;
+  planner: Planner;
+  rawVariableValues: { readonly [variable: string]: unknown } | undefined;
+  coercedVariableValues: { [variable: string]: unknown };
+}
 
 export interface ExecutionArgs {
   subschemas: ReadonlyArray<Subschema>;
@@ -95,13 +105,16 @@ export function buildExecutionContext(
   });
 
   return {
-    operationContext: {
+    superSchema,
+    operation,
+    fragments,
+    planner: new Planner(
       superSchema,
       operation,
       fragments,
       fragmentMap,
       variableDefinitions,
-    },
+    ),
     rawVariableValues,
     coercedVariableValues: coerced,
   };

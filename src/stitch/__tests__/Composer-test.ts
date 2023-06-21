@@ -5,15 +5,22 @@ import type {
   GraphQLSchema,
   OperationDefinitionNode,
 } from 'graphql';
-import { buildSchema, execute, Kind, OperationTypeNode, parse } from 'graphql';
+import {
+  buildSchema,
+  execute,
+  GraphQLError,
+  Kind,
+  OperationTypeNode,
+  parse,
+} from 'graphql';
 import type { PromiseOrValue } from 'graphql/jsutils/PromiseOrValue.js';
 import { describe, it } from 'mocha';
 
 import { invariant } from '../../utilities/invariant.js';
 
 import { Composer } from '../Composer.js';
-import { FieldPlan } from '../FieldPlan.js';
-import type { OperationContext, Subschema } from '../SuperSchema.js';
+import { Planner } from '../Planner.js';
+import type { Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
 function getSubschema(schema: GraphQLSchema, rootValue: unknown): Subschema {
@@ -36,11 +43,15 @@ function executeWithComposer(
 
   invariant(queryType !== undefined);
 
-  const fieldPlan = new FieldPlan(
-    { superSchema, fragmentMap: {} } as OperationContext,
-    queryType,
-    operation.selectionSet.selections,
-  );
+  const fieldPlan = new Planner(
+    superSchema,
+    operation,
+    [],
+    {},
+    [],
+  ).createRootFieldPlan();
+
+  invariant(!(fieldPlan instanceof GraphQLError));
 
   const results: Array<PromiseOrValue<ExecutionResult>> = [];
 
@@ -68,7 +79,7 @@ function executeWithComposer(
     );
   }
 
-  const composer = new Composer(results, fieldPlan, [], undefined);
+  const composer = new Composer(superSchema, results, fieldPlan, [], undefined);
 
   return composer.compose();
 }

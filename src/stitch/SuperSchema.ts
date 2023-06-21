@@ -2,7 +2,6 @@ import type {
   DirectiveLocation,
   DocumentNode,
   ExecutionResult,
-  FragmentDefinitionNode,
   GraphQLAbstractType,
   GraphQLArgument,
   GraphQLArgumentConfig,
@@ -23,7 +22,6 @@ import type {
   ListTypeNode,
   NamedTypeNode,
   NonNullTypeNode,
-  OperationDefinitionNode,
   TypeNode,
   VariableDefinitionNode,
 } from 'graphql';
@@ -60,20 +58,6 @@ import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { inspect } from '../utilities/inspect.js';
 import { printPathArray } from '../utilities/printPathArray.js';
-
-export interface OperationContext {
-  superSchema: SuperSchema;
-  operation: OperationDefinitionNode;
-  fragments: Array<FragmentDefinitionNode>;
-  fragmentMap: ObjMap<FragmentDefinitionNode>;
-  variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
-}
-
-export interface ExecutionContext {
-  operationContext: OperationContext;
-  rawVariableValues: { readonly [variable: string]: unknown } | undefined;
-  coercedVariableValues: { [variable: string]: unknown };
-}
 
 type CoercedVariableValues =
   | { errors: ReadonlyArray<GraphQLError>; coerced?: never }
