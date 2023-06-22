@@ -12,7 +12,6 @@ import { invariant } from '../utilities/invariant.js';
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
 import { Composer } from './Composer.js';
-import { createFieldPlan } from './FieldPlan.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
 
 export function subscribe(
@@ -23,30 +22,18 @@ export function subscribe(
   const exeContext = buildExecutionContext(args);
 
   // Return early errors if execution context failed.
-  if (!('operationContext' in exeContext)) {
+  if (!('planner' in exeContext)) {
     return { errors: exeContext };
   }
 
-  const { operationContext, rawVariableValues } = exeContext;
-  const { superSchema, operation, fragments } = operationContext;
+  const { superSchema, operation, fragments, planner, rawVariableValues } =
+    exeContext;
   invariant(operation.operation === OperationTypeNode.SUBSCRIPTION);
 
-  const rootType = superSchema.getRootType(operation.operation);
-
-  if (rootType == null) {
-    const error = new GraphQLError(
-      'Schema is not configured to execute subscription operation.',
-      { nodes: operation },
-    );
-
-    return { errors: [error] };
+  const fieldPlan = planner.createRootFieldPlan();
+  if (fieldPlan instanceof GraphQLError) {
+    return { errors: [fieldPlan] };
   }
-
-  const fieldPlan = createFieldPlan(
-    operationContext,
-    rootType,
-    operation.selectionSet.selections,
-  );
 
   const iteration = fieldPlan.selectionMap.entries().next();
   if (iteration.done) {
@@ -93,6 +80,7 @@ export function subscribe(
       if (isAsyncIterable(resolved)) {
         return mapAsyncIterable(resolved, (payload) => {
           const composer = new Composer(
+            superSchema,
             [payload],
             fieldPlan,
             fragments,
@@ -109,6 +97,7 @@ export function subscribe(
   if (isAsyncIterable(result)) {
     return mapAsyncIterable(result, (payload) => {
       const composer = new Composer(
+        superSchema,
         [payload],
         fieldPlan,
         fragments,
