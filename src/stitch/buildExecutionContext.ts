@@ -5,8 +5,6 @@ import type {
 } from 'graphql';
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 
-import type { ObjMap } from '../types/ObjMap.js';
-
 import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.js';
 
 import { Planner } from './Planner.js';
@@ -47,7 +45,7 @@ export function buildExecutionContext(
   const superSchema = new SuperSchema(subschemas);
 
   let operation: OperationDefinitionNode | undefined;
-  let fragments: Array<FragmentDefinitionNode> = [];
+  const fragments: Array<FragmentDefinitionNode> = [];
   for (const definition of document.definitions) {
     switch (definition.kind) {
       case Kind.OPERATION_DEFINITION:
@@ -97,13 +95,6 @@ export function buildExecutionContext(
 
   operation = applySkipIncludeDirectives(operation, coerced);
 
-  const fragmentMap: ObjMap<FragmentDefinitionNode> = Object.create(null);
-  fragments = fragments.map((fragment) => {
-    const processedFragment = applySkipIncludeDirectives(fragment, coerced);
-    fragmentMap[fragment.name.value] = processedFragment;
-    return processedFragment;
-  });
-
   return {
     superSchema,
     operation,
@@ -112,7 +103,6 @@ export function buildExecutionContext(
       superSchema,
       operation,
       fragments,
-      fragmentMap,
       variableDefinitions,
     ),
     rawVariableValues,
