@@ -9,7 +9,8 @@ import { PromiseAggregator } from '../utilities/PromiseAggregator.mjs';
  * @internal
  */
 export class Composer {
-  constructor(results, fieldPlan, fragments, rawVariableValues) {
+  constructor(superSchema, results, fieldPlan, fragments, rawVariableValues) {
+    this.superSchema = superSchema;
     this.results = results;
     this.fieldPlan = fieldPlan;
     this.fragments = fragments;
@@ -104,10 +105,10 @@ export class Composer {
     }
     if (fieldPlan !== undefined) {
       const subQueriesBySchema = new AccumulatorMap();
-      this._collectSubQueries(
+      this._walkStitchTrees(
         subQueriesBySchema,
         result.data,
-        this.fieldPlan.subFieldPlans,
+        this.fieldPlan.stitchTrees,
         path,
       );
       for (const [subschema, subQueries] of subQueriesBySchema) {
@@ -129,33 +130,33 @@ export class Composer {
       }
     }
   }
-  _collectSubQueries(subQueriesBySchema, fields, subFieldPlans, path) {
-    for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
+  _walkStitchTrees(subQueriesBySchema, fields, stitchTrees, path) {
+    for (const [key, stitchTree] of Object.entries(stitchTrees)) {
       if (fields[key] !== undefined) {
-        this._collectPossibleListSubQueries(
+        this._addPossibleListStitches(
           subQueriesBySchema,
           fields,
           fields[key],
-          subFieldPlan,
+          stitchTree,
           [...path, key],
         );
       }
     }
   }
-  _collectPossibleListSubQueries(
+  _addPossibleListStitches(
     subQueriesBySchema,
     parent,
     fieldsOrList,
-    subFieldPlan,
+    stitchTree,
     path,
   ) {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
-        this._collectPossibleListSubQueries(
+        this._addPossibleListStitches(
           subQueriesBySchema,
           fieldsOrList,
           fieldsOrList[i],
-          subFieldPlan,
+          stitchTree,
           [...path, i],
         );
       }
@@ -169,10 +170,10 @@ export class Composer {
           fieldsOrList,
         )}.`,
       );
-    const type = subFieldPlan.superSchema.getType(typeName);
+    const type = this.superSchema.getType(typeName);
     isObjectType(type) ||
       invariant(false, `Expected Object type, received '${typeName}'.`);
-    const fieldPlan = subFieldPlan.fieldPlans.get(type);
+    const fieldPlan = stitchTree.fieldPlans.get(type);
     fieldPlan !== undefined ||
       invariant(false, `Missing field plan for type '${typeName}'.`);
     for (const [
@@ -186,10 +187,10 @@ export class Composer {
         path,
       });
     }
-    this._collectSubQueries(
+    this._walkStitchTrees(
       subQueriesBySchema,
       fieldsOrList,
-      fieldPlan.subFieldPlans,
+      fieldPlan.stitchTrees,
       path,
     );
   }

@@ -1,5 +1,6 @@
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.mjs';
+import { Planner } from './Planner.mjs';
 import { SuperSchema } from './SuperSchema.mjs';
 export function buildExecutionContext(args) {
   const {
@@ -64,13 +65,16 @@ export function buildExecutionContext(args) {
     return processedFragment;
   });
   return {
-    operationContext: {
+    superSchema,
+    operation,
+    fragments,
+    planner: new Planner(
       superSchema,
       operation,
       fragments,
       fragmentMap,
       variableDefinitions,
-    },
+    ),
     rawVariableValues,
     coercedVariableValues: coerced,
   };

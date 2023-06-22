@@ -7,7 +7,6 @@ const isPromise_js_1 = require('../predicates/isPromise.js');
 const invariant_js_1 = require('../utilities/invariant.js');
 const buildExecutionContext_js_1 = require('./buildExecutionContext.js');
 const Composer_js_1 = require('./Composer.js');
-const FieldPlan_js_1 = require('./FieldPlan.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
 function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
@@ -16,26 +15,17 @@ function subscribe(args) {
     args,
   );
   // Return early errors if execution context failed.
-  if (!('operationContext' in exeContext)) {
+  if (!('planner' in exeContext)) {
     return { errors: exeContext };
   }
-  const { operationContext, rawVariableValues } = exeContext;
-  const { superSchema, operation, fragments } = operationContext;
+  const { superSchema, operation, fragments, planner, rawVariableValues } =
+    exeContext;
   operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION ||
     (0, invariant_js_1.invariant)(false);
-  const rootType = superSchema.getRootType(operation.operation);
-  if (rootType == null) {
-    const error = new graphql_1.GraphQLError(
-      'Schema is not configured to execute subscription operation.',
-      { nodes: operation },
-    );
-    return { errors: [error] };
+  const fieldPlan = planner.createRootFieldPlan();
+  if (fieldPlan instanceof graphql_1.GraphQLError) {
+    return { errors: [fieldPlan] };
   }
-  const fieldPlan = (0, FieldPlan_js_1.createFieldPlan)(
-    operationContext,
-    rootType,
-    operation.selectionSet.selections,
-  );
   const iteration = fieldPlan.selectionMap.entries().next();
   if (iteration.done) {
     const error = new graphql_1.GraphQLError('Could not route subscription.', {
@@ -76,6 +66,7 @@ function subscribe(args) {
           resolved,
           (payload) => {
             const composer = new Composer_js_1.Composer(
+              superSchema,
               [payload],
               fieldPlan,
               fragments,
@@ -91,6 +82,7 @@ function subscribe(args) {
   if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
     return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) => {
       const composer = new Composer_js_1.Composer(
+        superSchema,
         [payload],
         fieldPlan,
         fragments,

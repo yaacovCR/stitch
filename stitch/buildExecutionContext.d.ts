@@ -1,6 +1,26 @@
-import type { DocumentNode } from 'graphql';
+import type {
+  DocumentNode,
+  FragmentDefinitionNode,
+  OperationDefinitionNode,
+} from 'graphql';
 import { GraphQLError } from 'graphql';
-import type { ExecutionContext, Subschema } from './SuperSchema.js';
+import { Planner } from './Planner.js';
+import type { Subschema } from './SuperSchema.js';
+import { SuperSchema } from './SuperSchema.js';
+export interface ExecutionContext {
+  superSchema: SuperSchema;
+  operation: OperationDefinitionNode;
+  fragments: Array<FragmentDefinitionNode>;
+  planner: Planner;
+  rawVariableValues:
+    | {
+        readonly [variable: string]: unknown;
+      }
+    | undefined;
+  coercedVariableValues: {
+    [variable: string]: unknown;
+  };
+}
 export interface ExecutionArgs {
   subschemas: ReadonlyArray<Subschema>;
   document: DocumentNode;

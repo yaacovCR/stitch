@@ -3,6 +3,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 exports.buildExecutionContext = void 0;
 const graphql_1 = require('graphql');
 const applySkipIncludeDirectives_js_1 = require('../utilities/applySkipIncludeDirectives.js');
+const Planner_js_1 = require('./Planner.js');
 const SuperSchema_js_1 = require('./SuperSchema.js');
 function buildExecutionContext(args) {
   const {
@@ -78,13 +79,16 @@ function buildExecutionContext(args) {
     return processedFragment;
   });
   return {
-    operationContext: {
+    superSchema,
+    operation,
+    fragments,
+    planner: new Planner_js_1.Planner(
       superSchema,
       operation,
       fragments,
       fragmentMap,
       variableDefinitions,
-    },
+    ),
     rawVariableValues,
     coercedVariableValues: coerced,
   };

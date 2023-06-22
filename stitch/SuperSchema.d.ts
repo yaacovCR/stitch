@@ -2,7 +2,6 @@ import type {
   DirectiveLocation,
   DocumentNode,
   ExecutionResult,
-  FragmentDefinitionNode,
   GraphQLAbstractType,
   GraphQLArgument,
   GraphQLArgumentConfig,
@@ -23,7 +22,6 @@ import type {
   ListTypeNode,
   NamedTypeNode,
   NonNullTypeNode,
-  OperationDefinitionNode,
   TypeNode,
   VariableDefinitionNode,
 } from 'graphql';
@@ -44,24 +42,6 @@ import {
 import type { ObjMap } from '../types/ObjMap';
 import type { PromiseOrValue } from '../types/PromiseOrValue';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator';
-export interface OperationContext {
-  superSchema: SuperSchema;
-  operation: OperationDefinitionNode;
-  fragments: Array<FragmentDefinitionNode>;
-  fragmentMap: ObjMap<FragmentDefinitionNode>;
-  variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
-}
-export interface ExecutionContext {
-  operationContext: OperationContext;
-  rawVariableValues:
-    | {
-        readonly [variable: string]: unknown;
-      }
-    | undefined;
-  coercedVariableValues: {
-    [variable: string]: unknown;
-  };
-}
 type CoercedVariableValues =
   | {
       errors: ReadonlyArray<GraphQLError>;

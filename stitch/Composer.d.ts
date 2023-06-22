@@ -9,9 +9,8 @@ import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
-import type { FieldPlan } from './FieldPlan.js';
-import type { SubFieldPlan } from './SubFieldPlan.js';
-import type { Subschema } from './SuperSchema.js';
+import type { FieldPlan, StitchTree } from './Planner.js';
+import type { Subschema, SuperSchema } from './SuperSchema.js';
 type Path = ReadonlyArray<string | number>;
 interface FetchPlan {
   subschemaSelections: ReadonlyArray<SelectionNode>;
@@ -23,6 +22,7 @@ interface FetchPlan {
  * @internal
  */
 export declare class Composer {
+  superSchema: SuperSchema;
   results: Array<PromiseOrValue<ExecutionResult>>;
   fieldPlan: FieldPlan;
   fragments: ReadonlyArray<FragmentDefinitionNode>;
@@ -36,6 +36,7 @@ export declare class Composer {
   nulled: boolean;
   promiseAggregator: PromiseAggregator;
   constructor(
+    superSchema: SuperSchema,
     results: Array<PromiseOrValue<ExecutionResult>>,
     fieldPlan: FieldPlan,
     fragments: ReadonlyArray<FragmentDefinitionNode>,
@@ -62,17 +63,17 @@ export declare class Composer {
     result: ExecutionResult,
     path: Path,
   ): void;
-  _collectSubQueries(
+  _walkStitchTrees(
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
-    subFieldPlans: ObjMap<SubFieldPlan>,
+    stitchTrees: ObjMap<StitchTree>,
     path: Path,
   ): void;
-  _collectPossibleListSubQueries(
+  _addPossibleListStitches(
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    subFieldPlan: SubFieldPlan,
+    stitchTree: StitchTree,
     path: Path,
   ): void;
   _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void;
