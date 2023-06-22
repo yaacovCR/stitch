@@ -91,13 +91,16 @@ export class Planner {
     superSchema: SuperSchema,
     operation: OperationDefinitionNode,
     fragments: Array<FragmentDefinitionNode>,
-    fragmentMap: ObjMap<FragmentDefinitionNode>,
     variableDefinitions: ReadonlyArray<VariableDefinitionNode>,
   ) {
     this.superSchema = superSchema;
     this.operation = operation;
     this.fragments = fragments;
-    this.fragmentMap = fragmentMap;
+    this.fragmentMap = Object.create(null);
+    for (const fragment of fragments) {
+      this.fragmentMap[fragment.name.value] = fragment;
+    }
+
     this.variableDefinitions = variableDefinitions;
   }
 

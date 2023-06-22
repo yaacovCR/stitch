@@ -38,7 +38,7 @@ function createFieldPlan(
 
   invariant(queryType !== undefined);
 
-  const planner = new Planner(superSchema, operation, [], {}, []);
+  const planner = new Planner(superSchema, operation, [], []);
 
   const fieldPlan = planner.createRootFieldPlan();
 

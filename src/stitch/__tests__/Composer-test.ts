@@ -47,7 +47,6 @@ function executeWithComposer(
     superSchema,
     operation,
     [],
-    {},
     [],
   ).createRootFieldPlan();
 
