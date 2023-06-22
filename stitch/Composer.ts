@@ -13,9 +13,8 @@ import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.ts';
-import type { FieldPlan } from './FieldPlan.ts';
-import type { SubFieldPlan } from './SubFieldPlan.ts';
-import type { Subschema } from './SuperSchema.ts';
+import type { FieldPlan, StitchTree } from './Planner.ts';
+import type { Subschema, SuperSchema } from './SuperSchema.ts';
 type Path = ReadonlyArray<string | number>;
 interface FetchPlan {
   subschemaSelections: ReadonlyArray<SelectionNode>;
@@ -27,6 +26,7 @@ interface FetchPlan {
  * @internal
  */
 export class Composer {
+  superSchema: SuperSchema;
   results: Array<PromiseOrValue<ExecutionResult>>;
   fieldPlan: FieldPlan;
   fragments: ReadonlyArray<FragmentDefinitionNode>;
@@ -40,6 +40,7 @@ export class Composer {
   nulled: boolean;
   promiseAggregator: PromiseAggregator;
   constructor(
+    superSchema: SuperSchema,
     results: Array<PromiseOrValue<ExecutionResult>>,
     fieldPlan: FieldPlan,
     fragments: ReadonlyArray<FragmentDefinitionNode>,
@@ -49,6 +50,7 @@ export class Composer {
         }
       | undefined,
   ) {
+    this.superSchema = superSchema;
     this.results = results;
     this.fieldPlan = fieldPlan;
     this.fragments = fragments;
@@ -155,10 +157,10 @@ export class Composer {
     }
     if (fieldPlan !== undefined) {
       const subQueriesBySchema = new AccumulatorMap<Subschema, FetchPlan>();
-      this._collectSubQueries(
+      this._walkStitchTrees(
         subQueriesBySchema,
         result.data,
-        this.fieldPlan.subFieldPlans,
+        this.fieldPlan.stitchTrees,
         path,
       );
       for (const [subschema, subQueries] of subQueriesBySchema) {
@@ -180,38 +182,38 @@ export class Composer {
       }
     }
   }
-  _collectSubQueries(
+  _walkStitchTrees(
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
-    subFieldPlans: ObjMap<SubFieldPlan>,
+    stitchTrees: ObjMap<StitchTree>,
     path: Path,
   ): void {
-    for (const [key, subFieldPlan] of Object.entries(subFieldPlans)) {
+    for (const [key, stitchTree] of Object.entries(stitchTrees)) {
       if (fields[key] !== undefined) {
-        this._collectPossibleListSubQueries(
+        this._addPossibleListStitches(
           subQueriesBySchema,
           fields,
           fields[key] as ObjMap<unknown> | Array<unknown>,
-          subFieldPlan,
+          stitchTree,
           [...path, key],
         );
       }
     }
   }
-  _collectPossibleListSubQueries(
+  _addPossibleListStitches(
     subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    subFieldPlan: SubFieldPlan,
+    stitchTree: StitchTree,
     path: Path,
   ): void {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
-        this._collectPossibleListSubQueries(
+        this._addPossibleListStitches(
           subQueriesBySchema,
           fieldsOrList,
           fieldsOrList[i] as ObjMap<unknown>,
-          subFieldPlan,
+          stitchTree,
           [...path, i],
         );
       }
@@ -228,10 +230,10 @@ export class Composer {
           fieldsOrList,
         )}.`,
       );
-    const type = subFieldPlan.superSchema.getType(typeName);
+    const type = this.superSchema.getType(typeName);
     isObjectType(type) ||
       invariant(false, `Expected Object type, received '${typeName}'.`);
-    const fieldPlan = subFieldPlan.fieldPlans.get(type);
+    const fieldPlan = stitchTree.fieldPlans.get(type);
     fieldPlan !== undefined ||
       invariant(false, `Missing field plan for type '${typeName}'.`);
     for (const [
@@ -245,10 +247,10 @@ export class Composer {
         path,
       });
     }
-    this._collectSubQueries(
+    this._walkStitchTrees(
       subQueriesBySchema,
       fieldsOrList,
-      fieldPlan.subFieldPlans,
+      fieldPlan.stitchTrees,
       path,
     );
   }

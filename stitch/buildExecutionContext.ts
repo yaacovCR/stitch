@@ -6,8 +6,23 @@ import type {
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
 import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.ts';
-import type { ExecutionContext, Subschema } from './SuperSchema.ts';
+import { Planner } from './Planner.ts';
+import type { Subschema } from './SuperSchema.ts';
 import { SuperSchema } from './SuperSchema.ts';
+export interface ExecutionContext {
+  superSchema: SuperSchema;
+  operation: OperationDefinitionNode;
+  fragments: Array<FragmentDefinitionNode>;
+  planner: Planner;
+  rawVariableValues:
+    | {
+        readonly [variable: string]: unknown;
+      }
+    | undefined;
+  coercedVariableValues: {
+    [variable: string]: unknown;
+  };
+}
 export interface ExecutionArgs {
   subschemas: ReadonlyArray<Subschema>;
   document: DocumentNode;
@@ -83,13 +98,16 @@ export function buildExecutionContext(
     return processedFragment;
   });
   return {
-    operationContext: {
+    superSchema,
+    operation,
+    fragments,
+    planner: new Planner(
       superSchema,
       operation,
       fragments,
       fragmentMap,
       variableDefinitions,
-    },
+    ),
     rawVariableValues,
     coercedVariableValues: coerced,
   };
