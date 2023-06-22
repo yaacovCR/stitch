@@ -78,7 +78,7 @@ function executeWithComposer(
     );
   }
 
-  const composer = new Composer(superSchema, results, fieldPlan, [], undefined);
+  const composer = new Composer(results, fieldPlan, [], undefined);
 
   return composer.compose();
 }

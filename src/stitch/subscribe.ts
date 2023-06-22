@@ -26,8 +26,7 @@ export function subscribe(
     return { errors: exeContext };
   }
 
-  const { superSchema, operation, fragments, planner, rawVariableValues } =
-    exeContext;
+  const { operation, fragments, planner, rawVariableValues } = exeContext;
   invariant(operation.operation === OperationTypeNode.SUBSCRIPTION);
 
   const fieldPlan = planner.createRootFieldPlan();
@@ -80,7 +79,6 @@ export function subscribe(
       if (isAsyncIterable(resolved)) {
         return mapAsyncIterable(resolved, (payload) => {
           const composer = new Composer(
-            superSchema,
             [payload],
             fieldPlan,
             fragments,
@@ -97,7 +95,6 @@ export function subscribe(
   if (isAsyncIterable(result)) {
     return mapAsyncIterable(result, (payload) => {
       const composer = new Composer(
-        superSchema,
         [payload],
         fieldPlan,
         fragments,
