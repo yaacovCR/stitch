@@ -33,9 +33,9 @@ interface FetchPlan {
  * @internal
  */
 export class Composer {
-  superSchema: SuperSchema;
   results: Array<PromiseOrValue<ExecutionResult>>;
   fieldPlan: FieldPlan;
+  superSchema: SuperSchema;
   fragments: ReadonlyArray<FragmentDefinitionNode>;
   rawVariableValues:
     | {
@@ -49,7 +49,6 @@ export class Composer {
   promiseAggregator: PromiseAggregator;
 
   constructor(
-    superSchema: SuperSchema,
     results: Array<PromiseOrValue<ExecutionResult>>,
     fieldPlan: FieldPlan,
     fragments: ReadonlyArray<FragmentDefinitionNode>,
@@ -59,9 +58,9 @@ export class Composer {
         }
       | undefined,
   ) {
-    this.superSchema = superSchema;
     this.results = results;
     this.fieldPlan = fieldPlan;
+    this.superSchema = fieldPlan.superSchema;
     this.fragments = fragments;
     this.rawVariableValues = rawVariableValues;
     this.fields = Object.create(null);

@@ -12,7 +12,6 @@ import type { Subschema } from './SuperSchema.js';
 import { SuperSchema } from './SuperSchema.js';
 
 export interface ExecutionContext {
-  superSchema: SuperSchema;
   operation: OperationDefinitionNode;
   fragments: Array<FragmentDefinitionNode>;
   planner: Planner;
@@ -96,7 +95,6 @@ export function buildExecutionContext(
   operation = applySkipIncludeDirectives(operation, coerced);
 
   return {
-    superSchema,
     operation,
     fragments,
     planner: new Planner(

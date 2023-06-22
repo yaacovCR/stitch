@@ -17,8 +17,7 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     return { errors: exeContext };
   }
 
-  const { superSchema, operation, fragments, planner, rawVariableValues } =
-    exeContext;
+  const { operation, fragments, planner, rawVariableValues } = exeContext;
 
   const rootFieldPlan = planner.createRootFieldPlan();
   if (rootFieldPlan instanceof GraphQLError) {
@@ -54,7 +53,6 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   }
 
   const composer = new Composer(
-    superSchema,
     results,
     rootFieldPlan,
     fragments,
