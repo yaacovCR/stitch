@@ -7,7 +7,8 @@ import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 
 import { inlineFragments } from '../utilities/inlineFragments.js';
 
-import { Planner } from './Planner.js';
+import type { Planner } from './Planner.js';
+import { createPlanner } from './Planner.js';
 import type { Subschema } from './SuperSchema.js';
 import { SuperSchema } from './SuperSchema.js';
 
@@ -95,7 +96,7 @@ export function buildExecutionContext(
 
   return {
     operation,
-    planner: new Planner(superSchema, operation),
+    planner: createPlanner(superSchema, operation),
     rawVariableValues,
     coercedVariableValues: coerced,
   };

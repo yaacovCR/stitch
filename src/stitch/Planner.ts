@@ -59,6 +59,11 @@ export interface MutableFieldPlan {
 
 const emptyObject = {};
 
+export const createPlanner = memoize2(
+  (superSchema: SuperSchema, operation: OperationDefinitionNode) =>
+    new Planner(superSchema, operation),
+);
+
 /**
  * @internal
  */
