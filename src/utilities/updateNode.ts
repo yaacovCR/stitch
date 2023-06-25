@@ -24,15 +24,14 @@ export function updateNode<T extends object>(
   if (cachedValue === undefined) {
     cachedValue = {};
     for (const nodeKey of Object.keys(node)) {
-      if (nodeKey === key) {
-        if (value !== null) {
-          cachedValue[nodeKey] = value;
-        }
-        continue;
+      if (nodeKey !== key) {
+        cachedValue[nodeKey] = (
+          node as unknown as { [nodeKey: string]: unknown }
+        )[nodeKey];
       }
-      cachedValue[nodeKey] = (
-        node as unknown as { [nodeKey: string]: unknown }
-      )[nodeKey];
+    }
+    if (value !== null) {
+      cachedValue[key] = value;
     }
     cacheForKey.set(value, cachedValue);
   }
