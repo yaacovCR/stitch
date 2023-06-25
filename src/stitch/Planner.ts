@@ -1,7 +1,6 @@
 import type {
   FieldNode,
   FragmentDefinitionNode,
-  FragmentSpreadNode,
   GraphQLCompositeType,
   GraphQLObjectType,
   GraphQLSchema,
@@ -63,8 +62,6 @@ export interface MutableFieldPlan {
 export class Planner {
   superSchema: SuperSchema;
   operation: OperationDefinitionNode;
-  fragments: Array<FragmentDefinitionNode>;
-  fragmentMap: ObjMap<FragmentDefinitionNode>;
   variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
   rootFieldPlan: FieldPlan | undefined;
 
@@ -87,21 +84,10 @@ export class Planner {
 
   _collectSubFields = memoize2(this._collectSubFieldsImpl.bind(this));
 
-  constructor(
-    superSchema: SuperSchema,
-    operation: OperationDefinitionNode,
-    fragments: Array<FragmentDefinitionNode>,
-    variableDefinitions: ReadonlyArray<VariableDefinitionNode>,
-  ) {
+  constructor(superSchema: SuperSchema, operation: OperationDefinitionNode) {
     this.superSchema = superSchema;
     this.operation = operation;
-    this.fragments = fragments;
-    this.fragmentMap = Object.create(null);
-    for (const fragment of fragments) {
-      this.fragmentMap[fragment.name.value] = fragment;
-    }
-
-    this.variableDefinitions = variableDefinitions;
+    this.variableDefinitions = operation.variableDefinitions ?? [];
   }
 
   createRootFieldPlan(): FieldPlan | GraphQLError {
@@ -158,29 +144,7 @@ export class Planner {
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
-          const fragName = selection.name.value;
-
-          if (visitedFragmentNames.has(fragName)) {
-            continue;
-          }
-
-          const fragment = this.fragmentMap[fragName];
-          if (
-            fragment == null ||
-            !this._doesFragmentConditionMatch(schema, fragment, runtimeType)
-          ) {
-            continue;
-          }
-
-          visitedFragmentNames.add(fragName);
-
-          newFieldNodes = this._collectSubFieldsImpl(
-            runtimeType,
-            fragment.selectionSet.selections,
-            fieldNodes,
-            visitedFragmentNames,
-          );
-          break;
+          throw new Error('Unexpected fragment spread in selection set.');
         }
       }
     }
@@ -260,40 +224,12 @@ export class Planner {
             fieldPlan,
             refinedType,
             selection,
-            selection.selectionSet.selections,
             visitedFragments,
           );
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
-          const fragmentName = selection.name.value;
-          if (visitedFragments.has(fragmentName)) {
-            continue;
-          }
-
-          visitedFragments.add(fragmentName);
-
-          const fragment = this.fragmentMap[fragmentName];
-
-          const typeName = fragment.typeCondition?.name.value;
-          const refinedType =
-            typeName !== undefined
-              ? this.superSchema.getType(typeName)
-              : parentType;
-
-          invariant(
-            isCompositeType(refinedType),
-            `Invalid type condition ${inspect(refinedType)}`,
-          );
-
-          this._addFragmentToFieldPlan(
-            fieldPlan,
-            refinedType,
-            selection,
-            fragment.selectionSet.selections,
-            visitedFragments,
-          );
-          break;
+          throw new Error('Unexpected fragment spread in selection set.');
         }
       }
     }
@@ -372,8 +308,7 @@ export class Planner {
   _addFragmentToFieldPlan(
     fieldPlan: MutableFieldPlan,
     parentType: GraphQLCompositeType,
-    node: InlineFragmentNode | FragmentSpreadNode,
-    selections: ReadonlyArray<SelectionNode>,
+    fragment: InlineFragmentNode,
     visitedFragments: Set<string>,
   ): void {
     const fragmentFieldPlan = {
@@ -386,7 +321,7 @@ export class Planner {
     this._processSelectionsForFieldPlan(
       fragmentFieldPlan,
       parentType,
-      selections,
+      fragment.selectionSet.selections,
       visitedFragments,
     );
 
@@ -395,8 +330,7 @@ export class Planner {
       fragmentSelections,
     ] of fragmentFieldPlan.selectionMap) {
       const splitFragment: InlineFragmentNode = {
-        ...node,
-        kind: Kind.INLINE_FRAGMENT,
+        ...fragment,
         selectionSet: {
           kind: Kind.SELECTION_SET,
           selections: fragmentSelections,
@@ -525,40 +459,12 @@ export class Planner {
             selectionSplit,
             refinedType,
             selection,
-            selection.selectionSet.selections,
             visitedFragments,
           );
           break;
         }
         case Kind.FRAGMENT_SPREAD: {
-          const fragmentName = selection.name.value;
-          if (visitedFragments.has(fragmentName)) {
-            continue;
-          }
-
-          visitedFragments.add(fragmentName);
-
-          const fragment = this.fragmentMap[fragmentName];
-
-          const typeName = fragment.typeCondition?.name.value;
-          const refinedType =
-            typeName !== undefined
-              ? this.superSchema.getType(typeName)
-              : parentType;
-
-          invariant(
-            isCompositeType(refinedType),
-            `Invalid type condition ${inspect(refinedType)}`,
-          );
-
-          this._addFragmentToSelectionSplit(
-            selectionSplit,
-            refinedType,
-            selection,
-            fragment.selectionSet.selections,
-            visitedFragments,
-          );
-          break;
+          throw new Error('Unexpected fragment spread in selection set.');
         }
       }
     }
@@ -639,8 +545,7 @@ export class Planner {
   _addFragmentToSelectionSplit(
     selectionSplit: SelectionSplit,
     parentType: GraphQLCompositeType,
-    node: InlineFragmentNode | FragmentSpreadNode,
-    selections: ReadonlyArray<SelectionNode>,
+    fragment: InlineFragmentNode,
     visitedFragments: Set<string>,
   ): void {
     const fragmentSelectionSplit: SelectionSplit = {
@@ -653,14 +558,13 @@ export class Planner {
     this._processSelectionsForSelectionSplit(
       fragmentSelectionSplit,
       parentType,
-      selections,
+      fragment.selectionSet.selections,
       visitedFragments,
     );
 
     if (fragmentSelectionSplit.ownSelections.length > 0) {
       const splitFragment: InlineFragmentNode = {
-        ...node,
-        kind: Kind.INLINE_FRAGMENT,
+        ...fragment,
         selectionSet: {
           kind: Kind.SELECTION_SET,
           selections: fragmentSelectionSplit.ownSelections,
@@ -674,8 +578,7 @@ export class Planner {
 
     if (fragmentSelectionSplit.otherSelections.length > 0) {
       const splitFragment: InlineFragmentNode = {
-        ...node,
-        kind: Kind.INLINE_FRAGMENT,
+        ...fragment,
         selectionSet: {
           kind: Kind.SELECTION_SET,
           selections: fragmentSelectionSplit.otherSelections,

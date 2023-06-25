@@ -6,6 +6,7 @@ import type {
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 
 import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.js';
+import { inlineFragments } from '../utilities/inlineFragments.js';
 
 import { Planner } from './Planner.js';
 import type { Subschema } from './SuperSchema.js';
@@ -13,7 +14,6 @@ import { SuperSchema } from './SuperSchema.js';
 
 export interface ExecutionContext {
   operation: OperationDefinitionNode;
-  fragments: Array<FragmentDefinitionNode>;
   planner: Planner;
   rawVariableValues: { readonly [variable: string]: unknown } | undefined;
   coercedVariableValues: { [variable: string]: unknown };
@@ -92,17 +92,12 @@ export function buildExecutionContext(
 
   const coerced = coercedVariableValues.coerced;
 
+  operation = inlineFragments(operation, fragments);
   operation = applySkipIncludeDirectives(operation, coerced);
 
   return {
     operation,
-    fragments,
-    planner: new Planner(
-      superSchema,
-      operation,
-      fragments,
-      variableDefinitions,
-    ),
+    planner: new Planner(superSchema, operation),
     rawVariableValues,
     coercedVariableValues: coerced,
   };

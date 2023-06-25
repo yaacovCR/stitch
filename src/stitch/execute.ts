@@ -17,7 +17,7 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     return { errors: exeContext };
   }
 
-  const { operation, fragments, planner, rawVariableValues } = exeContext;
+  const { operation, planner, rawVariableValues } = exeContext;
 
   const rootFieldPlan = planner.createRootFieldPlan();
   if (rootFieldPlan instanceof GraphQLError) {
@@ -40,7 +40,6 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
             selections: subschemaSelections,
           },
         },
-        ...fragments,
       ],
     };
 
@@ -52,12 +51,7 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     );
   }
 
-  const composer = new Composer(
-    results,
-    rootFieldPlan,
-    fragments,
-    rawVariableValues,
-  );
+  const composer = new Composer(results, rootFieldPlan, rawVariableValues);
 
   return composer.compose();
 }
