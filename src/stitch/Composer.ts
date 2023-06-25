@@ -1,9 +1,4 @@
-import type {
-  DocumentNode,
-  ExecutionResult,
-  FragmentDefinitionNode,
-  SelectionNode,
-} from 'graphql';
+import type { DocumentNode, ExecutionResult, SelectionNode } from 'graphql';
 import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap.js';
@@ -36,7 +31,6 @@ export class Composer {
   results: Array<PromiseOrValue<ExecutionResult>>;
   fieldPlan: FieldPlan;
   superSchema: SuperSchema;
-  fragments: ReadonlyArray<FragmentDefinitionNode>;
   rawVariableValues:
     | {
         readonly [variable: string]: unknown;
@@ -51,7 +45,6 @@ export class Composer {
   constructor(
     results: Array<PromiseOrValue<ExecutionResult>>,
     fieldPlan: FieldPlan,
-    fragments: ReadonlyArray<FragmentDefinitionNode>,
     rawVariableValues:
       | {
           readonly [variable: string]: unknown;
@@ -61,7 +54,6 @@ export class Composer {
     this.results = results;
     this.fieldPlan = fieldPlan;
     this.superSchema = fieldPlan.superSchema;
-    this.fragments = fragments;
     this.rawVariableValues = rawVariableValues;
     this.fields = Object.create(null);
     this.errors = [];
@@ -99,7 +91,6 @@ export class Composer {
             selections,
           },
         },
-        ...this.fragments,
       ],
     };
   }

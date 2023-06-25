@@ -43,12 +43,7 @@ function executeWithComposer(
 
   invariant(queryType !== undefined);
 
-  const fieldPlan = new Planner(
-    superSchema,
-    operation,
-    [],
-    [],
-  ).createRootFieldPlan();
+  const fieldPlan = new Planner(superSchema, operation).createRootFieldPlan();
 
   invariant(!(fieldPlan instanceof GraphQLError));
 
@@ -78,7 +73,7 @@ function executeWithComposer(
     );
   }
 
-  const composer = new Composer(results, fieldPlan, [], undefined);
+  const composer = new Composer(results, fieldPlan, undefined);
 
   return composer.compose();
 }
