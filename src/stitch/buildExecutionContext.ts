@@ -5,7 +5,6 @@ import type {
 } from 'graphql';
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 
-import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.js';
 import { inlineFragments } from '../utilities/inlineFragments.js';
 
 import { Planner } from './Planner.js';
@@ -93,7 +92,6 @@ export function buildExecutionContext(
   const coerced = coercedVariableValues.coerced;
 
   operation = inlineFragments(operation, fragments);
-  operation = applySkipIncludeDirectives(operation, coerced);
 
   return {
     operation,

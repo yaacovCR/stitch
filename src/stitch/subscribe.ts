@@ -26,10 +26,11 @@ export function subscribe(
     return { errors: exeContext };
   }
 
-  const { operation, planner, rawVariableValues } = exeContext;
+  const { operation, planner, rawVariableValues, coercedVariableValues } =
+    exeContext;
   invariant(operation.operation === OperationTypeNode.SUBSCRIPTION);
 
-  const fieldPlan = planner.createRootFieldPlan();
+  const fieldPlan = planner.createRootFieldPlan(coercedVariableValues);
   if (fieldPlan instanceof GraphQLError) {
     return { errors: [fieldPlan] };
   }
