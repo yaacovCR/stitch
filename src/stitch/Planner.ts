@@ -22,6 +22,7 @@ import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
 
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { appendToArray, emptyArray } from '../utilities/appendToArray.js';
+import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.js';
 import { inspect } from '../utilities/inspect.js';
 import { invariant } from '../utilities/invariant.js';
 import { memoize2 } from '../utilities/memoize2.js';
@@ -56,6 +57,8 @@ export interface MutableFieldPlan {
   superSchema: SuperSchema;
 }
 
+const emptyObject = {};
+
 /**
  * @internal
  */
@@ -63,7 +66,6 @@ export class Planner {
   superSchema: SuperSchema;
   operation: OperationDefinitionNode;
   variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
-  rootFieldPlan: FieldPlan | undefined;
 
   _createFieldPlan = memoize2(
     this._createFieldPlanFromSubschemasImpl.bind(this),
@@ -90,11 +92,11 @@ export class Planner {
     this.variableDefinitions = operation.variableDefinitions ?? [];
   }
 
-  createRootFieldPlan(): FieldPlan | GraphQLError {
-    if (this.rootFieldPlan !== undefined) {
-      return this.rootFieldPlan;
-    }
-
+  createRootFieldPlan(
+    variableValues: {
+      [key: string]: unknown;
+    } = emptyObject,
+  ): FieldPlan | GraphQLError {
     const rootType = this.superSchema.getRootType(this.operation.operation);
 
     if (rootType === undefined) {
@@ -104,12 +106,15 @@ export class Planner {
       );
     }
 
-    this.rootFieldPlan = this._createFieldPlan(
-      rootType,
-      this.operation.selectionSet.selections,
+    const filteredOperation = applySkipIncludeDirectives(
+      this.operation,
+      variableValues,
     );
 
-    return this.rootFieldPlan;
+    return this._createFieldPlan(
+      rootType,
+      filteredOperation.selectionSet.selections,
+    );
   }
 
   _collectSubFieldsImpl(

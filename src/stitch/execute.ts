@@ -17,9 +17,10 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     return { errors: exeContext };
   }
 
-  const { operation, planner, rawVariableValues } = exeContext;
+  const { operation, planner, rawVariableValues, coercedVariableValues } =
+    exeContext;
 
-  const rootFieldPlan = planner.createRootFieldPlan();
+  const rootFieldPlan = planner.createRootFieldPlan(coercedVariableValues);
   if (rootFieldPlan instanceof GraphQLError) {
     return { data: null, errors: [rootFieldPlan] };
   }
