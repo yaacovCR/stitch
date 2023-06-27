@@ -135,7 +135,7 @@ export class Planner {
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          newFieldNodes = appendToArray(fieldNodes, selection);
+          newFieldNodes = appendToArray(newFieldNodes, selection);
           break;
         }
         case Kind.INLINE_FRAGMENT: {
@@ -148,7 +148,7 @@ export class Planner {
           newFieldNodes = this._collectSubFieldsImpl(
             runtimeType,
             selection.selectionSet.selections,
-            fieldNodes,
+            newFieldNodes,
             visitedFragmentNames,
           );
           break;
