@@ -5,6 +5,7 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
+import type { Stitch } from './Composer.js';
 import { Composer } from './Composer.js';
 
 export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
@@ -25,12 +26,9 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     return { data: null, errors: [rootFieldPlan] };
   }
 
-  const results: Array<PromiseOrValue<ExecutionResult>> = [];
+  const stitches: Array<Stitch> = [];
 
-  for (const [
-    subschema,
-    subschemaSelections,
-  ] of rootFieldPlan.selectionMap.entries()) {
+  for (const [subschema, subschemaPlan] of rootFieldPlan.subschemaPlans) {
     const document: DocumentNode = {
       kind: Kind.DOCUMENT,
       definitions: [
@@ -38,21 +36,27 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
           ...operation,
           selectionSet: {
             kind: Kind.SELECTION_SET,
-            selections: subschemaSelections,
+            selections: subschemaPlan.fieldNodes,
           },
         },
       ],
     };
 
-    results.push(
-      subschema.executor({
+    stitches.push({
+      subschema,
+      stitchTrees: rootFieldPlan.stitchTrees,
+      initialResult: subschema.executor({
         document,
         variables: rawVariableValues,
       }),
-    );
+    });
   }
 
-  const composer = new Composer(results, rootFieldPlan, rawVariableValues);
+  const composer = new Composer(
+    stitches,
+    rootFieldPlan.superSchema,
+    rawVariableValues,
+  );
 
   return composer.compose();
 }

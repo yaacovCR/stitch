@@ -1,4 +1,9 @@
-import type { DocumentNode, ExecutionResult, SelectionNode } from 'graphql';
+import type {
+  DocumentNode,
+  ExecutionResult,
+  FieldNode,
+  SelectionNode,
+} from 'graphql';
 import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap.js';
@@ -12,13 +17,19 @@ import { inspect } from '../utilities/inspect.js';
 import { invariant } from '../utilities/invariant.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 
-import type { FieldPlan, StitchTree } from './Planner.js';
+import type { StitchTree } from './Planner.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 
 type Path = ReadonlyArray<string | number>;
 
+export interface Stitch {
+  subschema: Subschema;
+  stitchTrees: ObjMap<StitchTree> | undefined;
+  initialResult: PromiseOrValue<ExecutionResult>;
+}
+
 interface FetchPlan {
-  subschemaSelections: ReadonlyArray<SelectionNode>;
+  fieldNodes: ReadonlyArray<FieldNode>;
   parent: ObjMap<unknown>;
   target: ObjMap<unknown>;
   path: Path;
@@ -28,8 +39,7 @@ interface FetchPlan {
  * @internal
  */
 export class Composer {
-  results: Array<PromiseOrValue<ExecutionResult>>;
-  fieldPlan: FieldPlan;
+  stitches: Array<Stitch>;
   superSchema: SuperSchema;
   rawVariableValues:
     | {
@@ -43,17 +53,16 @@ export class Composer {
   promiseAggregator: PromiseAggregator;
 
   constructor(
-    results: Array<PromiseOrValue<ExecutionResult>>,
-    fieldPlan: FieldPlan,
+    stitches: Array<Stitch>,
+    superSchema: SuperSchema,
     rawVariableValues:
       | {
           readonly [variable: string]: unknown;
         }
       | undefined,
   ) {
-    this.results = results;
-    this.fieldPlan = fieldPlan;
-    this.superSchema = fieldPlan.superSchema;
+    this.stitches = stitches;
+    this.superSchema = superSchema;
     this.rawVariableValues = rawVariableValues;
     this.fields = Object.create(null);
     this.errors = [];
@@ -62,15 +71,9 @@ export class Composer {
   }
 
   compose(): PromiseOrValue<ExecutionResult> {
-    this.results.map((result) =>
-      this._handleMaybeAsyncResult(
-        undefined,
-        this.fields,
-        this.fieldPlan,
-        result,
-        [],
-      ),
-    );
+    for (const stitch of this.stitches) {
+      this._handleMaybeAsyncResult(undefined, this.fields, stitch, []);
+    }
 
     if (this.promiseAggregator.isEmpty()) {
       return this._buildResponse();
@@ -106,23 +109,22 @@ export class Composer {
   _handleMaybeAsyncResult(
     parent: ObjMap<unknown> | undefined,
     fields: ObjMap<unknown>,
-    fieldPlan: FieldPlan | undefined,
-    result: PromiseOrValue<ExecutionResult>,
+    stitch: Stitch,
     path: Path,
   ): void {
-    if (!isPromise(result)) {
-      this._handleResult(parent, fields, fieldPlan, result, path);
+    const initialResult = stitch.initialResult;
+    if (!isPromise(initialResult)) {
+      this._handleResult(parent, fields, stitch, initialResult, path);
       return;
     }
 
-    const promise = result.then(
-      (resolved) =>
-        this._handleResult(parent, fields, fieldPlan, resolved, path),
+    const promise = initialResult.then(
+      (resolved) => this._handleResult(parent, fields, stitch, resolved, path),
       (err) =>
         this._handleResult(
           parent,
           fields,
-          fieldPlan,
+          stitch,
           {
             data: null,
             errors: [new GraphQLError(err.message, { originalError: err })],
@@ -137,7 +139,7 @@ export class Composer {
   _handleResult(
     parent: ObjMap<unknown> | undefined,
     fields: ObjMap<unknown>,
-    fieldPlan: FieldPlan | undefined,
+    stitch: Stitch | undefined,
     result: ExecutionResult,
     path: Path,
   ): void {
@@ -168,19 +170,19 @@ export class Composer {
       this._deepMerge(fields, key, value);
     }
 
-    if (fieldPlan !== undefined) {
+    if (stitch?.stitchTrees !== undefined) {
       const subQueriesBySchema = new AccumulatorMap<Subschema, FetchPlan>();
       this._walkStitchTrees(
         subQueriesBySchema,
         result.data,
-        this.fieldPlan.stitchTrees,
+        stitch.stitchTrees,
         path,
       );
       for (const [subschema, subQueries] of subQueriesBySchema) {
         for (const subQuery of subQueries) {
           // TODO: send one document per subschema
           const subResult = subschema.executor({
-            document: this._createDocument(subQuery.subschemaSelections),
+            document: this._createDocument(subQuery.fieldNodes),
             variables: this.rawVariableValues,
           });
 
@@ -188,8 +190,11 @@ export class Composer {
             subQuery.parent,
             subQuery.target,
             // TODO: add multilayer plan support
-            undefined,
-            subResult,
+            {
+              subschema,
+              stitchTrees: undefined,
+              initialResult: subResult,
+            },
             subQuery.path,
           );
         }
@@ -262,12 +267,9 @@ export class Composer {
       `Missing field plan for type '${typeName}'.`,
     );
 
-    for (const [
-      subschema,
-      subschemaSelections,
-    ] of fieldPlan.selectionMap.entries()) {
+    for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
       subQueriesBySchema.add(subschema, {
-        subschemaSelections,
+        fieldNodes: subschemaPlan.fieldNodes,
         parent: parent as ObjMap<unknown>,
         target: fieldsOrList,
         path,
