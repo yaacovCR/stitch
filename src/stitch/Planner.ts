@@ -49,7 +49,6 @@ interface SelectionSplitContext {
 }
 
 export interface StitchTree {
-  ownSelections: ReadonlyArray<SelectionNode>;
   fieldPlans: Map<GraphQLObjectType, FieldPlan>;
   fromSubschemas: ReadonlyArray<Subschema>;
 }
@@ -278,24 +277,31 @@ export class Planner {
       return;
     }
 
-    const fieldType = fieldDef.type;
+    const fieldType = getNamedType(fieldDef.type) as GraphQLObjectType;
 
-    const stitchTree = this._createStitchTree(
-      getNamedType(fieldType) as GraphQLObjectType,
+    const selectionSplit = this._createSelectionSplit(
+      fieldType,
       field.selectionSet.selections,
       subschema,
       fieldPlan.fromSubschemas,
     );
 
-    if (stitchTree.ownSelections.length) {
+    if (selectionSplit.ownSelections.length) {
       selectionMap.add(subschema, {
         ...field,
         selectionSet: {
           kind: Kind.SELECTION_SET,
-          selections: stitchTree.ownSelections,
+          selections: selectionSplit.ownSelections,
         },
       });
     }
+
+    const stitchTree = this._createStitchTree(
+      fieldType,
+      selectionSplit.otherSelections,
+      subschema,
+      fieldPlan.fromSubschemas,
+    );
 
     if (stitchTree.fieldPlans.size > 0) {
       const responseKey = field.alias?.value ?? field.name.value;
@@ -356,17 +362,10 @@ export class Planner {
 
   _createStitchTree(
     parentType: GraphQLCompositeType,
-    selections: ReadonlyArray<SelectionNode>,
+    otherSelections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
     fromSubschemas: ReadonlyArray<Subschema>,
   ): StitchTree {
-    const selectionSplit = this._createSelectionSplit(
-      parentType,
-      selections,
-      subschema,
-      fromSubschemas,
-    );
-
     const fieldPlans = new Map<GraphQLObjectType, FieldPlan>();
 
     let possibleTypes: ReadonlyArray<GraphQLObjectType>;
@@ -377,10 +376,7 @@ export class Planner {
     }
 
     for (const type of possibleTypes) {
-      const fieldNodes = this._collectSubFields(
-        type,
-        selectionSplit.otherSelections,
-      );
+      const fieldNodes = this._collectSubFields(type, otherSelections);
 
       const fieldPlan = this._createFieldPlanFromSubschemas(
         type,
@@ -397,7 +393,6 @@ export class Planner {
     }
 
     return {
-      ownSelections: selectionSplit.ownSelections,
       fieldPlans,
       fromSubschemas,
     };
