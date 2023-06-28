@@ -20,11 +20,8 @@ function execute(args) {
   if (rootFieldPlan instanceof graphql_1.GraphQLError) {
     return { data: null, errors: [rootFieldPlan] };
   }
-  const results = [];
-  for (const [
-    subschema,
-    subschemaSelections,
-  ] of rootFieldPlan.selectionMap.entries()) {
+  const stitches = [];
+  for (const [subschema, subschemaPlan] of rootFieldPlan.subschemaPlans) {
     const document = {
       kind: graphql_1.Kind.DOCUMENT,
       definitions: [
@@ -32,21 +29,23 @@ function execute(args) {
           ...operation,
           selectionSet: {
             kind: graphql_1.Kind.SELECTION_SET,
-            selections: subschemaSelections,
+            selections: subschemaPlan.fieldNodes,
           },
         },
       ],
     };
-    results.push(
-      subschema.executor({
+    stitches.push({
+      subschema,
+      stitchTrees: rootFieldPlan.stitchTrees,
+      initialResult: subschema.executor({
         document,
         variables: rawVariableValues,
       }),
-    );
+    });
   }
   const composer = new Composer_js_1.Composer(
-    results,
-    rootFieldPlan,
+    stitches,
+    rootFieldPlan.superSchema,
     rawVariableValues,
   );
   return composer.compose();

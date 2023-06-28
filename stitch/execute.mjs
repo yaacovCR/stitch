@@ -15,11 +15,8 @@ export function execute(args) {
   if (rootFieldPlan instanceof GraphQLError) {
     return { data: null, errors: [rootFieldPlan] };
   }
-  const results = [];
-  for (const [
-    subschema,
-    subschemaSelections,
-  ] of rootFieldPlan.selectionMap.entries()) {
+  const stitches = [];
+  for (const [subschema, subschemaPlan] of rootFieldPlan.subschemaPlans) {
     const document = {
       kind: Kind.DOCUMENT,
       definitions: [
@@ -27,18 +24,24 @@ export function execute(args) {
           ...operation,
           selectionSet: {
             kind: Kind.SELECTION_SET,
-            selections: subschemaSelections,
+            selections: subschemaPlan.fieldNodes,
           },
         },
       ],
     };
-    results.push(
-      subschema.executor({
+    stitches.push({
+      subschema,
+      stitchTrees: rootFieldPlan.stitchTrees,
+      initialResult: subschema.executor({
         document,
         variables: rawVariableValues,
       }),
-    );
+    });
   }
-  const composer = new Composer(results, rootFieldPlan, rawVariableValues);
+  const composer = new Composer(
+    stitches,
+    rootFieldPlan.superSchema,
+    rawVariableValues,
+  );
   return composer.compose();
 }

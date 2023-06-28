@@ -9,10 +9,9 @@ import { PromiseAggregator } from '../utilities/PromiseAggregator.mjs';
  * @internal
  */
 export class Composer {
-  constructor(results, fieldPlan, rawVariableValues) {
-    this.results = results;
-    this.fieldPlan = fieldPlan;
-    this.superSchema = fieldPlan.superSchema;
+  constructor(stitches, superSchema, rawVariableValues) {
+    this.stitches = stitches;
+    this.superSchema = superSchema;
     this.rawVariableValues = rawVariableValues;
     this.fields = Object.create(null);
     this.errors = [];
@@ -20,15 +19,9 @@ export class Composer {
     this.promiseAggregator = new PromiseAggregator();
   }
   compose() {
-    this.results.map((result) =>
-      this._handleMaybeAsyncResult(
-        undefined,
-        this.fields,
-        this.fieldPlan,
-        result,
-        [],
-      ),
-    );
+    for (const stitch of this.stitches) {
+      this._handleMaybeAsyncResult(undefined, this.fields, stitch, []);
+    }
     if (this.promiseAggregator.isEmpty()) {
       return this._buildResponse();
     }
@@ -55,19 +48,19 @@ export class Composer {
       ? { data: fieldsOrNull, errors: this.errors }
       : { data: fieldsOrNull };
   }
-  _handleMaybeAsyncResult(parent, fields, fieldPlan, result, path) {
-    if (!isPromise(result)) {
-      this._handleResult(parent, fields, fieldPlan, result, path);
+  _handleMaybeAsyncResult(parent, fields, stitch, path) {
+    const initialResult = stitch.initialResult;
+    if (!isPromise(initialResult)) {
+      this._handleResult(parent, fields, stitch, initialResult, path);
       return;
     }
-    const promise = result.then(
-      (resolved) =>
-        this._handleResult(parent, fields, fieldPlan, resolved, path),
+    const promise = initialResult.then(
+      (resolved) => this._handleResult(parent, fields, stitch, resolved, path),
       (err) =>
         this._handleResult(
           parent,
           fields,
-          fieldPlan,
+          stitch,
           {
             data: null,
             errors: [new GraphQLError(err.message, { originalError: err })],
@@ -77,7 +70,7 @@ export class Composer {
     );
     this.promiseAggregator.add(promise);
   }
-  _handleResult(parent, fields, fieldPlan, result, path) {
+  _handleResult(parent, fields, stitch, result, path) {
     if (result.errors != null) {
       this.errors.push(...result.errors);
     }
@@ -101,27 +94,30 @@ export class Composer {
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(fields, key, value);
     }
-    if (fieldPlan !== undefined) {
+    if (stitch?.stitchTrees !== undefined) {
       const subQueriesBySchema = new AccumulatorMap();
       this._walkStitchTrees(
         subQueriesBySchema,
         result.data,
-        this.fieldPlan.stitchTrees,
+        stitch.stitchTrees,
         path,
       );
       for (const [subschema, subQueries] of subQueriesBySchema) {
         for (const subQuery of subQueries) {
           // TODO: send one document per subschema
           const subResult = subschema.executor({
-            document: this._createDocument(subQuery.subschemaSelections),
+            document: this._createDocument(subQuery.fieldNodes),
             variables: this.rawVariableValues,
           });
           this._handleMaybeAsyncResult(
             subQuery.parent,
             subQuery.target,
             // TODO: add multilayer plan support
-            undefined,
-            subResult,
+            {
+              subschema,
+              stitchTrees: undefined,
+              initialResult: subResult,
+            },
             subQuery.path,
           );
         }
@@ -174,12 +170,9 @@ export class Composer {
     const fieldPlan = stitchTree.fieldPlans.get(type);
     fieldPlan !== undefined ||
       invariant(false, `Missing field plan for type '${typeName}'.`);
-    for (const [
-      subschema,
-      subschemaSelections,
-    ] of fieldPlan.selectionMap.entries()) {
+    for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
       subQueriesBySchema.add(subschema, {
-        subschemaSelections,
+        fieldNodes: subschemaPlan.fieldNodes,
         parent: parent,
         target: fieldsOrList,
         path,

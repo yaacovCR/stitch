@@ -12,10 +12,9 @@ const PromiseAggregator_js_1 = require('../utilities/PromiseAggregator.js');
  * @internal
  */
 class Composer {
-  constructor(results, fieldPlan, rawVariableValues) {
-    this.results = results;
-    this.fieldPlan = fieldPlan;
-    this.superSchema = fieldPlan.superSchema;
+  constructor(stitches, superSchema, rawVariableValues) {
+    this.stitches = stitches;
+    this.superSchema = superSchema;
     this.rawVariableValues = rawVariableValues;
     this.fields = Object.create(null);
     this.errors = [];
@@ -23,15 +22,9 @@ class Composer {
     this.promiseAggregator = new PromiseAggregator_js_1.PromiseAggregator();
   }
   compose() {
-    this.results.map((result) =>
-      this._handleMaybeAsyncResult(
-        undefined,
-        this.fields,
-        this.fieldPlan,
-        result,
-        [],
-      ),
-    );
+    for (const stitch of this.stitches) {
+      this._handleMaybeAsyncResult(undefined, this.fields, stitch, []);
+    }
     if (this.promiseAggregator.isEmpty()) {
       return this._buildResponse();
     }
@@ -58,19 +51,19 @@ class Composer {
       ? { data: fieldsOrNull, errors: this.errors }
       : { data: fieldsOrNull };
   }
-  _handleMaybeAsyncResult(parent, fields, fieldPlan, result, path) {
-    if (!(0, isPromise_js_1.isPromise)(result)) {
-      this._handleResult(parent, fields, fieldPlan, result, path);
+  _handleMaybeAsyncResult(parent, fields, stitch, path) {
+    const initialResult = stitch.initialResult;
+    if (!(0, isPromise_js_1.isPromise)(initialResult)) {
+      this._handleResult(parent, fields, stitch, initialResult, path);
       return;
     }
-    const promise = result.then(
-      (resolved) =>
-        this._handleResult(parent, fields, fieldPlan, resolved, path),
+    const promise = initialResult.then(
+      (resolved) => this._handleResult(parent, fields, stitch, resolved, path),
       (err) =>
         this._handleResult(
           parent,
           fields,
-          fieldPlan,
+          stitch,
           {
             data: null,
             errors: [
@@ -82,7 +75,7 @@ class Composer {
     );
     this.promiseAggregator.add(promise);
   }
-  _handleResult(parent, fields, fieldPlan, result, path) {
+  _handleResult(parent, fields, stitch, result, path) {
     if (result.errors != null) {
       this.errors.push(...result.errors);
     }
@@ -106,27 +99,30 @@ class Composer {
     for (const [key, value] of Object.entries(result.data)) {
       this._deepMerge(fields, key, value);
     }
-    if (fieldPlan !== undefined) {
+    if (stitch?.stitchTrees !== undefined) {
       const subQueriesBySchema = new AccumulatorMap_js_1.AccumulatorMap();
       this._walkStitchTrees(
         subQueriesBySchema,
         result.data,
-        this.fieldPlan.stitchTrees,
+        stitch.stitchTrees,
         path,
       );
       for (const [subschema, subQueries] of subQueriesBySchema) {
         for (const subQuery of subQueries) {
           // TODO: send one document per subschema
           const subResult = subschema.executor({
-            document: this._createDocument(subQuery.subschemaSelections),
+            document: this._createDocument(subQuery.fieldNodes),
             variables: this.rawVariableValues,
           });
           this._handleMaybeAsyncResult(
             subQuery.parent,
             subQuery.target,
             // TODO: add multilayer plan support
-            undefined,
-            subResult,
+            {
+              subschema,
+              stitchTrees: undefined,
+              initialResult: subResult,
+            },
             subQuery.path,
           );
         }
@@ -184,12 +180,9 @@ class Composer {
         false,
         `Missing field plan for type '${typeName}'.`,
       );
-    for (const [
-      subschema,
-      subschemaSelections,
-    ] of fieldPlan.selectionMap.entries()) {
+    for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
       subQueriesBySchema.add(subschema, {
-        subschemaSelections,
+        fieldNodes: subschemaPlan.fieldNodes,
         parent: parent,
         target: fieldsOrList,
         path,

@@ -7,7 +7,6 @@ import {
   typeFromAST,
   TypeNameMetaFieldDef,
 } from 'graphql';
-import { AccumulatorMap } from '../utilities/AccumulatorMap.mjs';
 import { appendToArray, emptyArray } from '../utilities/appendToArray.mjs';
 import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.mjs';
 import { inspect } from '../utilities/inspect.mjs';
@@ -23,16 +22,9 @@ export const createPlanner = memoize2(
  */
 export class Planner {
   constructor(superSchema, operation) {
-    this._createFieldPlan = memoize2(
-      this._createFieldPlanFromSubschemasImpl.bind(this),
-    );
-    this._createFieldPlanFromSubschemas = memoize3(
-      (parentType, fieldNodes, fromSubschemas) =>
-        this._createFieldPlanFromSubschemasImpl(
-          parentType,
-          fieldNodes,
-          fromSubschemas,
-        ),
+    this._createFieldPlan = memoize2(this._createFieldPlanImpl.bind(this));
+    this._createSupplementalFieldPlan = memoize3(
+      this._createSupplementalFieldPlanImpl.bind(this),
     );
     this._collectSubFields = memoize2(this._collectSubFieldsImpl.bind(this));
     this.superSchema = superSchema;
@@ -109,37 +101,48 @@ export class Planner {
     }
     return false;
   }
-  _createFieldPlanFromSubschemasImpl(
-    parentType,
-    fieldNodes,
-    fromSubschemas = emptyArray,
-  ) {
+  _createFieldPlanImpl(parentType, fieldNodes) {
     const fieldPlan = {
-      selectionMap: new AccumulatorMap(),
-      stitchTrees: Object.create(null),
       superSchema: this.superSchema,
+      subschemaPlans: new Map(),
+      stitchTrees: Object.create(null),
+    };
+    for (const fieldNode of fieldNodes) {
+      this._addFieldToFieldPlan(fieldPlan, undefined, parentType, fieldNode);
+    }
+    return fieldPlan;
+  }
+  _createSupplementalFieldPlanImpl(parentType, fieldNodes, fromSubschema) {
+    const fieldPlan = {
+      superSchema: this.superSchema,
+      subschemaPlans: new Map(),
+      stitchTrees: Object.create(null),
     };
     for (const fieldNode of fieldNodes) {
       this._addFieldToFieldPlan(
         fieldPlan,
-        fromSubschemas,
+        fromSubschema,
         parentType,
         fieldNode,
       );
     }
     return fieldPlan;
   }
-  _addFieldToFieldPlan(fieldPlan, fromSubschemas, parentType, field) {
+  _addFieldToFieldPlan(fieldPlan, fromSubschema, parentType, field) {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
-    const subschemaSets = subschemaSetsByField[field.name.value];
-    if (subschemaSets === undefined) {
+    const subschemas = subschemaSetsByField[field.name.value];
+    if (subschemas === undefined) {
       return;
     }
-    const selectionMap = fieldPlan.selectionMap;
-    const subschema = this._getSubschema(subschemaSets, selectionMap);
+    const subschemaPlans = fieldPlan.subschemaPlans;
     if (!field.selectionSet) {
-      selectionMap.add(subschema, field);
+      const { subschemaPlan } = this._getSubschemaAndPlan(
+        subschemas,
+        subschemaPlans,
+        fromSubschema,
+      );
+      subschemaPlan.fieldNodes = appendToArray(subschemaPlan.fieldNodes, field);
       return;
     }
     const fieldName = field.name.value;
@@ -147,44 +150,79 @@ export class Planner {
     if (!fieldDef) {
       return;
     }
-    const fieldType = getNamedType(fieldDef.type);
+    const namedFieldType = getNamedType(fieldDef.type);
+    const subschema = this._getSubschema(subschemas, subschemaPlans);
     const selectionSplit = this._createSelectionSplit(
-      fieldType,
+      namedFieldType,
       field.selectionSet.selections,
       subschema,
-      fromSubschemas,
+      fromSubschema,
     );
     if (selectionSplit.ownSelections.length) {
-      selectionMap.add(subschema, {
+      const subschemaPlan = this._getSubschemaPlan(
+        subschema,
+        subschemaPlans,
+        fromSubschema,
+      );
+      const splitField = {
         ...field,
         selectionSet: {
           kind: Kind.SELECTION_SET,
           selections: selectionSplit.ownSelections,
         },
-      });
+      };
+      subschemaPlan.fieldNodes = appendToArray(
+        subschemaPlan.fieldNodes,
+        splitField,
+      );
     }
     const stitchTree = this._createStitchTree(
-      fieldType,
+      namedFieldType,
       selectionSplit.otherSelections,
       subschema,
-      fromSubschemas,
     );
     if (stitchTree.fieldPlans.size > 0) {
       const responseKey = field.alias?.value ?? field.name.value;
       fieldPlan.stitchTrees[responseKey] = stitchTree;
     }
   }
-  _getSubschema(subschemas, selectionMap) {
-    let selections;
+  _getSubschemaAndPlan(subschemas, subschemaPlans, fromSubschema) {
     for (const subschema of subschemas) {
-      selections = selectionMap.get(subschema);
-      if (selections) {
+      const subschemaPlan = subschemaPlans.get(subschema);
+      if (subschemaPlan) {
+        return { subschema, subschemaPlan };
+      }
+    }
+    const subschema = subschemas.values().next().value;
+    const subschemaPlan = {
+      fieldNodes: emptyArray,
+      fromSubschema,
+    };
+    subschemaPlans.set(subschema, subschemaPlan);
+    return { subschema, subschemaPlan };
+  }
+  _getSubschema(subschemas, subschemaPlans) {
+    for (const subschema of subschemas) {
+      const subschemaPlan = subschemaPlans.get(subschema);
+      if (subschemaPlan) {
         return subschema;
       }
     }
     return subschemas.values().next().value;
   }
-  _createStitchTree(parentType, otherSelections, subschema, fromSubschemas) {
+  _getSubschemaPlan(subschema, subschemaPlans, fromSubschema) {
+    let subschemaPlan = subschemaPlans.get(subschema);
+    if (subschemaPlan !== undefined) {
+      return subschemaPlan;
+    }
+    subschemaPlan = {
+      fieldNodes: emptyArray,
+      fromSubschema,
+    };
+    subschemaPlans.set(subschema, subschemaPlan);
+    return subschemaPlan;
+  }
+  _createStitchTree(parentType, otherSelections, subschema) {
     const fieldPlans = new Map();
     let possibleTypes;
     if (isAbstractType(parentType)) {
@@ -194,24 +232,21 @@ export class Planner {
     }
     for (const type of possibleTypes) {
       const fieldNodes = this._collectSubFields(type, otherSelections);
-      const fieldPlan = this._createFieldPlanFromSubschemas(
+      const fieldPlan = this._createSupplementalFieldPlan(
         type,
         fieldNodes,
-        appendToArray(fromSubschemas, subschema),
+        subschema,
       );
       if (
-        fieldPlan.selectionMap.size > 0 ||
+        fieldPlan.subschemaPlans.size > 0 ||
         Object.values(fieldPlan.stitchTrees).length > 0
       ) {
         fieldPlans.set(type, fieldPlan);
       }
     }
-    return {
-      fieldPlans,
-      fromSubschemas,
-    };
+    return { fieldPlans };
   }
-  _createSelectionSplit(parentType, selections, subschema, fromSubschemas) {
+  _createSelectionSplit(parentType, selections, subschema, fromSubschema) {
     const selectionSplit = {
       ownSelections: emptyArray,
       otherSelections: emptyArray,
@@ -219,12 +254,12 @@ export class Planner {
     this._processSelectionsForSelectionSplit(
       selectionSplit,
       subschema,
-      fromSubschemas,
+      fromSubschema,
       parentType,
       selections,
     );
     if (
-      fromSubschemas.length === 0 &&
+      fromSubschema === undefined &&
       selectionSplit.otherSelections.length > 0
     ) {
       selectionSplit.ownSelections = appendToArray(
@@ -247,7 +282,7 @@ export class Planner {
   _processSelectionsForSelectionSplit(
     selectionSplit,
     subschema,
-    fromSubschemas,
+    fromSubschema,
     parentType,
     selections,
   ) {
@@ -257,7 +292,7 @@ export class Planner {
           this._addFieldToSelectionSplit(
             selectionSplit,
             subschema,
-            fromSubschemas,
+            fromSubschema,
             parentType,
             selection,
           );
@@ -274,7 +309,7 @@ export class Planner {
           this._addFragmentToSelectionSplit(
             selectionSplit,
             subschema,
-            fromSubschemas,
+            fromSubschema,
             refinedType,
             selection,
           );
@@ -289,7 +324,7 @@ export class Planner {
   _addFieldToSelectionSplit(
     selectionSplit,
     subschema,
-    fromSubschemas,
+    fromSubschema,
     parentType,
     field,
   ) {
@@ -323,7 +358,7 @@ export class Planner {
       getNamedType(fieldType),
       field.selectionSet.selections,
       subschema,
-      fromSubschemas,
+      fromSubschema,
     );
     if (subSelectionSplit.ownSelections.length) {
       selectionSplit.ownSelections = appendToArray(
@@ -353,7 +388,7 @@ export class Planner {
   _addFragmentToSelectionSplit(
     selectionSplit,
     subschema,
-    fromSubschemas,
+    fromSubschema,
     parentType,
     fragment,
   ) {
@@ -364,7 +399,7 @@ export class Planner {
     this._processSelectionsForSelectionSplit(
       fragmentSelectionSplit,
       subschema,
-      fromSubschemas,
+      fromSubschema,
       parentType,
       fragment.selectionSet.selections,
     );

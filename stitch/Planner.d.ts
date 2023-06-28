@@ -11,12 +11,15 @@ import type {
 } from 'graphql';
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
-import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 export interface FieldPlan {
   superSchema: SuperSchema;
-  selectionMap: ReadonlyMap<Subschema, Array<SelectionNode>>;
+  subschemaPlans: Map<Subschema, SubschemaPlan>;
   stitchTrees: ObjMap<StitchTree>;
+}
+export interface SubschemaPlan {
+  fromSubschema: Subschema | undefined;
+  fieldNodes: Array<FieldNode>;
 }
 interface SelectionSplit {
   ownSelections: ReadonlyArray<SelectionNode>;
@@ -24,12 +27,6 @@ interface SelectionSplit {
 }
 export interface StitchTree {
   fieldPlans: Map<GraphQLObjectType, FieldPlan>;
-  fromSubschemas: ReadonlyArray<Subschema>;
-}
-export interface MutableFieldPlan {
-  selectionMap: AccumulatorMap<Subschema, SelectionNode>;
-  stitchTrees: ObjMap<StitchTree>;
-  superSchema: SuperSchema;
 }
 export declare const createPlanner: (
   a1: SuperSchema,
@@ -46,10 +43,10 @@ export declare class Planner {
     a1: GraphQLCompositeType,
     a2: readonly FieldNode[],
   ) => FieldPlan;
-  _createFieldPlanFromSubschemas: (
+  _createSupplementalFieldPlan: (
     a1: GraphQLCompositeType,
     a2: readonly FieldNode[],
-    a3: readonly Subschema[],
+    a3: Subschema,
   ) => FieldPlan;
   _collectSubFields: (
     a1: GraphQLObjectType<any, any>,
@@ -73,51 +70,67 @@ export declare class Planner {
     fragment: FragmentDefinitionNode | InlineFragmentNode,
     type: GraphQLObjectType,
   ): boolean;
-  _createFieldPlanFromSubschemasImpl(
+  _createFieldPlanImpl(
     parentType: GraphQLCompositeType,
     fieldNodes: ReadonlyArray<FieldNode>,
-    fromSubschemas?: ReadonlyArray<Subschema>,
+  ): FieldPlan;
+  _createSupplementalFieldPlanImpl(
+    parentType: GraphQLCompositeType,
+    fieldNodes: ReadonlyArray<FieldNode>,
+    fromSubschema: Subschema,
   ): FieldPlan;
   _addFieldToFieldPlan(
-    fieldPlan: MutableFieldPlan,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fieldPlan: FieldPlan,
+    fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     field: FieldNode,
   ): void;
+  _getSubschemaAndPlan(
+    subschemas: Set<Subschema>,
+    subschemaPlans: Map<Subschema, SubschemaPlan>,
+    fromSubschema: Subschema | undefined,
+  ): {
+    subschema: Subschema;
+    subschemaPlan: SubschemaPlan;
+  };
   _getSubschema(
     subschemas: Set<Subschema>,
-    selectionMap: Map<Subschema, Array<SelectionNode>>,
+    subschemaPlans: Map<Subschema, SubschemaPlan>,
   ): Subschema;
+  _getSubschemaPlan(
+    subschema: Subschema,
+    subschemaPlans: Map<Subschema, SubschemaPlan>,
+    fromSubschema: Subschema | undefined,
+  ): SubschemaPlan;
   _createStitchTree(
     parentType: GraphQLCompositeType,
     otherSelections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
   ): StitchTree;
   _createSelectionSplit(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fromSubschema: Subschema | undefined,
   ): SelectionSplit;
   _processSelectionsForSelectionSplit(
     selectionSplit: SelectionSplit,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
   ): void;
   _addFieldToSelectionSplit(
     selectionSplit: SelectionSplit,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     field: FieldNode,
   ): void;
   _addFragmentToSelectionSplit(
     selectionSplit: SelectionSplit,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
   ): void;

@@ -1,14 +1,24 @@
-import type { DocumentNode, ExecutionResult, SelectionNode } from 'graphql';
+import type {
+  DocumentNode,
+  ExecutionResult,
+  FieldNode,
+  SelectionNode,
+} from 'graphql';
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
-import type { FieldPlan, StitchTree } from './Planner.js';
+import type { StitchTree } from './Planner.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 type Path = ReadonlyArray<string | number>;
+export interface Stitch {
+  subschema: Subschema;
+  stitchTrees: ObjMap<StitchTree> | undefined;
+  initialResult: PromiseOrValue<ExecutionResult>;
+}
 interface FetchPlan {
-  subschemaSelections: ReadonlyArray<SelectionNode>;
+  fieldNodes: ReadonlyArray<FieldNode>;
   parent: ObjMap<unknown>;
   target: ObjMap<unknown>;
   path: Path;
@@ -17,8 +27,7 @@ interface FetchPlan {
  * @internal
  */
 export declare class Composer {
-  results: Array<PromiseOrValue<ExecutionResult>>;
-  fieldPlan: FieldPlan;
+  stitches: Array<Stitch>;
   superSchema: SuperSchema;
   rawVariableValues:
     | {
@@ -30,8 +39,8 @@ export declare class Composer {
   nulled: boolean;
   promiseAggregator: PromiseAggregator;
   constructor(
-    results: Array<PromiseOrValue<ExecutionResult>>,
-    fieldPlan: FieldPlan,
+    stitches: Array<Stitch>,
+    superSchema: SuperSchema,
     rawVariableValues:
       | {
           readonly [variable: string]: unknown;
@@ -44,14 +53,13 @@ export declare class Composer {
   _handleMaybeAsyncResult(
     parent: ObjMap<unknown> | undefined,
     fields: ObjMap<unknown>,
-    fieldPlan: FieldPlan | undefined,
-    result: PromiseOrValue<ExecutionResult>,
+    stitch: Stitch,
     path: Path,
   ): void;
   _handleResult(
     parent: ObjMap<unknown> | undefined,
     fields: ObjMap<unknown>,
-    fieldPlan: FieldPlan | undefined,
+    stitch: Stitch | undefined,
     result: ExecutionResult,
     path: Path,
   ): void;
