@@ -298,15 +298,13 @@ describe('FieldPlan', () => {
                 someNestedField
               }
             }
-            ... {
-              someObject {
-                ... {
-                  someField {
-                    __stitching__typename: __typename
-                  }
+            someObject {
+              ... {
+                someField {
+                  __stitching__typename: __typename
                 }
-                __stitching__typename: __typename
               }
+              __stitching__typename: __typename
             }
           }
       StitchTree for 'someObject':
