@@ -4,15 +4,13 @@ import type {
   OperationDefinitionNode,
 } from 'graphql';
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
-import type { ObjMap } from '../types/ObjMap.ts';
-import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.ts';
-import { Planner } from './Planner.ts';
+import { inlineFragments } from '../utilities/inlineFragments.ts';
+import type { Planner } from './Planner.ts';
+import { createPlanner } from './Planner.ts';
 import type { Subschema } from './SuperSchema.ts';
 import { SuperSchema } from './SuperSchema.ts';
 export interface ExecutionContext {
-  superSchema: SuperSchema;
   operation: OperationDefinitionNode;
-  fragments: Array<FragmentDefinitionNode>;
   planner: Planner;
   rawVariableValues:
     | {
@@ -48,7 +46,7 @@ export function buildExecutionContext(
   }
   const superSchema = new SuperSchema(subschemas);
   let operation: OperationDefinitionNode | undefined;
-  let fragments: Array<FragmentDefinitionNode> = [];
+  const fragments: Array<FragmentDefinitionNode> = [];
   for (const definition of document.definitions) {
     switch (definition.kind) {
       case Kind.OPERATION_DEFINITION:
@@ -90,24 +88,10 @@ export function buildExecutionContext(
     return coercedVariableValues.errors;
   }
   const coerced = coercedVariableValues.coerced;
-  operation = applySkipIncludeDirectives(operation, coerced);
-  const fragmentMap: ObjMap<FragmentDefinitionNode> = Object.create(null);
-  fragments = fragments.map((fragment) => {
-    const processedFragment = applySkipIncludeDirectives(fragment, coerced);
-    fragmentMap[fragment.name.value] = processedFragment;
-    return processedFragment;
-  });
+  operation = inlineFragments(operation, fragments);
   return {
-    superSchema,
     operation,
-    fragments,
-    planner: new Planner(
-      superSchema,
-      operation,
-      fragments,
-      fragmentMap,
-      variableDefinitions,
-    ),
+    planner: createPlanner(superSchema, operation),
     rawVariableValues,
     coercedVariableValues: coerced,
   };

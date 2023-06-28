@@ -12,9 +12,9 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   if (!('planner' in exeContext)) {
     return { errors: exeContext };
   }
-  const { superSchema, operation, fragments, planner, rawVariableValues } =
+  const { operation, planner, rawVariableValues, coercedVariableValues } =
     exeContext;
-  const rootFieldPlan = planner.createRootFieldPlan();
+  const rootFieldPlan = planner.createRootFieldPlan(coercedVariableValues);
   if (rootFieldPlan instanceof GraphQLError) {
     return { data: null, errors: [rootFieldPlan] };
   }
@@ -33,7 +33,6 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
             selections: subschemaSelections,
           },
         },
-        ...fragments,
       ],
     };
     results.push(
@@ -43,12 +42,6 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
       }),
     );
   }
-  const composer = new Composer(
-    superSchema,
-    results,
-    rootFieldPlan,
-    fragments,
-    rawVariableValues,
-  );
+  const composer = new Composer(results, rootFieldPlan, rawVariableValues);
   return composer.compose();
 }
