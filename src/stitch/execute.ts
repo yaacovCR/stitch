@@ -43,7 +43,7 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     };
 
     stitches.push({
-      subschema,
+      fromSubschema: subschema,
       stitchTrees: rootFieldPlan.stitchTrees,
       initialResult: subschema.executor({
         document,

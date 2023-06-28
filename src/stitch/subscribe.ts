@@ -81,7 +81,7 @@ export function subscribe(
           const composer = new Composer(
             [
               {
-                subschema,
+                fromSubschema: subschema,
                 stitchTrees: fieldPlan.stitchTrees,
                 initialResult: payload,
               },
@@ -102,7 +102,7 @@ export function subscribe(
       const composer = new Composer(
         [
           {
-            subschema,
+            fromSubschema: subschema,
             stitchTrees: fieldPlan.stitchTrees,
             initialResult: payload,
           },
