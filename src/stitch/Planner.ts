@@ -82,12 +82,12 @@ export class Planner {
   _createFieldPlanFromSubschemas = memoize3(
     (
       parentType: GraphQLCompositeType,
-      selections: ReadonlyArray<SelectionNode>,
+      fieldNodes: ReadonlyArray<FieldNode>,
       fromSubschemas: ReadonlyArray<Subschema>,
     ) =>
       this._createFieldPlanFromSubschemasImpl(
         parentType,
-        selections,
+        fieldNodes,
         fromSubschemas,
       ),
   );
@@ -119,10 +119,12 @@ export class Planner {
       variableValues,
     );
 
-    return this._createFieldPlan(
+    const fieldNodes = this._collectSubFields(
       rootType,
       filteredOperation.selectionSet.selections,
     );
+
+    return this._createFieldPlan(rootType, fieldNodes);
   }
 
   _collectSubFieldsImpl(
@@ -189,7 +191,7 @@ export class Planner {
 
   _createFieldPlanFromSubschemasImpl(
     parentType: GraphQLCompositeType,
-    selections: ReadonlyArray<SelectionNode>,
+    fieldNodes: ReadonlyArray<FieldNode>,
     fromSubschemas: ReadonlyArray<Subschema> = emptyArray as ReadonlyArray<Subschema>,
   ): FieldPlan {
     const fieldPlan = {
@@ -199,53 +201,11 @@ export class Planner {
       superSchema: this.superSchema,
     };
 
-    this._processSelectionsForFieldPlan(
-      fieldPlan,
-      parentType,
-      selections,
-      new Set<string>(),
-    );
+    for (const fieldNode of fieldNodes) {
+      this._addFieldToFieldPlan(fieldPlan, parentType, fieldNode);
+    }
 
     return fieldPlan;
-  }
-
-  _processSelectionsForFieldPlan(
-    fieldPlan: MutableFieldPlan,
-    parentType: GraphQLCompositeType,
-    selections: ReadonlyArray<SelectionNode>,
-    visitedFragments: Set<string>,
-  ): void {
-    for (const selection of selections) {
-      switch (selection.kind) {
-        case Kind.FIELD: {
-          this._addFieldToFieldPlan(fieldPlan, parentType, selection);
-          break;
-        }
-        case Kind.INLINE_FRAGMENT: {
-          const typeName = selection.typeCondition?.name.value;
-          const refinedType =
-            typeName !== undefined
-              ? this.superSchema.getType(typeName)
-              : parentType;
-
-          invariant(
-            isCompositeType(refinedType),
-            `Invalid type condition ${inspect(refinedType)}`,
-          );
-
-          this._addFragmentToFieldPlan(
-            fieldPlan,
-            refinedType,
-            selection,
-            visitedFragments,
-          );
-          break;
-        }
-        case Kind.FRAGMENT_SPREAD: {
-          throw new Error('Unexpected fragment spread in selection set.');
-        }
-      }
-    }
   }
 
   _addFieldToFieldPlan(
@@ -323,41 +283,6 @@ export class Planner {
     }
 
     return subschemas.values().next().value as Subschema;
-  }
-
-  _addFragmentToFieldPlan(
-    fieldPlan: MutableFieldPlan,
-    parentType: GraphQLCompositeType,
-    fragment: InlineFragmentNode,
-    visitedFragments: Set<string>,
-  ): void {
-    const fragmentFieldPlan = {
-      selectionMap: new AccumulatorMap<Subschema, SelectionNode>(),
-      stitchTrees: fieldPlan.stitchTrees,
-      fromSubschemas: fieldPlan.fromSubschemas,
-      superSchema: fieldPlan.superSchema,
-    };
-
-    this._processSelectionsForFieldPlan(
-      fragmentFieldPlan,
-      parentType,
-      fragment.selectionSet.selections,
-      visitedFragments,
-    );
-
-    for (const [
-      fragmentSubschema,
-      fragmentSelections,
-    ] of fragmentFieldPlan.selectionMap) {
-      const splitFragment: InlineFragmentNode = {
-        ...fragment,
-        selectionSet: {
-          kind: Kind.SELECTION_SET,
-          selections: fragmentSelections,
-        },
-      };
-      fieldPlan.selectionMap.add(fragmentSubschema, splitFragment);
-    }
   }
 
   _createStitchTree(
