@@ -20,15 +20,12 @@ export function printPlan(
     );
 
     if (plan.subschemaPlans.size > 0) {
-      entries.push(`${spaces}  Send:`);
       entries.push(
-        printSubschemaPlans(superSchema, plan.subschemaPlans, indent + 4),
+        printSubschemaPlans(superSchema, plan.subschemaPlans, indent + 2),
       );
     }
-
     if (stitchTrees.length > 0) {
-      entries.push(`${spaces}  Stitch:`);
-      entries.push(printStitchTrees(stitchTrees, indent + 4));
+      entries.push(printStitchTrees(stitchTrees, indent + 2));
     }
   }
 
@@ -55,13 +52,30 @@ function printSubschemaPlan(
 ): string {
   const spaces = new Array(indent).fill(' ', 0, indent).join('');
   const entries = [];
-  entries.push(`${spaces}Subschema ${superSchema.getSubschemaId(subschema)}:`);
+
+  const stitchTrees = Object.entries(subschemaPlan.stitchTrees);
+  if (subschemaPlan.fieldNodes.length > 0 || stitchTrees.length > 0) {
+    entries.push(
+      `${spaces}For Subschema: [${superSchema.getSubschemaId(subschema)}]`,
+    );
+  }
+
   if (subschemaPlan.fieldNodes.length > 0) {
+    if (subschemaPlan.fromSubschema !== undefined) {
+      entries.push(
+        `${spaces}  From Subschema: [${superSchema.getSubschemaId(
+          subschemaPlan.fromSubschema,
+        )}]`,
+      );
+    }
     entries.push(
       printSubschemaFieldNodes(subschemaPlan.fieldNodes, indent + 2),
     );
   }
 
+  if (stitchTrees.length > 0) {
+    entries.push(printStitchTrees(stitchTrees, indent + 2));
+  }
   return entries.join('\n');
 }
 

@@ -66,7 +66,7 @@ function executeWithComposer(
 
     stitches.push({
       fromSubschema: subschema,
-      stitchTrees: fieldPlan.stitchTrees,
+      stitchTrees: subschemaPlan.stitchTrees,
       initialResult: subschema.executor({
         document,
       }),

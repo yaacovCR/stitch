@@ -29,6 +29,7 @@ export interface Stitch {
 
 interface FetchPlan {
   fieldNodes: ReadonlyArray<FieldNode>;
+  stitchTrees: ObjMap<StitchTree> | undefined;
   parent: ObjMap<unknown>;
   target: ObjMap<unknown>;
   path: Path;
@@ -183,10 +184,9 @@ export class Composer {
           this._handleMaybeAsyncResult(
             subFetch.parent,
             subFetch.target,
-            // TODO: add multilayer plan support
             {
               fromSubschema: subschema,
-              stitchTrees: undefined,
+              stitchTrees: subFetch.stitchTrees,
               initialResult: subResult,
             },
             subFetch.path,
@@ -264,6 +264,7 @@ export class Composer {
     for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
       subFetchMap.add(subschema, {
         fieldNodes: subschemaPlan.fieldNodes,
+        stitchTrees: subschemaPlan.stitchTrees,
         parent: parent as ObjMap<unknown>,
         target: fieldsOrList,
         path,

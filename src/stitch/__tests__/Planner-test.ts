@@ -87,33 +87,32 @@ describe('FieldPlan', () => {
 
     expect(printPlan(fieldPlan)).to.equal(dedent`
       Plan:
-        Send:
-          Subschema 0:
-            FieldNodes:
-              {
-                __schema {
-                  queryType {
-                    name
-                  }
-                }
-                __type(name: "Query") {
+        For Subschema: [0]
+          FieldNodes:
+            {
+              __schema {
+                queryType {
                   name
                 }
               }
-          Subschema 1:
-            FieldNodes:
-              {
-                someObject {
-                  someField
-                }
+              __type(name: "Query") {
+                name
               }
-          Subschema 2:
-            FieldNodes:
-              {
-                anotherObject {
-                  someField
-                }
+            }
+        For Subschema: [1]
+          FieldNodes:
+            {
+              someObject {
+                someField
               }
+            }
+        For Subschema: [2]
+          FieldNodes:
+            {
+              anotherObject {
+                someField
+              }
+            }
     `);
   });
 
@@ -153,24 +152,22 @@ describe('FieldPlan', () => {
 
     expect(printPlan(fieldPlan)).to.equal(dedent`
       Plan:
-        Send:
-          Subschema 0:
-            FieldNodes:
-              {
-                someObject {
-                  someField
-                  __stitching__typename: __typename
-                }
+        For Subschema: [0]
+          FieldNodes:
+            {
+              someObject {
+                someField
+                __stitching__typename: __typename
               }
-        Stitch:
+            }
           For key 'someObject':
             For type 'SomeObject':
-              Send:
-                Subschema 1:
-                  FieldNodes:
-                    {
-                      anotherField
-                    }
+              For Subschema: [1]
+                From Subschema: [0]
+                FieldNodes:
+                  {
+                    anotherField
+                  }
     `);
   });
 
@@ -218,30 +215,27 @@ describe('FieldPlan', () => {
 
     expect(printPlan(fieldPlan)).to.equal(dedent`
       Plan:
-        Send:
-          Subschema 0:
-            FieldNodes:
-              {
-                someObject {
-                  someField {
-                    someNestedField
-                    __stitching__typename: __typename
-                  }
+        For Subschema: [0]
+          FieldNodes:
+            {
+              someObject {
+                someField {
+                  someNestedField
                   __stitching__typename: __typename
                 }
+                __stitching__typename: __typename
               }
-        Stitch:
+            }
           For key 'someObject':
             For type 'SomeObject':
-              Stitch:
-                For key 'someField':
-                  For type 'SomeNestedObject':
-                    Send:
-                      Subschema 1:
-                        FieldNodes:
-                          {
-                            anotherNestedField
-                          }
+              For key 'someField':
+                For type 'SomeNestedObject':
+                  For Subschema: [1]
+                    From Subschema: [0]
+                    FieldNodes:
+                      {
+                        anotherNestedField
+                      }
     `);
   });
 
@@ -304,36 +298,33 @@ describe('FieldPlan', () => {
 
     expect(printPlan(fieldPlan)).to.equal(dedent`
       Plan:
-        Send:
-          Subschema 0:
-            FieldNodes:
-              {
-                someObject {
-                  someField {
-                    someNestedField
-                  }
-                }
-                someObject {
-                  ... {
-                    someField {
-                      __stitching__typename: __typename
-                    }
-                  }
-                  __stitching__typename: __typename
+        For Subschema: [0]
+          FieldNodes:
+            {
+              someObject {
+                someField {
+                  someNestedField
                 }
               }
-        Stitch:
+              someObject {
+                ... {
+                  someField {
+                    __stitching__typename: __typename
+                  }
+                }
+                __stitching__typename: __typename
+              }
+            }
           For key 'someObject':
             For type 'SomeObject':
-              Stitch:
-                For key 'someField':
-                  For type 'SomeNestedObject':
-                    Send:
-                      Subschema 1:
-                        FieldNodes:
-                          {
-                            anotherNestedField
-                          }
+              For key 'someField':
+                For type 'SomeNestedObject':
+                  For Subschema: [1]
+                    From Subschema: [0]
+                    FieldNodes:
+                      {
+                        anotherNestedField
+                      }
     `);
   });
 
@@ -384,31 +375,29 @@ describe('FieldPlan', () => {
 
     expect(printPlan(fieldPlan)).to.equal(dedent`
       Plan:
-        Send:
-          Subschema 0:
-            FieldNodes:
-              {
-                someObject {
-                  someField {
-                    someField
-                  }
-                  anotherField {
-                    __stitching__typename: __typename
-                  }
+        For Subschema: [0]
+          FieldNodes:
+            {
+              someObject {
+                someField {
+                  someField
+                }
+                anotherField {
                   __stitching__typename: __typename
                 }
+                __stitching__typename: __typename
               }
-        Stitch:
+            }
           For key 'someObject':
             For type 'SomeObject':
-              Send:
-                Subschema 1:
-                  FieldNodes:
-                    {
-                      anotherField {
-                        someField
-                      }
+              For Subschema: [1]
+                From Subschema: [0]
+                FieldNodes:
+                  {
+                    anotherField {
+                      someField
                     }
+                  }
     `);
   });
 });
