@@ -23,7 +23,7 @@ import type { Subschema, SuperSchema } from './SuperSchema.js';
 type Path = ReadonlyArray<string | number>;
 
 export interface Stitch {
-  subschema: Subschema;
+  fromSubschema: Subschema;
   stitchTrees: ObjMap<StitchTree> | undefined;
   initialResult: PromiseOrValue<ExecutionResult>;
 }
@@ -191,7 +191,7 @@ export class Composer {
             subQuery.target,
             // TODO: add multilayer plan support
             {
-              subschema,
+              fromSubschema: subschema,
               stitchTrees: undefined,
               initialResult: subResult,
             },
