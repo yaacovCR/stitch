@@ -22,11 +22,11 @@ export function subscribe(
   const { operation, planner, rawVariableValues, coercedVariableValues } =
     exeContext;
   operation.operation === OperationTypeNode.SUBSCRIPTION || invariant(false);
-  const fieldPlan = planner.createRootFieldPlan(coercedVariableValues);
-  if (fieldPlan instanceof GraphQLError) {
-    return { errors: [fieldPlan] };
+  const rootFieldPlan = planner.createRootFieldPlan(coercedVariableValues);
+  if (rootFieldPlan instanceof GraphQLError) {
+    return { errors: [rootFieldPlan] };
   }
-  const iteration = fieldPlan.subschemaPlans.entries().next();
+  const iteration = rootFieldPlan.subschemaPlans.entries().next();
   if (iteration.done) {
     const error = new GraphQLError('Could not route subscription.', {
       nodes: operation,
@@ -65,12 +65,12 @@ export function subscribe(
           const composer = new Composer(
             [
               {
-                subschema,
-                stitchTrees: fieldPlan.stitchTrees,
+                fromSubschema: subschema,
+                stitchTrees: subschemaPlan.stitchTrees,
                 initialResult: payload,
               },
             ],
-            fieldPlan.superSchema,
+            rootFieldPlan.superSchema,
             rawVariableValues,
           );
           return composer.compose();
@@ -84,12 +84,12 @@ export function subscribe(
       const composer = new Composer(
         [
           {
-            subschema,
-            stitchTrees: fieldPlan.stitchTrees,
+            fromSubschema: subschema,
+            stitchTrees: subschemaPlan.stitchTrees,
             initialResult: payload,
           },
         ],
-        fieldPlan.superSchema,
+        rootFieldPlan.superSchema,
         rawVariableValues,
       );
       return composer.compose();

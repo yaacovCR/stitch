@@ -34,6 +34,7 @@ export interface FieldPlan {
 export interface SubschemaPlan {
   fromSubschema: Subschema | undefined;
   fieldNodes: Array<FieldNode>;
+  stitchTrees: ObjMap<StitchTree>;
 }
 interface SelectionSplit {
   ownSelections: ReadonlyArray<SelectionNode>;
@@ -211,6 +212,11 @@ export class Planner {
       subschema,
       fromSubschema,
     );
+    const stitchTree = this._createStitchTree(
+      namedFieldType,
+      selectionSplit.otherSelections,
+      subschema,
+    );
     if (selectionSplit.ownSelections.length) {
       const subschemaPlan = this._getSubschemaPlan(
         subschema,
@@ -228,15 +234,26 @@ export class Planner {
         subschemaPlan.fieldNodes,
         splitField,
       );
-    }
-    const stitchTree = this._createStitchTree(
-      namedFieldType,
-      selectionSplit.otherSelections,
-      subschema,
-    );
-    if (stitchTree.fieldPlans.size > 0) {
+      if (stitchTree.fieldPlans.size > 0) {
+        const responseKey = field.alias?.value ?? field.name.value;
+        if (subschema === fromSubschema) {
+          fieldPlan.stitchTrees[responseKey] = stitchTree;
+        } else {
+          subschemaPlan.stitchTrees[responseKey] = stitchTree;
+        }
+      }
+    } else if (stitchTree.fieldPlans.size > 0) {
       const responseKey = field.alias?.value ?? field.name.value;
-      fieldPlan.stitchTrees[responseKey] = stitchTree;
+      if (subschema !== undefined && subschema === fromSubschema) {
+        fieldPlan.stitchTrees[responseKey] = stitchTree;
+      } else {
+        const { subschemaPlan } = this._getSubschemaAndPlan(
+          subschemas,
+          subschemaPlans,
+          fromSubschema,
+        );
+        subschemaPlan.stitchTrees[responseKey] = stitchTree;
+      }
     }
   }
   _getSubschemaAndPlan(
@@ -257,6 +274,7 @@ export class Planner {
     const subschemaPlan: SubschemaPlan = {
       fieldNodes: emptyArray as Array<FieldNode>,
       fromSubschema,
+      stitchTrees: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
     return { subschema, subschemaPlan };
@@ -285,6 +303,7 @@ export class Planner {
     subschemaPlan = {
       fieldNodes: emptyArray as Array<FieldNode>,
       fromSubschema,
+      stitchTrees: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
     return subschemaPlan;

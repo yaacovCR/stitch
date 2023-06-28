@@ -7,7 +7,6 @@ import type {
 import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
-import { isObjectLike } from '../predicates/isObjectLike.ts';
 import { isPromise } from '../predicates/isPromise.ts';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { inspect } from '../utilities/inspect.ts';
@@ -17,12 +16,13 @@ import type { StitchTree } from './Planner.ts';
 import type { Subschema, SuperSchema } from './SuperSchema.ts';
 type Path = ReadonlyArray<string | number>;
 export interface Stitch {
-  subschema: Subschema;
+  fromSubschema: Subschema;
   stitchTrees: ObjMap<StitchTree> | undefined;
   initialResult: PromiseOrValue<ExecutionResult>;
 }
 interface FetchPlan {
   fieldNodes: ReadonlyArray<FieldNode>;
+  stitchTrees: ObjMap<StitchTree> | undefined;
   parent: ObjMap<unknown>;
   target: ObjMap<unknown>;
   path: Path;
@@ -144,48 +144,42 @@ export class Composer {
       return;
     }
     for (const [key, value] of Object.entries(result.data)) {
-      this._deepMerge(fields, key, value);
+      fields[key] = value;
     }
     if (stitch?.stitchTrees !== undefined) {
-      const subQueriesBySchema = new AccumulatorMap<Subschema, FetchPlan>();
-      this._walkStitchTrees(
-        subQueriesBySchema,
-        result.data,
-        stitch.stitchTrees,
-        path,
-      );
-      for (const [subschema, subQueries] of subQueriesBySchema) {
-        for (const subQuery of subQueries) {
+      const subFetchMap = new AccumulatorMap<Subschema, FetchPlan>();
+      this._walkStitchTrees(subFetchMap, result.data, stitch.stitchTrees, path);
+      for (const [subschema, subFetches] of subFetchMap) {
+        for (const subFetch of subFetches) {
           // TODO: send one document per subschema
           const subResult = subschema.executor({
-            document: this._createDocument(subQuery.fieldNodes),
+            document: this._createDocument(subFetch.fieldNodes),
             variables: this.rawVariableValues,
           });
           this._handleMaybeAsyncResult(
-            subQuery.parent,
-            subQuery.target,
-            // TODO: add multilayer plan support
+            subFetch.parent,
+            subFetch.target,
             {
-              subschema,
-              stitchTrees: undefined,
+              fromSubschema: subschema,
+              stitchTrees: subFetch.stitchTrees,
               initialResult: subResult,
             },
-            subQuery.path,
+            subFetch.path,
           );
         }
       }
     }
   }
   _walkStitchTrees(
-    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
+    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
     stitchTrees: ObjMap<StitchTree>,
     path: Path,
   ): void {
     for (const [key, stitchTree] of Object.entries(stitchTrees)) {
       if (fields[key] !== undefined) {
-        this._addPossibleListStitches(
-          subQueriesBySchema,
+        this._collectSubFetches(
+          subFetchMap,
           fields,
           fields[key] as ObjMap<unknown> | Array<unknown>,
           stitchTree,
@@ -194,8 +188,8 @@ export class Composer {
       }
     }
   }
-  _addPossibleListStitches(
-    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
+  _collectSubFetches(
+    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
     stitchTree: StitchTree,
@@ -203,8 +197,8 @@ export class Composer {
   ): void {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
-        this._addPossibleListStitches(
-          subQueriesBySchema,
+        this._collectSubFetches(
+          subFetchMap,
           fieldsOrList,
           fieldsOrList[i] as ObjMap<unknown>,
           stitchTree,
@@ -231,32 +225,19 @@ export class Composer {
     fieldPlan !== undefined ||
       invariant(false, `Missing field plan for type '${typeName}'.`);
     for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
-      subQueriesBySchema.add(subschema, {
+      subFetchMap.add(subschema, {
         fieldNodes: subschemaPlan.fieldNodes,
+        stitchTrees: subschemaPlan.stitchTrees,
         parent: parent as ObjMap<unknown>,
         target: fieldsOrList,
         path,
       });
     }
     this._walkStitchTrees(
-      subQueriesBySchema,
+      subFetchMap,
       fieldsOrList,
       fieldPlan.stitchTrees,
       path,
     );
-  }
-  _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void {
-    if (
-      !isObjectLike(fields[key]) ||
-      !isObjectLike(value) ||
-      Array.isArray(value)
-    ) {
-      fields[key] = value;
-      return;
-    }
-    for (const [subKey, subValue] of Object.entries(value)) {
-      const subFields = fields[key] as ObjMap<unknown>;
-      this._deepMerge(subFields, subKey, subValue);
-    }
   }
 }
