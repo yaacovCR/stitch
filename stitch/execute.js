@@ -14,9 +14,9 @@ function execute(args) {
   if (!('planner' in exeContext)) {
     return { errors: exeContext };
   }
-  const { superSchema, operation, fragments, planner, rawVariableValues } =
+  const { operation, planner, rawVariableValues, coercedVariableValues } =
     exeContext;
-  const rootFieldPlan = planner.createRootFieldPlan();
+  const rootFieldPlan = planner.createRootFieldPlan(coercedVariableValues);
   if (rootFieldPlan instanceof graphql_1.GraphQLError) {
     return { data: null, errors: [rootFieldPlan] };
   }
@@ -35,7 +35,6 @@ function execute(args) {
             selections: subschemaSelections,
           },
         },
-        ...fragments,
       ],
     };
     results.push(
@@ -46,10 +45,8 @@ function execute(args) {
     );
   }
   const composer = new Composer_js_1.Composer(
-    superSchema,
     results,
     rootFieldPlan,
-    fragments,
     rawVariableValues,
   );
   return composer.compose();

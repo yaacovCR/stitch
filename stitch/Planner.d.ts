@@ -1,7 +1,6 @@
 import type {
   FieldNode,
   FragmentDefinitionNode,
-  FragmentSpreadNode,
   GraphQLCompositeType,
   GraphQLObjectType,
   GraphQLSchema,
@@ -15,59 +14,51 @@ import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 export interface FieldPlan {
+  superSchema: SuperSchema;
   selectionMap: ReadonlyMap<Subschema, Array<SelectionNode>>;
   stitchTrees: ObjMap<StitchTree>;
-  fromSubschemas: ReadonlyArray<Subschema>;
-  superSchema: SuperSchema;
 }
 interface SelectionSplit {
-  subschema: Subschema;
-  fromSubschemas: ReadonlyArray<Subschema>;
   ownSelections: ReadonlyArray<SelectionNode>;
   otherSelections: ReadonlyArray<SelectionNode>;
 }
 export interface StitchTree {
-  ownSelections: ReadonlyArray<SelectionNode>;
   fieldPlans: Map<GraphQLObjectType, FieldPlan>;
   fromSubschemas: ReadonlyArray<Subschema>;
 }
 export interface MutableFieldPlan {
   selectionMap: AccumulatorMap<Subschema, SelectionNode>;
   stitchTrees: ObjMap<StitchTree>;
-  fromSubschemas: ReadonlyArray<Subschema>;
   superSchema: SuperSchema;
 }
+export declare const createPlanner: (
+  a1: SuperSchema,
+  a2: OperationDefinitionNode,
+) => Planner;
 /**
  * @internal
  */
 export declare class Planner {
   superSchema: SuperSchema;
   operation: OperationDefinitionNode;
-  fragments: Array<FragmentDefinitionNode>;
-  fragmentMap: ObjMap<FragmentDefinitionNode>;
   variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
-  rootFieldPlan: FieldPlan | undefined;
   _createFieldPlan: (
     a1: GraphQLCompositeType,
-    a2: readonly SelectionNode[],
+    a2: readonly FieldNode[],
   ) => FieldPlan;
   _createFieldPlanFromSubschemas: (
     a1: GraphQLCompositeType,
-    a2: readonly SelectionNode[],
+    a2: readonly FieldNode[],
     a3: readonly Subschema[],
   ) => FieldPlan;
   _collectSubFields: (
     a1: GraphQLObjectType<any, any>,
     a2: readonly SelectionNode[],
   ) => readonly FieldNode[];
-  constructor(
-    superSchema: SuperSchema,
-    operation: OperationDefinitionNode,
-    fragments: Array<FragmentDefinitionNode>,
-    fragmentMap: ObjMap<FragmentDefinitionNode>,
-    variableDefinitions: ReadonlyArray<VariableDefinitionNode>,
-  );
-  createRootFieldPlan(): FieldPlan | GraphQLError;
+  constructor(superSchema: SuperSchema, operation: OperationDefinitionNode);
+  createRootFieldPlan(variableValues?: {
+    [key: string]: unknown;
+  }): FieldPlan | GraphQLError;
   _collectSubFieldsImpl(
     runtimeType: GraphQLObjectType,
     selections: ReadonlyArray<SelectionNode>,
@@ -84,17 +75,12 @@ export declare class Planner {
   ): boolean;
   _createFieldPlanFromSubschemasImpl(
     parentType: GraphQLCompositeType,
-    selections: ReadonlyArray<SelectionNode>,
+    fieldNodes: ReadonlyArray<FieldNode>,
     fromSubschemas?: ReadonlyArray<Subschema>,
   ): FieldPlan;
-  _processSelectionsForFieldPlan(
-    fieldPlan: MutableFieldPlan,
-    parentType: GraphQLCompositeType,
-    selections: ReadonlyArray<SelectionNode>,
-    visitedFragments: Set<string>,
-  ): void;
   _addFieldToFieldPlan(
     fieldPlan: MutableFieldPlan,
+    fromSubschemas: ReadonlyArray<Subschema>,
     parentType: GraphQLCompositeType,
     field: FieldNode,
   ): void;
@@ -102,16 +88,9 @@ export declare class Planner {
     subschemas: Set<Subschema>,
     selectionMap: Map<Subschema, Array<SelectionNode>>,
   ): Subschema;
-  _addFragmentToFieldPlan(
-    fieldPlan: MutableFieldPlan,
-    parentType: GraphQLCompositeType,
-    node: InlineFragmentNode | FragmentSpreadNode,
-    selections: ReadonlyArray<SelectionNode>,
-    visitedFragments: Set<string>,
-  ): void;
   _createStitchTree(
     parentType: GraphQLCompositeType,
-    selections: ReadonlyArray<SelectionNode>,
+    otherSelections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
     fromSubschemas: ReadonlyArray<Subschema>,
   ): StitchTree;
@@ -123,21 +102,24 @@ export declare class Planner {
   ): SelectionSplit;
   _processSelectionsForSelectionSplit(
     selectionSplit: SelectionSplit,
+    subschema: Subschema,
+    fromSubschemas: ReadonlyArray<Subschema>,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-    visitedFragments: Set<string>,
   ): void;
   _addFieldToSelectionSplit(
     selectionSplit: SelectionSplit,
+    subschema: Subschema,
+    fromSubschemas: ReadonlyArray<Subschema>,
     parentType: GraphQLCompositeType,
     field: FieldNode,
   ): void;
   _addFragmentToSelectionSplit(
     selectionSplit: SelectionSplit,
+    subschema: Subschema,
+    fromSubschemas: ReadonlyArray<Subschema>,
     parentType: GraphQLCompositeType,
-    node: InlineFragmentNode | FragmentSpreadNode,
-    selections: ReadonlyArray<SelectionNode>,
-    visitedFragments: Set<string>,
+    fragment: InlineFragmentNode,
   ): void;
 }
 export {};

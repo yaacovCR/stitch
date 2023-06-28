@@ -18,11 +18,11 @@ function subscribe(args) {
   if (!('planner' in exeContext)) {
     return { errors: exeContext };
   }
-  const { superSchema, operation, fragments, planner, rawVariableValues } =
+  const { operation, planner, rawVariableValues, coercedVariableValues } =
     exeContext;
   operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION ||
     (0, invariant_js_1.invariant)(false);
-  const fieldPlan = planner.createRootFieldPlan();
+  const fieldPlan = planner.createRootFieldPlan(coercedVariableValues);
   if (fieldPlan instanceof graphql_1.GraphQLError) {
     return { errors: [fieldPlan] };
   }
@@ -52,7 +52,6 @@ function subscribe(args) {
           selections: subschemaSelections,
         },
       },
-      ...fragments,
     ],
   };
   const result = subscriber({
@@ -66,10 +65,8 @@ function subscribe(args) {
           resolved,
           (payload) => {
             const composer = new Composer_js_1.Composer(
-              superSchema,
               [payload],
               fieldPlan,
-              fragments,
               rawVariableValues,
             );
             return composer.compose();
@@ -82,10 +79,8 @@ function subscribe(args) {
   if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
     return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) => {
       const composer = new Composer_js_1.Composer(
-        superSchema,
         [payload],
         fieldPlan,
-        fragments,
         rawVariableValues,
       );
       return composer.compose();

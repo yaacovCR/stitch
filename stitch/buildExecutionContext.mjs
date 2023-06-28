@@ -1,6 +1,6 @@
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
-import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.mjs';
-import { Planner } from './Planner.mjs';
+import { inlineFragments } from '../utilities/inlineFragments.mjs';
+import { createPlanner } from './Planner.mjs';
 import { SuperSchema } from './SuperSchema.mjs';
 export function buildExecutionContext(args) {
   const {
@@ -15,7 +15,7 @@ export function buildExecutionContext(args) {
   }
   const superSchema = new SuperSchema(subschemas);
   let operation;
-  let fragments = [];
+  const fragments = [];
   for (const definition of document.definitions) {
     switch (definition.kind) {
       case Kind.OPERATION_DEFINITION:
@@ -57,24 +57,10 @@ export function buildExecutionContext(args) {
     return coercedVariableValues.errors;
   }
   const coerced = coercedVariableValues.coerced;
-  operation = applySkipIncludeDirectives(operation, coerced);
-  const fragmentMap = Object.create(null);
-  fragments = fragments.map((fragment) => {
-    const processedFragment = applySkipIncludeDirectives(fragment, coerced);
-    fragmentMap[fragment.name.value] = processedFragment;
-    return processedFragment;
-  });
+  operation = inlineFragments(operation, fragments);
   return {
-    superSchema,
     operation,
-    fragments,
-    planner: new Planner(
-      superSchema,
-      operation,
-      fragments,
-      fragmentMap,
-      variableDefinitions,
-    ),
+    planner: createPlanner(superSchema, operation),
     rawVariableValues,
     coercedVariableValues: coerced,
   };

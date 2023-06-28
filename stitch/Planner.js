@@ -1,32 +1,31 @@
 'use strict';
 Object.defineProperty(exports, '__esModule', { value: true });
-exports.Planner = void 0;
+exports.Planner = exports.createPlanner = void 0;
 const graphql_1 = require('graphql');
 const AccumulatorMap_js_1 = require('../utilities/AccumulatorMap.js');
 const appendToArray_js_1 = require('../utilities/appendToArray.js');
+const applySkipIncludeDirectives_js_1 = require('../utilities/applySkipIncludeDirectives.js');
 const inspect_js_1 = require('../utilities/inspect.js');
 const invariant_js_1 = require('../utilities/invariant.js');
 const memoize2_js_1 = require('../utilities/memoize2.js');
 const memoize3_js_1 = require('../utilities/memoize3.js');
+const emptyObject = {};
+exports.createPlanner = (0, memoize2_js_1.memoize2)(
+  (superSchema, operation) => new Planner(superSchema, operation),
+);
 /**
  * @internal
  */
 class Planner {
-  constructor(
-    superSchema,
-    operation,
-    fragments,
-    fragmentMap,
-    variableDefinitions,
-  ) {
+  constructor(superSchema, operation) {
     this._createFieldPlan = (0, memoize2_js_1.memoize2)(
       this._createFieldPlanFromSubschemasImpl.bind(this),
     );
     this._createFieldPlanFromSubschemas = (0, memoize3_js_1.memoize3)(
-      (parentType, selections, fromSubschemas) =>
+      (parentType, fieldNodes, fromSubschemas) =>
         this._createFieldPlanFromSubschemasImpl(
           parentType,
-          selections,
+          fieldNodes,
           fromSubschemas,
         ),
     );
@@ -35,14 +34,9 @@ class Planner {
     );
     this.superSchema = superSchema;
     this.operation = operation;
-    this.fragments = fragments;
-    this.fragmentMap = fragmentMap;
-    this.variableDefinitions = variableDefinitions;
+    this.variableDefinitions = operation.variableDefinitions ?? [];
   }
-  createRootFieldPlan() {
-    if (this.rootFieldPlan !== undefined) {
-      return this.rootFieldPlan;
-    }
+  createRootFieldPlan(variableValues = emptyObject) {
     const rootType = this.superSchema.getRootType(this.operation.operation);
     if (rootType === undefined) {
       return new graphql_1.GraphQLError(
@@ -50,11 +44,16 @@ class Planner {
         { nodes: this.operation },
       );
     }
-    this.rootFieldPlan = this._createFieldPlan(
-      rootType,
-      this.operation.selectionSet.selections,
+    const filteredOperation = (0,
+    applySkipIncludeDirectives_js_1.applySkipIncludeDirectives)(
+      this.operation,
+      variableValues,
     );
-    return this.rootFieldPlan;
+    const fieldNodes = this._collectSubFields(
+      rootType,
+      filteredOperation.selectionSet.selections,
+    );
+    return this._createFieldPlan(rootType, fieldNodes);
   }
   _collectSubFieldsImpl(
     runtimeType,
@@ -68,7 +67,7 @@ class Planner {
       switch (selection.kind) {
         case graphql_1.Kind.FIELD: {
           newFieldNodes = (0, appendToArray_js_1.appendToArray)(
-            fieldNodes,
+            newFieldNodes,
             selection,
           );
           break;
@@ -82,31 +81,13 @@ class Planner {
           newFieldNodes = this._collectSubFieldsImpl(
             runtimeType,
             selection.selectionSet.selections,
-            fieldNodes,
+            newFieldNodes,
             visitedFragmentNames,
           );
           break;
         }
         case graphql_1.Kind.FRAGMENT_SPREAD: {
-          const fragName = selection.name.value;
-          if (visitedFragmentNames.has(fragName)) {
-            continue;
-          }
-          const fragment = this.fragmentMap[fragName];
-          if (
-            fragment == null ||
-            !this._doesFragmentConditionMatch(schema, fragment, runtimeType)
-          ) {
-            continue;
-          }
-          visitedFragmentNames.add(fragName);
-          newFieldNodes = this._collectSubFieldsImpl(
-            runtimeType,
-            fragment.selectionSet.selections,
-            fieldNodes,
-            visitedFragmentNames,
-          );
-          break;
+          throw new Error('Unexpected fragment spread in selection set.');
         }
       }
     }
@@ -134,89 +115,25 @@ class Planner {
   }
   _createFieldPlanFromSubschemasImpl(
     parentType,
-    selections,
+    fieldNodes,
     fromSubschemas = appendToArray_js_1.emptyArray,
   ) {
     const fieldPlan = {
       selectionMap: new AccumulatorMap_js_1.AccumulatorMap(),
       stitchTrees: Object.create(null),
-      fromSubschemas,
       superSchema: this.superSchema,
     };
-    this._processSelectionsForFieldPlan(
-      fieldPlan,
-      parentType,
-      selections,
-      new Set(),
-    );
+    for (const fieldNode of fieldNodes) {
+      this._addFieldToFieldPlan(
+        fieldPlan,
+        fromSubschemas,
+        parentType,
+        fieldNode,
+      );
+    }
     return fieldPlan;
   }
-  _processSelectionsForFieldPlan(
-    fieldPlan,
-    parentType,
-    selections,
-    visitedFragments,
-  ) {
-    for (const selection of selections) {
-      switch (selection.kind) {
-        case graphql_1.Kind.FIELD: {
-          this._addFieldToFieldPlan(fieldPlan, parentType, selection);
-          break;
-        }
-        case graphql_1.Kind.INLINE_FRAGMENT: {
-          const typeName = selection.typeCondition?.name.value;
-          const refinedType =
-            typeName !== undefined
-              ? this.superSchema.getType(typeName)
-              : parentType;
-          (0, graphql_1.isCompositeType)(refinedType) ||
-            (0, invariant_js_1.invariant)(
-              false,
-              `Invalid type condition ${(0, inspect_js_1.inspect)(
-                refinedType,
-              )}`,
-            );
-          this._addFragmentToFieldPlan(
-            fieldPlan,
-            refinedType,
-            selection,
-            selection.selectionSet.selections,
-            visitedFragments,
-          );
-          break;
-        }
-        case graphql_1.Kind.FRAGMENT_SPREAD: {
-          const fragmentName = selection.name.value;
-          if (visitedFragments.has(fragmentName)) {
-            continue;
-          }
-          visitedFragments.add(fragmentName);
-          const fragment = this.fragmentMap[fragmentName];
-          const typeName = fragment.typeCondition?.name.value;
-          const refinedType =
-            typeName !== undefined
-              ? this.superSchema.getType(typeName)
-              : parentType;
-          (0, graphql_1.isCompositeType)(refinedType) ||
-            (0, invariant_js_1.invariant)(
-              false,
-              `Invalid type condition ${(0, inspect_js_1.inspect)(
-                refinedType,
-              )}`,
-            );
-          this._addFragmentToFieldPlan(
-            fieldPlan,
-            refinedType,
-            selection,
-            fragment.selectionSet.selections,
-            visitedFragments,
-          );
-          break;
-        }
-      }
-    }
-  }
-  _addFieldToFieldPlan(fieldPlan, parentType, field) {
+  _addFieldToFieldPlan(fieldPlan, fromSubschemas, parentType, field) {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
     const subschemaSets = subschemaSetsByField[field.name.value];
@@ -234,22 +151,28 @@ class Planner {
     if (!fieldDef) {
       return;
     }
-    const fieldType = fieldDef.type;
-    const stitchTree = this._createStitchTree(
-      (0, graphql_1.getNamedType)(fieldType),
+    const fieldType = (0, graphql_1.getNamedType)(fieldDef.type);
+    const selectionSplit = this._createSelectionSplit(
+      fieldType,
       field.selectionSet.selections,
       subschema,
-      fieldPlan.fromSubschemas,
+      fromSubschemas,
     );
-    if (stitchTree.ownSelections.length) {
+    if (selectionSplit.ownSelections.length) {
       selectionMap.add(subschema, {
         ...field,
         selectionSet: {
           kind: graphql_1.Kind.SELECTION_SET,
-          selections: stitchTree.ownSelections,
+          selections: selectionSplit.ownSelections,
         },
       });
     }
+    const stitchTree = this._createStitchTree(
+      fieldType,
+      selectionSplit.otherSelections,
+      subschema,
+      fromSubschemas,
+    );
     if (stitchTree.fieldPlans.size > 0) {
       const responseKey = field.alias?.value ?? field.name.value;
       fieldPlan.stitchTrees[responseKey] = stitchTree;
@@ -265,47 +188,7 @@ class Planner {
     }
     return subschemas.values().next().value;
   }
-  _addFragmentToFieldPlan(
-    fieldPlan,
-    parentType,
-    node,
-    selections,
-    visitedFragments,
-  ) {
-    const fragmentFieldPlan = {
-      selectionMap: new AccumulatorMap_js_1.AccumulatorMap(),
-      stitchTrees: fieldPlan.stitchTrees,
-      fromSubschemas: fieldPlan.fromSubschemas,
-      superSchema: fieldPlan.superSchema,
-    };
-    this._processSelectionsForFieldPlan(
-      fragmentFieldPlan,
-      parentType,
-      selections,
-      visitedFragments,
-    );
-    for (const [
-      fragmentSubschema,
-      fragmentSelections,
-    ] of fragmentFieldPlan.selectionMap) {
-      const splitFragment = {
-        ...node,
-        kind: graphql_1.Kind.INLINE_FRAGMENT,
-        selectionSet: {
-          kind: graphql_1.Kind.SELECTION_SET,
-          selections: fragmentSelections,
-        },
-      };
-      fieldPlan.selectionMap.add(fragmentSubschema, splitFragment);
-    }
-  }
-  _createStitchTree(parentType, selections, subschema, fromSubschemas) {
-    const selectionSplit = this._createSelectionSplit(
-      parentType,
-      selections,
-      subschema,
-      fromSubschemas,
-    );
+  _createStitchTree(parentType, otherSelections, subschema, fromSubschemas) {
     const fieldPlans = new Map();
     let possibleTypes;
     if ((0, graphql_1.isAbstractType)(parentType)) {
@@ -314,10 +197,7 @@ class Planner {
       possibleTypes = [parentType];
     }
     for (const type of possibleTypes) {
-      const fieldNodes = this._collectSubFields(
-        type,
-        selectionSplit.otherSelections,
-      );
+      const fieldNodes = this._collectSubFields(type, otherSelections);
       const fieldPlan = this._createFieldPlanFromSubschemas(
         type,
         fieldNodes,
@@ -331,23 +211,21 @@ class Planner {
       }
     }
     return {
-      ownSelections: selectionSplit.ownSelections,
       fieldPlans,
       fromSubschemas,
     };
   }
   _createSelectionSplit(parentType, selections, subschema, fromSubschemas) {
     const selectionSplit = {
-      subschema,
       ownSelections: appendToArray_js_1.emptyArray,
       otherSelections: appendToArray_js_1.emptyArray,
-      fromSubschemas,
     };
     this._processSelectionsForSelectionSplit(
       selectionSplit,
+      subschema,
+      fromSubschemas,
       parentType,
       selections,
-      new Set(),
     );
     if (
       fromSubschemas.length === 0 &&
@@ -372,14 +250,21 @@ class Planner {
   }
   _processSelectionsForSelectionSplit(
     selectionSplit,
+    subschema,
+    fromSubschemas,
     parentType,
     selections,
-    visitedFragments,
   ) {
     for (const selection of selections) {
       switch (selection.kind) {
         case graphql_1.Kind.FIELD: {
-          this._addFieldToSelectionSplit(selectionSplit, parentType, selection);
+          this._addFieldToSelectionSplit(
+            selectionSplit,
+            subschema,
+            fromSubschemas,
+            parentType,
+            selection,
+          );
           break;
         }
         case graphql_1.Kind.INLINE_FRAGMENT: {
@@ -397,45 +282,26 @@ class Planner {
             );
           this._addFragmentToSelectionSplit(
             selectionSplit,
+            subschema,
+            fromSubschemas,
             refinedType,
             selection,
-            selection.selectionSet.selections,
-            visitedFragments,
           );
           break;
         }
         case graphql_1.Kind.FRAGMENT_SPREAD: {
-          const fragmentName = selection.name.value;
-          if (visitedFragments.has(fragmentName)) {
-            continue;
-          }
-          visitedFragments.add(fragmentName);
-          const fragment = this.fragmentMap[fragmentName];
-          const typeName = fragment.typeCondition?.name.value;
-          const refinedType =
-            typeName !== undefined
-              ? this.superSchema.getType(typeName)
-              : parentType;
-          (0, graphql_1.isCompositeType)(refinedType) ||
-            (0, invariant_js_1.invariant)(
-              false,
-              `Invalid type condition ${(0, inspect_js_1.inspect)(
-                refinedType,
-              )}`,
-            );
-          this._addFragmentToSelectionSplit(
-            selectionSplit,
-            refinedType,
-            selection,
-            fragment.selectionSet.selections,
-            visitedFragments,
-          );
-          break;
+          throw new Error('Unexpected fragment spread in selection set.');
         }
       }
     }
   }
-  _addFieldToSelectionSplit(selectionSplit, parentType, field) {
+  _addFieldToSelectionSplit(
+    selectionSplit,
+    subschema,
+    fromSubschemas,
+    parentType,
+    field,
+  ) {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
     const subschemaSet = subschemaSetsByField[field.name.value];
@@ -443,7 +309,7 @@ class Planner {
       return;
     }
     if (!field.selectionSet) {
-      if (subschemaSet.has(selectionSplit.subschema)) {
+      if (subschemaSet.has(subschema)) {
         selectionSplit.ownSelections = (0, appendToArray_js_1.appendToArray)(
           selectionSplit.ownSelections,
           field,
@@ -465,8 +331,8 @@ class Planner {
     const subSelectionSplit = this._createSelectionSplit(
       (0, graphql_1.getNamedType)(fieldType),
       field.selectionSet.selections,
-      selectionSplit.subschema,
-      selectionSplit.fromSubschemas,
+      subschema,
+      fromSubschemas,
     );
     if (subSelectionSplit.ownSelections.length) {
       selectionSplit.ownSelections = (0, appendToArray_js_1.appendToArray)(
@@ -495,27 +361,25 @@ class Planner {
   }
   _addFragmentToSelectionSplit(
     selectionSplit,
+    subschema,
+    fromSubschemas,
     parentType,
-    node,
-    selections,
-    visitedFragments,
+    fragment,
   ) {
     const fragmentSelectionSplit = {
-      subschema: selectionSplit.subschema,
       ownSelections: appendToArray_js_1.emptyArray,
       otherSelections: appendToArray_js_1.emptyArray,
-      fromSubschemas: selectionSplit.fromSubschemas,
     };
     this._processSelectionsForSelectionSplit(
       fragmentSelectionSplit,
+      subschema,
+      fromSubschemas,
       parentType,
-      selections,
-      visitedFragments,
+      fragment.selectionSet.selections,
     );
     if (fragmentSelectionSplit.ownSelections.length > 0) {
       const splitFragment = {
-        ...node,
-        kind: graphql_1.Kind.INLINE_FRAGMENT,
+        ...fragment,
         selectionSet: {
           kind: graphql_1.Kind.SELECTION_SET,
           selections: fragmentSelectionSplit.ownSelections,
@@ -528,8 +392,7 @@ class Planner {
     }
     if (fragmentSelectionSplit.otherSelections.length > 0) {
       const splitFragment = {
-        ...node,
-        kind: graphql_1.Kind.INLINE_FRAGMENT,
+        ...fragment,
         selectionSet: {
           kind: graphql_1.Kind.SELECTION_SET,
           selections: fragmentSelectionSplit.otherSelections,

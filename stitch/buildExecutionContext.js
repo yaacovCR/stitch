@@ -2,7 +2,7 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.buildExecutionContext = void 0;
 const graphql_1 = require('graphql');
-const applySkipIncludeDirectives_js_1 = require('../utilities/applySkipIncludeDirectives.js');
+const inlineFragments_js_1 = require('../utilities/inlineFragments.js');
 const Planner_js_1 = require('./Planner.js');
 const SuperSchema_js_1 = require('./SuperSchema.js');
 function buildExecutionContext(args) {
@@ -18,7 +18,7 @@ function buildExecutionContext(args) {
   }
   const superSchema = new SuperSchema_js_1.SuperSchema(subschemas);
   let operation;
-  let fragments = [];
+  const fragments = [];
   for (const definition of document.definitions) {
     switch (definition.kind) {
       case graphql_1.Kind.OPERATION_DEFINITION:
@@ -64,31 +64,10 @@ function buildExecutionContext(args) {
     return coercedVariableValues.errors;
   }
   const coerced = coercedVariableValues.coerced;
-  operation = (0, applySkipIncludeDirectives_js_1.applySkipIncludeDirectives)(
-    operation,
-    coerced,
-  );
-  const fragmentMap = Object.create(null);
-  fragments = fragments.map((fragment) => {
-    const processedFragment = (0,
-    applySkipIncludeDirectives_js_1.applySkipIncludeDirectives)(
-      fragment,
-      coerced,
-    );
-    fragmentMap[fragment.name.value] = processedFragment;
-    return processedFragment;
-  });
+  operation = (0, inlineFragments_js_1.inlineFragments)(operation, fragments);
   return {
-    superSchema,
     operation,
-    fragments,
-    planner: new Planner_js_1.Planner(
-      superSchema,
-      operation,
-      fragments,
-      fragmentMap,
-      variableDefinitions,
-    ),
+    planner: (0, Planner_js_1.createPlanner)(superSchema, operation),
     rawVariableValues,
     coercedVariableValues: coerced,
   };

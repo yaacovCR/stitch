@@ -9,11 +9,10 @@ import { PromiseAggregator } from '../utilities/PromiseAggregator.mjs';
  * @internal
  */
 export class Composer {
-  constructor(superSchema, results, fieldPlan, fragments, rawVariableValues) {
-    this.superSchema = superSchema;
+  constructor(results, fieldPlan, rawVariableValues) {
     this.results = results;
     this.fieldPlan = fieldPlan;
-    this.fragments = fragments;
+    this.superSchema = fieldPlan.superSchema;
     this.rawVariableValues = rawVariableValues;
     this.fields = Object.create(null);
     this.errors = [];
@@ -47,7 +46,6 @@ export class Composer {
             selections,
           },
         },
-        ...this.fragments,
       ],
     };
   }

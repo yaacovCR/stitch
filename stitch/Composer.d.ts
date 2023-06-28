@@ -1,9 +1,4 @@
-import type {
-  DocumentNode,
-  ExecutionResult,
-  FragmentDefinitionNode,
-  SelectionNode,
-} from 'graphql';
+import type { DocumentNode, ExecutionResult, SelectionNode } from 'graphql';
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
@@ -22,10 +17,9 @@ interface FetchPlan {
  * @internal
  */
 export declare class Composer {
-  superSchema: SuperSchema;
   results: Array<PromiseOrValue<ExecutionResult>>;
   fieldPlan: FieldPlan;
-  fragments: ReadonlyArray<FragmentDefinitionNode>;
+  superSchema: SuperSchema;
   rawVariableValues:
     | {
         readonly [variable: string]: unknown;
@@ -36,10 +30,8 @@ export declare class Composer {
   nulled: boolean;
   promiseAggregator: PromiseAggregator;
   constructor(
-    superSchema: SuperSchema,
     results: Array<PromiseOrValue<ExecutionResult>>,
     fieldPlan: FieldPlan,
-    fragments: ReadonlyArray<FragmentDefinitionNode>,
     rawVariableValues:
       | {
           readonly [variable: string]: unknown;

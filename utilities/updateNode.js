@@ -17,13 +17,12 @@ function updateNode(node, key, value) {
   if (cachedValue === undefined) {
     cachedValue = {};
     for (const nodeKey of Object.keys(node)) {
-      if (nodeKey === key) {
-        if (value !== null) {
-          cachedValue[nodeKey] = value;
-        }
-        continue;
+      if (nodeKey !== key) {
+        cachedValue[nodeKey] = node[nodeKey];
       }
-      cachedValue[nodeKey] = node[nodeKey];
+    }
+    if (value !== null) {
+      cachedValue[key] = value;
     }
     cacheForKey.set(value, cachedValue);
   }
