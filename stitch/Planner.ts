@@ -19,7 +19,6 @@ import {
   TypeNameMetaFieldDef,
 } from 'graphql';
 import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
-import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { appendToArray, emptyArray } from '../utilities/appendToArray.ts';
 import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.ts';
 import { inspect } from '../utilities/inspect.ts';
@@ -29,8 +28,12 @@ import { memoize3 } from '../utilities/memoize3.ts';
 import type { Subschema, SuperSchema } from './SuperSchema.ts';
 export interface FieldPlan {
   superSchema: SuperSchema;
-  selectionMap: ReadonlyMap<Subschema, Array<SelectionNode>>;
+  subschemaPlans: Map<Subschema, SubschemaPlan>;
   stitchTrees: ObjMap<StitchTree>;
+}
+export interface SubschemaPlan {
+  fromSubschema: Subschema | undefined;
+  fieldNodes: Array<FieldNode>;
 }
 interface SelectionSplit {
   ownSelections: ReadonlyArray<SelectionNode>;
@@ -38,12 +41,6 @@ interface SelectionSplit {
 }
 export interface StitchTree {
   fieldPlans: Map<GraphQLObjectType, FieldPlan>;
-  fromSubschemas: ReadonlyArray<Subschema>;
-}
-export interface MutableFieldPlan {
-  selectionMap: AccumulatorMap<Subschema, SelectionNode>;
-  stitchTrees: ObjMap<StitchTree>;
-  superSchema: SuperSchema;
 }
 const emptyObject = {};
 export const createPlanner = memoize2(
@@ -57,20 +54,9 @@ export class Planner {
   superSchema: SuperSchema;
   operation: OperationDefinitionNode;
   variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
-  _createFieldPlan = memoize2(
-    this._createFieldPlanFromSubschemasImpl.bind(this),
-  );
-  _createFieldPlanFromSubschemas = memoize3(
-    (
-      parentType: GraphQLCompositeType,
-      fieldNodes: ReadonlyArray<FieldNode>,
-      fromSubschemas: ReadonlyArray<Subschema>,
-    ) =>
-      this._createFieldPlanFromSubschemasImpl(
-        parentType,
-        fieldNodes,
-        fromSubschemas,
-      ),
+  _createFieldPlan = memoize2(this._createFieldPlanImpl.bind(this));
+  _createSupplementalFieldPlan = memoize3(
+    this._createSupplementalFieldPlanImpl.bind(this),
   );
   _collectSubFields = memoize2(this._collectSubFieldsImpl.bind(this));
   constructor(superSchema: SuperSchema, operation: OperationDefinitionNode) {
@@ -156,20 +142,34 @@ export class Planner {
     }
     return false;
   }
-  _createFieldPlanFromSubschemasImpl(
+  _createFieldPlanImpl(
     parentType: GraphQLCompositeType,
     fieldNodes: ReadonlyArray<FieldNode>,
-    fromSubschemas: ReadonlyArray<Subschema> = emptyArray as ReadonlyArray<Subschema>,
   ): FieldPlan {
-    const fieldPlan: MutableFieldPlan = {
-      selectionMap: new AccumulatorMap<Subschema, SelectionNode>(),
-      stitchTrees: Object.create(null),
+    const fieldPlan: FieldPlan = {
       superSchema: this.superSchema,
+      subschemaPlans: new Map<Subschema, SubschemaPlan>(),
+      stitchTrees: Object.create(null),
+    };
+    for (const fieldNode of fieldNodes) {
+      this._addFieldToFieldPlan(fieldPlan, undefined, parentType, fieldNode);
+    }
+    return fieldPlan;
+  }
+  _createSupplementalFieldPlanImpl(
+    parentType: GraphQLCompositeType,
+    fieldNodes: ReadonlyArray<FieldNode>,
+    fromSubschema: Subschema,
+  ): FieldPlan {
+    const fieldPlan: FieldPlan = {
+      superSchema: this.superSchema,
+      subschemaPlans: new Map<Subschema, SubschemaPlan>(),
+      stitchTrees: Object.create(null),
     };
     for (const fieldNode of fieldNodes) {
       this._addFieldToFieldPlan(
         fieldPlan,
-        fromSubschemas,
+        fromSubschema,
         parentType,
         fieldNode,
       );
@@ -177,21 +177,25 @@ export class Planner {
     return fieldPlan;
   }
   _addFieldToFieldPlan(
-    fieldPlan: MutableFieldPlan,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fieldPlan: FieldPlan,
+    fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     field: FieldNode,
   ): void {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
-    const subschemaSets = subschemaSetsByField[field.name.value];
-    if (subschemaSets === undefined) {
+    const subschemas = subschemaSetsByField[field.name.value];
+    if (subschemas === undefined) {
       return;
     }
-    const selectionMap = fieldPlan.selectionMap;
-    const subschema = this._getSubschema(subschemaSets, selectionMap);
+    const subschemaPlans = fieldPlan.subschemaPlans;
     if (!field.selectionSet) {
-      selectionMap.add(subschema, field);
+      const { subschemaPlan } = this._getSubschemaAndPlan(
+        subschemas,
+        subschemaPlans,
+        fromSubschema,
+      );
+      subschemaPlan.fieldNodes = appendToArray(subschemaPlan.fieldNodes, field);
       return;
     }
     const fieldName = field.name.value;
@@ -199,51 +203,96 @@ export class Planner {
     if (!fieldDef) {
       return;
     }
-    const fieldType = getNamedType(fieldDef.type) as GraphQLObjectType;
+    const namedFieldType = getNamedType(fieldDef.type) as GraphQLObjectType;
+    const subschema = this._getSubschema(subschemas, subschemaPlans);
     const selectionSplit = this._createSelectionSplit(
-      fieldType,
+      namedFieldType,
       field.selectionSet.selections,
       subschema,
-      fromSubschemas,
+      fromSubschema,
     );
     if (selectionSplit.ownSelections.length) {
-      selectionMap.add(subschema, {
+      const subschemaPlan = this._getSubschemaPlan(
+        subschema,
+        subschemaPlans,
+        fromSubschema,
+      );
+      const splitField: FieldNode = {
         ...field,
         selectionSet: {
           kind: Kind.SELECTION_SET,
           selections: selectionSplit.ownSelections,
         },
-      });
+      };
+      subschemaPlan.fieldNodes = appendToArray(
+        subschemaPlan.fieldNodes,
+        splitField,
+      );
     }
     const stitchTree = this._createStitchTree(
-      fieldType,
+      namedFieldType,
       selectionSplit.otherSelections,
       subschema,
-      fromSubschemas,
     );
     if (stitchTree.fieldPlans.size > 0) {
       const responseKey = field.alias?.value ?? field.name.value;
       fieldPlan.stitchTrees[responseKey] = stitchTree;
     }
   }
+  _getSubschemaAndPlan(
+    subschemas: Set<Subschema>,
+    subschemaPlans: Map<Subschema, SubschemaPlan>,
+    fromSubschema: Subschema | undefined,
+  ): {
+    subschema: Subschema;
+    subschemaPlan: SubschemaPlan;
+  } {
+    for (const subschema of subschemas) {
+      const subschemaPlan = subschemaPlans.get(subschema);
+      if (subschemaPlan) {
+        return { subschema, subschemaPlan };
+      }
+    }
+    const subschema = subschemas.values().next().value as Subschema;
+    const subschemaPlan: SubschemaPlan = {
+      fieldNodes: emptyArray as Array<FieldNode>,
+      fromSubschema,
+    };
+    subschemaPlans.set(subschema, subschemaPlan);
+    return { subschema, subschemaPlan };
+  }
   _getSubschema(
     subschemas: Set<Subschema>,
-    selectionMap: Map<Subschema, Array<SelectionNode>>,
+    subschemaPlans: Map<Subschema, SubschemaPlan>,
   ): Subschema {
-    let selections: Array<SelectionNode> | undefined;
     for (const subschema of subschemas) {
-      selections = selectionMap.get(subschema);
-      if (selections) {
+      const subschemaPlan = subschemaPlans.get(subschema);
+      if (subschemaPlan) {
         return subschema;
       }
     }
     return subschemas.values().next().value as Subschema;
   }
+  _getSubschemaPlan(
+    subschema: Subschema,
+    subschemaPlans: Map<Subschema, SubschemaPlan>,
+    fromSubschema: Subschema | undefined,
+  ): SubschemaPlan {
+    let subschemaPlan = subschemaPlans.get(subschema);
+    if (subschemaPlan !== undefined) {
+      return subschemaPlan;
+    }
+    subschemaPlan = {
+      fieldNodes: emptyArray as Array<FieldNode>,
+      fromSubschema,
+    };
+    subschemaPlans.set(subschema, subschemaPlan);
+    return subschemaPlan;
+  }
   _createStitchTree(
     parentType: GraphQLCompositeType,
     otherSelections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
   ): StitchTree {
     const fieldPlans = new Map<GraphQLObjectType, FieldPlan>();
     let possibleTypes: ReadonlyArray<GraphQLObjectType>;
@@ -254,28 +303,25 @@ export class Planner {
     }
     for (const type of possibleTypes) {
       const fieldNodes = this._collectSubFields(type, otherSelections);
-      const fieldPlan = this._createFieldPlanFromSubschemas(
+      const fieldPlan = this._createSupplementalFieldPlan(
         type,
         fieldNodes,
-        appendToArray(fromSubschemas, subschema),
+        subschema,
       );
       if (
-        fieldPlan.selectionMap.size > 0 ||
+        fieldPlan.subschemaPlans.size > 0 ||
         Object.values(fieldPlan.stitchTrees).length > 0
       ) {
         fieldPlans.set(type, fieldPlan);
       }
     }
-    return {
-      fieldPlans,
-      fromSubschemas,
-    };
+    return { fieldPlans };
   }
   _createSelectionSplit(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fromSubschema: Subschema | undefined,
   ): SelectionSplit {
     const selectionSplit: SelectionSplit = {
       ownSelections: emptyArray as ReadonlyArray<SelectionNode>,
@@ -284,12 +330,12 @@ export class Planner {
     this._processSelectionsForSelectionSplit(
       selectionSplit,
       subschema,
-      fromSubschemas,
+      fromSubschema,
       parentType,
       selections,
     );
     if (
-      fromSubschemas.length === 0 &&
+      fromSubschema === undefined &&
       selectionSplit.otherSelections.length > 0
     ) {
       selectionSplit.ownSelections = appendToArray(
@@ -312,7 +358,7 @@ export class Planner {
   _processSelectionsForSelectionSplit(
     selectionSplit: SelectionSplit,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
   ): void {
@@ -322,7 +368,7 @@ export class Planner {
           this._addFieldToSelectionSplit(
             selectionSplit,
             subschema,
-            fromSubschemas,
+            fromSubschema,
             parentType,
             selection,
           );
@@ -339,7 +385,7 @@ export class Planner {
           this._addFragmentToSelectionSplit(
             selectionSplit,
             subschema,
-            fromSubschemas,
+            fromSubschema,
             refinedType,
             selection,
           );
@@ -354,7 +400,7 @@ export class Planner {
   _addFieldToSelectionSplit(
     selectionSplit: SelectionSplit,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     field: FieldNode,
   ): void {
@@ -388,7 +434,7 @@ export class Planner {
       getNamedType(fieldType) as GraphQLCompositeType,
       field.selectionSet.selections,
       subschema,
-      fromSubschemas,
+      fromSubschema,
     );
     if (subSelectionSplit.ownSelections.length) {
       selectionSplit.ownSelections = appendToArray(
@@ -418,7 +464,7 @@ export class Planner {
   _addFragmentToSelectionSplit(
     selectionSplit: SelectionSplit,
     subschema: Subschema,
-    fromSubschemas: ReadonlyArray<Subschema>,
+    fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
   ): void {
@@ -429,7 +475,7 @@ export class Planner {
     this._processSelectionsForSelectionSplit(
       fragmentSelectionSplit,
       subschema,
-      fromSubschemas,
+      fromSubschema,
       parentType,
       fragment.selectionSet.selections,
     );

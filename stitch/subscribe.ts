@@ -26,14 +26,14 @@ export function subscribe(
   if (fieldPlan instanceof GraphQLError) {
     return { errors: [fieldPlan] };
   }
-  const iteration = fieldPlan.selectionMap.entries().next();
+  const iteration = fieldPlan.subschemaPlans.entries().next();
   if (iteration.done) {
     const error = new GraphQLError('Could not route subscription.', {
       nodes: operation,
     });
     return { errors: [error] };
   }
-  const [subschema, subschemaSelections] = iteration.value;
+  const [subschema, subschemaPlan] = iteration.value;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new GraphQLError(
@@ -49,7 +49,7 @@ export function subscribe(
         ...operation,
         selectionSet: {
           kind: Kind.SELECTION_SET,
-          selections: subschemaSelections,
+          selections: subschemaPlan.fieldNodes,
         },
       },
     ],
@@ -63,8 +63,14 @@ export function subscribe(
       if (isAsyncIterable(resolved)) {
         return mapAsyncIterable(resolved, (payload) => {
           const composer = new Composer(
-            [payload],
-            fieldPlan,
+            [
+              {
+                subschema,
+                stitchTrees: fieldPlan.stitchTrees,
+                initialResult: payload,
+              },
+            ],
+            fieldPlan.superSchema,
             rawVariableValues,
           );
           return composer.compose();
@@ -75,7 +81,17 @@ export function subscribe(
   }
   if (isAsyncIterable(result)) {
     return mapAsyncIterable(result, (payload) => {
-      const composer = new Composer([payload], fieldPlan, rawVariableValues);
+      const composer = new Composer(
+        [
+          {
+            subschema,
+            stitchTrees: fieldPlan.stitchTrees,
+            initialResult: payload,
+          },
+        ],
+        fieldPlan.superSchema,
+        rawVariableValues,
+      );
       return composer.compose();
     });
   }
