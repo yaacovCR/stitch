@@ -30,12 +30,12 @@ export function subscribe(
     exeContext;
   invariant(operation.operation === OperationTypeNode.SUBSCRIPTION);
 
-  const fieldPlan = planner.createRootFieldPlan(coercedVariableValues);
-  if (fieldPlan instanceof GraphQLError) {
-    return { errors: [fieldPlan] };
+  const rootFieldPlan = planner.createRootFieldPlan(coercedVariableValues);
+  if (rootFieldPlan instanceof GraphQLError) {
+    return { errors: [rootFieldPlan] };
   }
 
-  const iteration = fieldPlan.subschemaPlans.entries().next();
+  const iteration = rootFieldPlan.subschemaPlans.entries().next();
   if (iteration.done) {
     const error = new GraphQLError('Could not route subscription.', {
       nodes: operation,
@@ -82,11 +82,11 @@ export function subscribe(
             [
               {
                 fromSubschema: subschema,
-                stitchTrees: fieldPlan.stitchTrees,
+                stitchTrees: rootFieldPlan.stitchTrees,
                 initialResult: payload,
               },
             ],
-            fieldPlan.superSchema,
+            rootFieldPlan.superSchema,
             rawVariableValues,
           );
           return composer.compose();
@@ -103,11 +103,11 @@ export function subscribe(
         [
           {
             fromSubschema: subschema,
-            stitchTrees: fieldPlan.stitchTrees,
+            stitchTrees: rootFieldPlan.stitchTrees,
             initialResult: payload,
           },
         ],
-        fieldPlan.superSchema,
+        rootFieldPlan.superSchema,
         rawVariableValues,
       );
       return composer.compose();
