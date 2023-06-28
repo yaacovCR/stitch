@@ -22,26 +22,9 @@ function execute(args) {
   }
   const stitches = [];
   for (const [subschema, subschemaPlan] of rootFieldPlan.subschemaPlans) {
-    const document = {
-      kind: graphql_1.Kind.DOCUMENT,
-      definitions: [
-        {
-          ...operation,
-          selectionSet: {
-            kind: graphql_1.Kind.SELECTION_SET,
-            selections: subschemaPlan.fieldNodes,
-          },
-        },
-      ],
-    };
-    stitches.push({
-      subschema,
-      stitchTrees: rootFieldPlan.stitchTrees,
-      initialResult: subschema.executor({
-        document,
-        variables: rawVariableValues,
-      }),
-    });
+    stitches.push(
+      toStitch(subschema, subschemaPlan, operation, rawVariableValues),
+    );
   }
   const composer = new Composer_js_1.Composer(
     stitches,
@@ -51,3 +34,25 @@ function execute(args) {
   return composer.compose();
 }
 exports.execute = execute;
+function toStitch(subschema, subschemaPlan, operation, rawVariableValues) {
+  const document = {
+    kind: graphql_1.Kind.DOCUMENT,
+    definitions: [
+      {
+        ...operation,
+        selectionSet: {
+          kind: graphql_1.Kind.SELECTION_SET,
+          selections: subschemaPlan.fieldNodes,
+        },
+      },
+    ],
+  };
+  return {
+    fromSubschema: subschema,
+    stitchTrees: subschemaPlan.stitchTrees,
+    initialResult: subschema.executor({
+      document,
+      variables: rawVariableValues,
+    }),
+  };
+}

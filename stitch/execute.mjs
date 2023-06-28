@@ -17,26 +17,9 @@ export function execute(args) {
   }
   const stitches = [];
   for (const [subschema, subschemaPlan] of rootFieldPlan.subschemaPlans) {
-    const document = {
-      kind: Kind.DOCUMENT,
-      definitions: [
-        {
-          ...operation,
-          selectionSet: {
-            kind: Kind.SELECTION_SET,
-            selections: subschemaPlan.fieldNodes,
-          },
-        },
-      ],
-    };
-    stitches.push({
-      subschema,
-      stitchTrees: rootFieldPlan.stitchTrees,
-      initialResult: subschema.executor({
-        document,
-        variables: rawVariableValues,
-      }),
-    });
+    stitches.push(
+      toStitch(subschema, subschemaPlan, operation, rawVariableValues),
+    );
   }
   const composer = new Composer(
     stitches,
@@ -44,4 +27,26 @@ export function execute(args) {
     rawVariableValues,
   );
   return composer.compose();
+}
+function toStitch(subschema, subschemaPlan, operation, rawVariableValues) {
+  const document = {
+    kind: Kind.DOCUMENT,
+    definitions: [
+      {
+        ...operation,
+        selectionSet: {
+          kind: Kind.SELECTION_SET,
+          selections: subschemaPlan.fieldNodes,
+        },
+      },
+    ],
+  };
+  return {
+    fromSubschema: subschema,
+    stitchTrees: subschemaPlan.stitchTrees,
+    initialResult: subschema.executor({
+      document,
+      variables: rawVariableValues,
+    }),
+  };
 }

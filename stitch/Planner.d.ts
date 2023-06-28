@@ -20,6 +20,7 @@ export interface FieldPlan {
 export interface SubschemaPlan {
   fromSubschema: Subschema | undefined;
   fieldNodes: Array<FieldNode>;
+  stitchTrees: ObjMap<StitchTree>;
 }
 interface SelectionSplit {
   ownSelections: ReadonlyArray<SelectionNode>;

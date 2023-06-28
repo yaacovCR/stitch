@@ -2,7 +2,6 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.Composer = void 0;
 const graphql_1 = require('graphql');
-const isObjectLike_js_1 = require('../predicates/isObjectLike.js');
 const isPromise_js_1 = require('../predicates/isPromise.js');
 const AccumulatorMap_js_1 = require('../utilities/AccumulatorMap.js');
 const inspect_js_1 = require('../utilities/inspect.js');
@@ -97,62 +96,47 @@ class Composer {
       return;
     }
     for (const [key, value] of Object.entries(result.data)) {
-      this._deepMerge(fields, key, value);
+      fields[key] = value;
     }
     if (stitch?.stitchTrees !== undefined) {
-      const subQueriesBySchema = new AccumulatorMap_js_1.AccumulatorMap();
-      this._walkStitchTrees(
-        subQueriesBySchema,
-        result.data,
-        stitch.stitchTrees,
-        path,
-      );
-      for (const [subschema, subQueries] of subQueriesBySchema) {
-        for (const subQuery of subQueries) {
+      const subFetchMap = new AccumulatorMap_js_1.AccumulatorMap();
+      this._walkStitchTrees(subFetchMap, result.data, stitch.stitchTrees, path);
+      for (const [subschema, subFetches] of subFetchMap) {
+        for (const subFetch of subFetches) {
           // TODO: send one document per subschema
           const subResult = subschema.executor({
-            document: this._createDocument(subQuery.fieldNodes),
+            document: this._createDocument(subFetch.fieldNodes),
             variables: this.rawVariableValues,
           });
           this._handleMaybeAsyncResult(
-            subQuery.parent,
-            subQuery.target,
-            // TODO: add multilayer plan support
+            subFetch.parent,
+            subFetch.target,
             {
-              subschema,
-              stitchTrees: undefined,
+              fromSubschema: subschema,
+              stitchTrees: subFetch.stitchTrees,
               initialResult: subResult,
             },
-            subQuery.path,
+            subFetch.path,
           );
         }
       }
     }
   }
-  _walkStitchTrees(subQueriesBySchema, fields, stitchTrees, path) {
+  _walkStitchTrees(subFetchMap, fields, stitchTrees, path) {
     for (const [key, stitchTree] of Object.entries(stitchTrees)) {
       if (fields[key] !== undefined) {
-        this._addPossibleListStitches(
-          subQueriesBySchema,
-          fields,
-          fields[key],
-          stitchTree,
-          [...path, key],
-        );
+        this._collectSubFetches(subFetchMap, fields, fields[key], stitchTree, [
+          ...path,
+          key,
+        ]);
       }
     }
   }
-  _addPossibleListStitches(
-    subQueriesBySchema,
-    parent,
-    fieldsOrList,
-    stitchTree,
-    path,
-  ) {
+  _collectSubFetches(subFetchMap, parent, fieldsOrList, stitchTree, path) {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
-        this._addPossibleListStitches(
-          subQueriesBySchema,
+        this._collectSubFetches(
+          subFetchMap,
           fieldsOrList,
           fieldsOrList[i],
           stitchTree,
@@ -181,33 +165,20 @@ class Composer {
         `Missing field plan for type '${typeName}'.`,
       );
     for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
-      subQueriesBySchema.add(subschema, {
+      subFetchMap.add(subschema, {
         fieldNodes: subschemaPlan.fieldNodes,
+        stitchTrees: subschemaPlan.stitchTrees,
         parent: parent,
         target: fieldsOrList,
         path,
       });
     }
     this._walkStitchTrees(
-      subQueriesBySchema,
+      subFetchMap,
       fieldsOrList,
       fieldPlan.stitchTrees,
       path,
     );
-  }
-  _deepMerge(fields, key, value) {
-    if (
-      !(0, isObjectLike_js_1.isObjectLike)(fields[key]) ||
-      !(0, isObjectLike_js_1.isObjectLike)(value) ||
-      Array.isArray(value)
-    ) {
-      fields[key] = value;
-      return;
-    }
-    for (const [subKey, subValue] of Object.entries(value)) {
-      const subFields = fields[key];
-      this._deepMerge(subFields, subKey, subValue);
-    }
   }
 }
 exports.Composer = Composer;

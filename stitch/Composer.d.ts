@@ -13,12 +13,13 @@ import type { StitchTree } from './Planner.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 type Path = ReadonlyArray<string | number>;
 export interface Stitch {
-  subschema: Subschema;
+  fromSubschema: Subschema;
   stitchTrees: ObjMap<StitchTree> | undefined;
   initialResult: PromiseOrValue<ExecutionResult>;
 }
 interface FetchPlan {
   fieldNodes: ReadonlyArray<FieldNode>;
+  stitchTrees: ObjMap<StitchTree> | undefined;
   parent: ObjMap<unknown>;
   target: ObjMap<unknown>;
   path: Path;
@@ -64,18 +65,17 @@ export declare class Composer {
     path: Path,
   ): void;
   _walkStitchTrees(
-    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
+    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
     stitchTrees: ObjMap<StitchTree>,
     path: Path,
   ): void;
-  _addPossibleListStitches(
-    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
+  _collectSubFetches(
+    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
     stitchTree: StitchTree,
     path: Path,
   ): void;
-  _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void;
 }
 export {};
