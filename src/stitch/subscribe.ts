@@ -82,7 +82,7 @@ export function subscribe(
             [
               {
                 fromSubschema: subschema,
-                stitchTrees: rootFieldPlan.stitchTrees,
+                stitchTrees: subschemaPlan.stitchTrees,
                 initialResult: payload,
               },
             ],
@@ -103,7 +103,7 @@ export function subscribe(
         [
           {
             fromSubschema: subschema,
-            stitchTrees: rootFieldPlan.stitchTrees,
+            stitchTrees: subschemaPlan.stitchTrees,
             initialResult: payload,
           },
         ],

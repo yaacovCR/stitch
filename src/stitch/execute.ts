@@ -44,7 +44,7 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
 
     stitches.push({
       fromSubschema: subschema,
-      stitchTrees: rootFieldPlan.stitchTrees,
+      stitchTrees: subschemaPlan.stitchTrees,
       initialResult: subschema.executor({
         document,
         variables: rawVariableValues,
