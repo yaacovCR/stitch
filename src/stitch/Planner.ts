@@ -31,10 +31,9 @@ import { memoize3 } from '../utilities/memoize3.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 
 export interface FieldPlan {
+  superSchema: SuperSchema;
   selectionMap: ReadonlyMap<Subschema, Array<SelectionNode>>;
   stitchTrees: ObjMap<StitchTree>;
-  fromSubschemas: ReadonlyArray<Subschema>;
-  superSchema: SuperSchema;
 }
 
 interface SelectionSplit {
@@ -50,7 +49,6 @@ export interface StitchTree {
 export interface MutableFieldPlan {
   selectionMap: AccumulatorMap<Subschema, SelectionNode>;
   stitchTrees: ObjMap<StitchTree>;
-  fromSubschemas: ReadonlyArray<Subschema>;
   superSchema: SuperSchema;
 }
 
@@ -188,15 +186,19 @@ export class Planner {
     fieldNodes: ReadonlyArray<FieldNode>,
     fromSubschemas: ReadonlyArray<Subschema> = emptyArray as ReadonlyArray<Subschema>,
   ): FieldPlan {
-    const fieldPlan = {
+    const fieldPlan: MutableFieldPlan = {
       selectionMap: new AccumulatorMap<Subschema, SelectionNode>(),
       stitchTrees: Object.create(null),
-      fromSubschemas,
       superSchema: this.superSchema,
     };
 
     for (const fieldNode of fieldNodes) {
-      this._addFieldToFieldPlan(fieldPlan, parentType, fieldNode);
+      this._addFieldToFieldPlan(
+        fieldPlan,
+        fromSubschemas,
+        parentType,
+        fieldNode,
+      );
     }
 
     return fieldPlan;
@@ -204,6 +206,7 @@ export class Planner {
 
   _addFieldToFieldPlan(
     fieldPlan: MutableFieldPlan,
+    fromSubschemas: ReadonlyArray<Subschema>,
     parentType: GraphQLCompositeType,
     field: FieldNode,
   ): void {
@@ -237,7 +240,7 @@ export class Planner {
       fieldType,
       field.selectionSet.selections,
       subschema,
-      fieldPlan.fromSubschemas,
+      fromSubschemas,
     );
 
     if (selectionSplit.ownSelections.length) {
@@ -254,7 +257,7 @@ export class Planner {
       fieldType,
       selectionSplit.otherSelections,
       subschema,
-      fieldPlan.fromSubschemas,
+      fromSubschemas,
     );
 
     if (stitchTree.fieldPlans.size > 0) {
