@@ -170,31 +170,26 @@ export class Composer {
     }
 
     if (stitch?.stitchTrees !== undefined) {
-      const subQueriesBySchema = new AccumulatorMap<Subschema, FetchPlan>();
-      this._walkStitchTrees(
-        subQueriesBySchema,
-        result.data,
-        stitch.stitchTrees,
-        path,
-      );
-      for (const [subschema, subQueries] of subQueriesBySchema) {
-        for (const subQuery of subQueries) {
+      const subFetchMap = new AccumulatorMap<Subschema, FetchPlan>();
+      this._walkStitchTrees(subFetchMap, result.data, stitch.stitchTrees, path);
+      for (const [subschema, subFetches] of subFetchMap) {
+        for (const subFetch of subFetches) {
           // TODO: send one document per subschema
           const subResult = subschema.executor({
-            document: this._createDocument(subQuery.fieldNodes),
+            document: this._createDocument(subFetch.fieldNodes),
             variables: this.rawVariableValues,
           });
 
           this._handleMaybeAsyncResult(
-            subQuery.parent,
-            subQuery.target,
+            subFetch.parent,
+            subFetch.target,
             // TODO: add multilayer plan support
             {
               fromSubschema: subschema,
               stitchTrees: undefined,
               initialResult: subResult,
             },
-            subQuery.path,
+            subFetch.path,
           );
         }
       }
@@ -202,15 +197,15 @@ export class Composer {
   }
 
   _walkStitchTrees(
-    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
+    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
     stitchTrees: ObjMap<StitchTree>,
     path: Path,
   ): void {
     for (const [key, stitchTree] of Object.entries(stitchTrees)) {
       if (fields[key] !== undefined) {
-        this._addPossibleListStitches(
-          subQueriesBySchema,
+        this._collectSubFetches(
+          subFetchMap,
           fields,
           fields[key] as ObjMap<unknown> | Array<unknown>,
           stitchTree,
@@ -220,8 +215,8 @@ export class Composer {
     }
   }
 
-  _addPossibleListStitches(
-    subQueriesBySchema: AccumulatorMap<Subschema, FetchPlan>,
+  _collectSubFetches(
+    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
     stitchTree: StitchTree,
@@ -229,8 +224,8 @@ export class Composer {
   ): void {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
-        this._addPossibleListStitches(
-          subQueriesBySchema,
+        this._collectSubFetches(
+          subFetchMap,
           fieldsOrList,
           fieldsOrList[i] as ObjMap<unknown>,
           stitchTree,
@@ -267,7 +262,7 @@ export class Composer {
     );
 
     for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
-      subQueriesBySchema.add(subschema, {
+      subFetchMap.add(subschema, {
         fieldNodes: subschemaPlan.fieldNodes,
         parent: parent as ObjMap<unknown>,
         target: fieldsOrList,
@@ -276,7 +271,7 @@ export class Composer {
     }
 
     this._walkStitchTrees(
-      subQueriesBySchema,
+      subFetchMap,
       fieldsOrList,
       fieldPlan.stitchTrees,
       path,
