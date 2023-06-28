@@ -9,7 +9,6 @@ import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
-import { isObjectLike } from '../predicates/isObjectLike.js';
 import { isPromise } from '../predicates/isPromise.js';
 
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
@@ -167,7 +166,7 @@ export class Composer {
     }
 
     for (const [key, value] of Object.entries(result.data)) {
-      this._deepMerge(fields, key, value);
+      fields[key] = value;
     }
 
     if (stitch?.stitchTrees !== undefined) {
@@ -282,21 +281,5 @@ export class Composer {
       fieldPlan.stitchTrees,
       path,
     );
-  }
-
-  _deepMerge(fields: ObjMap<unknown>, key: string, value: unknown): void {
-    if (
-      !isObjectLike(fields[key]) ||
-      !isObjectLike(value) ||
-      Array.isArray(value)
-    ) {
-      fields[key] = value;
-      return;
-    }
-
-    for (const [subKey, subValue] of Object.entries(value)) {
-      const subFields = fields[key] as ObjMap<unknown>;
-      this._deepMerge(subFields, subKey, subValue);
-    }
   }
 }
