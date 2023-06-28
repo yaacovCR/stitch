@@ -38,10 +38,14 @@ export interface FieldPlan {
 }
 
 interface SelectionSplit {
-  subschema: Subschema;
-  fromSubschemas: ReadonlyArray<Subschema>;
   ownSelections: ReadonlyArray<SelectionNode>;
   otherSelections: ReadonlyArray<SelectionNode>;
+}
+
+interface SelectionSplitContext {
+  subschema: Subschema;
+  fromSubschemas: ReadonlyArray<Subschema>;
+  visitedFragments: Set<string>;
 }
 
 export interface StitchTree {
@@ -406,17 +410,21 @@ export class Planner {
     fromSubschemas: ReadonlyArray<Subschema>,
   ): SelectionSplit {
     const selectionSplit: SelectionSplit = {
-      subschema,
       ownSelections: emptyArray as ReadonlyArray<SelectionNode>,
       otherSelections: emptyArray as ReadonlyArray<SelectionNode>,
+    };
+
+    const context: SelectionSplitContext = {
+      subschema,
       fromSubschemas,
+      visitedFragments: new Set<string>(),
     };
 
     this._processSelectionsForSelectionSplit(
       selectionSplit,
       parentType,
       selections,
-      new Set(),
+      context,
     );
 
     if (
@@ -441,16 +449,22 @@ export class Planner {
     return selectionSplit;
   }
 
+  // eslint-disable-next-line max-params
   _processSelectionsForSelectionSplit(
     selectionSplit: SelectionSplit,
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,
-    visitedFragments: Set<string>,
+    context: SelectionSplitContext,
   ): void {
     for (const selection of selections) {
       switch (selection.kind) {
         case Kind.FIELD: {
-          this._addFieldToSelectionSplit(selectionSplit, parentType, selection);
+          this._addFieldToSelectionSplit(
+            selectionSplit,
+            parentType,
+            selection,
+            context,
+          );
           break;
         }
         case Kind.INLINE_FRAGMENT: {
@@ -469,7 +483,7 @@ export class Planner {
             selectionSplit,
             refinedType,
             selection,
-            visitedFragments,
+            context,
           );
           break;
         }
@@ -484,6 +498,7 @@ export class Planner {
     selectionSplit: SelectionSplit,
     parentType: GraphQLCompositeType,
     field: FieldNode,
+    context: SelectionSplitContext,
   ): void {
     const subschemaSetsByField =
       this.superSchema.subschemaSetsByTypeAndField[parentType.name];
@@ -495,7 +510,7 @@ export class Planner {
     }
 
     if (!field.selectionSet) {
-      if (subschemaSet.has(selectionSplit.subschema)) {
+      if (subschemaSet.has(context.subschema)) {
         selectionSplit.ownSelections = appendToArray(
           selectionSplit.ownSelections,
           field,
@@ -521,8 +536,8 @@ export class Planner {
     const subSelectionSplit: SelectionSplit = this._createSelectionSplit(
       getNamedType(fieldType) as GraphQLCompositeType,
       field.selectionSet.selections,
-      selectionSplit.subschema,
-      selectionSplit.fromSubschemas,
+      context.subschema,
+      context.fromSubschemas,
     );
 
     if (subSelectionSplit.ownSelections.length) {
@@ -552,24 +567,23 @@ export class Planner {
     }
   }
 
+  // eslint-disable-next-line max-params
   _addFragmentToSelectionSplit(
     selectionSplit: SelectionSplit,
     parentType: GraphQLCompositeType,
     fragment: InlineFragmentNode,
-    visitedFragments: Set<string>,
+    context: SelectionSplitContext,
   ): void {
     const fragmentSelectionSplit: SelectionSplit = {
-      subschema: selectionSplit.subschema,
       ownSelections: emptyArray as ReadonlyArray<SelectionNode>,
       otherSelections: emptyArray as ReadonlyArray<SelectionNode>,
-      fromSubschemas: selectionSplit.fromSubschemas,
     };
 
     this._processSelectionsForSelectionSplit(
       fragmentSelectionSplit,
       parentType,
       fragment.selectionSet.selections,
-      visitedFragments,
+      context,
     );
 
     if (fragmentSelectionSplit.ownSelections.length > 0) {
