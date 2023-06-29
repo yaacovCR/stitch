@@ -9,8 +9,8 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
-import type { SubschemaPlanResult } from './Composer.js';
-import { Composer } from './Composer.js';
+import type { SubschemaPlanResult } from './compose.js';
+import { compose } from './compose.js';
 import type { SubschemaPlan } from './Planner.js';
 
 export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
@@ -39,13 +39,11 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     );
   }
 
-  const composer = new Composer(
+  return compose(
     subschemaPlanResults,
     rootFieldPlan.superSchema,
     rawVariableValues,
   );
-
-  return composer.compose();
 }
 
 function toSubschemaPlanResult(

@@ -11,7 +11,7 @@ import { invariant } from '../utilities/invariant.js';
 
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
-import { Composer } from './Composer.js';
+import { compose } from './compose.js';
 import { mapAsyncIterable } from './mapAsyncIterable.js';
 
 export function subscribe(
@@ -76,8 +76,8 @@ export function subscribe(
   if (isPromise(result)) {
     return result.then((resolved) => {
       if (isAsyncIterable(resolved)) {
-        return mapAsyncIterable(resolved, (payload) => {
-          const composer = new Composer(
+        return mapAsyncIterable(resolved, (payload) =>
+          compose(
             [
               {
                 subschemaPlan,
@@ -86,9 +86,8 @@ export function subscribe(
             ],
             rootFieldPlan.superSchema,
             rawVariableValues,
-          );
-          return composer.compose();
-        });
+          ),
+        );
       }
 
       return result;
@@ -96,8 +95,8 @@ export function subscribe(
   }
 
   if (isAsyncIterable(result)) {
-    return mapAsyncIterable(result, (payload) => {
-      const composer = new Composer(
+    return mapAsyncIterable(result, (payload) =>
+      compose(
         [
           {
             subschemaPlan,
@@ -106,9 +105,8 @@ export function subscribe(
         ],
         rootFieldPlan.superSchema,
         rawVariableValues,
-      );
-      return composer.compose();
-    });
+      ),
+    );
   }
 
   return result;
