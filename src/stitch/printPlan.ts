@@ -1,7 +1,7 @@
 import type { FieldNode, GraphQLObjectType, SelectionSetNode } from 'graphql';
 import { Kind, print } from 'graphql';
 
-import type { FieldPlan, StitchTree, SubschemaPlan } from './Planner.js';
+import type { FieldPlan, StitchPlan, SubschemaPlan } from './Planner.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 
 function generateIndent(indent: number): string {
@@ -15,8 +15,8 @@ export function printPlan(
 ): string {
   const superSchema = plan.superSchema;
   const entries = [];
-  const stitchTrees = Object.entries(plan.stitchTrees);
-  if (plan.subschemaPlans.size > 0 || stitchTrees.length > 0) {
+  const stitchPlans = Object.entries(plan.stitchPlans);
+  if (plan.subschemaPlans.size > 0 || stitchPlans.length > 0) {
     const spaces = generateIndent(indent);
 
     entries.push(
@@ -28,8 +28,8 @@ export function printPlan(
         printSubschemaPlans(superSchema, plan.subschemaPlans, indent + 2),
       );
     }
-    if (stitchTrees.length > 0) {
-      entries.push(printStitchTrees(stitchTrees, indent + 2));
+    if (stitchPlans.length > 0) {
+      entries.push(printStitchPlans(stitchPlans, indent + 2));
     }
   }
 
@@ -57,8 +57,8 @@ function printSubschemaPlan(
   const spaces = generateIndent(indent);
   const entries = [];
 
-  const stitchTrees = Object.entries(subschemaPlan.stitchTrees);
-  if (subschemaPlan.fieldNodes.length > 0 || stitchTrees.length > 0) {
+  const stitchPlans = Object.entries(subschemaPlan.stitchPlans);
+  if (subschemaPlan.fieldNodes.length > 0 || stitchPlans.length > 0) {
     entries.push(
       `${spaces}For Subschema: [${superSchema.getSubschemaId(subschema)}]`,
     );
@@ -77,8 +77,8 @@ function printSubschemaPlan(
     );
   }
 
-  if (stitchTrees.length > 0) {
-    entries.push(printStitchTrees(stitchTrees, indent + 2));
+  if (stitchPlans.length > 0) {
+    entries.push(printStitchPlans(stitchPlans, indent + 2));
   }
   return entries.join('\n');
 }
@@ -97,27 +97,27 @@ function printSubschemaFieldNodes(
   )}`;
 }
 
-function printStitchTrees(
-  stitchTrees: ReadonlyArray<[string, StitchTree]>,
+function printStitchPlans(
+  stitchPlans: ReadonlyArray<[string, StitchPlan]>,
   indent: number,
 ): string {
-  return stitchTrees
-    .map(([responseKey, stitchTree]) =>
-      printStitchTree(responseKey, stitchTree, indent),
+  return stitchPlans
+    .map(([responseKey, stitchPlan]) =>
+      printStitchPlan(responseKey, stitchPlan, indent),
     )
     .join('\n');
 }
 
-function printStitchTree(
+function printStitchPlan(
   responseKey: string,
-  stitchTree: StitchTree,
+  stitchPlan: StitchPlan,
   indent: number,
 ): string {
   const spaces = generateIndent(indent);
   const entries = [];
   entries.push(`${spaces}For key '${responseKey}':`);
 
-  for (const [type, fieldPlan] of stitchTree.fieldPlans) {
+  for (const [type, fieldPlan] of stitchPlan) {
     entries.push(printPlan(fieldPlan, indent + 2, type));
   }
 

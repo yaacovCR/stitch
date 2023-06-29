@@ -16,20 +16,20 @@ import { inspect } from '../utilities/inspect.js';
 import { invariant } from '../utilities/invariant.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 
-import type { StitchTree } from './Planner.js';
+import type { StitchPlan } from './Planner.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 
 type Path = ReadonlyArray<string | number>;
 
 export interface Stitch {
   fromSubschema: Subschema;
-  stitchTrees: ObjMap<StitchTree> | undefined;
+  stitchPlans: ObjMap<StitchPlan> | undefined;
   initialResult: PromiseOrValue<ExecutionResult>;
 }
 
 interface FetchPlan {
   fieldNodes: ReadonlyArray<FieldNode>;
-  stitchTrees: ObjMap<StitchTree> | undefined;
+  stitchPlans: ObjMap<StitchPlan> | undefined;
   parent: ObjMap<unknown>;
   target: ObjMap<unknown>;
   path: Path;
@@ -170,16 +170,16 @@ export class Composer {
       fields[key] = value;
     }
 
-    if (stitch?.stitchTrees !== undefined) {
+    if (stitch?.stitchPlans !== undefined) {
       const subFetchMap = new AccumulatorMap<Subschema, FetchPlan>();
-      this._walkStitchTrees(subFetchMap, result.data, stitch.stitchTrees, path);
+      this._walkStitchPlans(subFetchMap, result.data, stitch.stitchPlans, path);
       for (const [subschema, subFetches] of subFetchMap) {
         for (const subFetch of subFetches) {
           // TODO: batch subStitches by accessors
           // TODO: batch subStitches by subschema?
           const subStitch: Stitch = {
             fromSubschema: subschema,
-            stitchTrees: subFetch.stitchTrees,
+            stitchPlans: subFetch.stitchPlans,
             initialResult: subschema.executor({
               document: this._createDocument(subFetch.fieldNodes),
               variables: this.rawVariableValues,
@@ -197,19 +197,19 @@ export class Composer {
     }
   }
 
-  _walkStitchTrees(
+  _walkStitchPlans(
     subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
-    stitchTrees: ObjMap<StitchTree>,
+    stitchPlans: ObjMap<StitchPlan>,
     path: Path,
   ): void {
-    for (const [key, stitchTree] of Object.entries(stitchTrees)) {
+    for (const [key, stitchPlan] of Object.entries(stitchPlans)) {
       if (fields[key] !== undefined) {
         this._collectSubFetches(
           subFetchMap,
           fields,
           fields[key] as ObjMap<unknown> | Array<unknown>,
-          stitchTree,
+          stitchPlan,
           [...path, key],
         );
       }
@@ -220,7 +220,7 @@ export class Composer {
     subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    stitchTree: StitchTree,
+    stitchPlan: StitchPlan,
     path: Path,
   ): void {
     if (Array.isArray(fieldsOrList)) {
@@ -229,7 +229,7 @@ export class Composer {
           subFetchMap,
           fieldsOrList,
           fieldsOrList[i] as ObjMap<unknown>,
-          stitchTree,
+          stitchPlan,
           [...path, i],
         );
       }
@@ -255,7 +255,7 @@ export class Composer {
       `Expected Object type, received '${typeName}'.`,
     );
 
-    const fieldPlan = stitchTree.fieldPlans.get(type);
+    const fieldPlan = stitchPlan.get(type);
 
     invariant(
       fieldPlan !== undefined,
@@ -265,17 +265,17 @@ export class Composer {
     for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
       subFetchMap.add(subschema, {
         fieldNodes: subschemaPlan.fieldNodes,
-        stitchTrees: subschemaPlan.stitchTrees,
+        stitchPlans: subschemaPlan.stitchPlans,
         parent: parent as ObjMap<unknown>,
         target: fieldsOrList,
         path,
       });
     }
 
-    this._walkStitchTrees(
+    this._walkStitchPlans(
       subFetchMap,
       fieldsOrList,
-      fieldPlan.stitchTrees,
+      fieldPlan.stitchPlans,
       path,
     );
   }

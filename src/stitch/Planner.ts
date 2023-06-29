@@ -32,13 +32,13 @@ import type { Subschema, SuperSchema } from './SuperSchema.js';
 export interface FieldPlan {
   superSchema: SuperSchema;
   subschemaPlans: Map<Subschema, SubschemaPlan>;
-  stitchTrees: ObjMap<StitchTree>;
+  stitchPlans: ObjMap<StitchPlan>;
 }
 
 export interface SubschemaPlan {
   fromSubschema: Subschema | undefined;
   fieldNodes: Array<FieldNode>;
-  stitchTrees: ObjMap<StitchTree>;
+  stitchPlans: ObjMap<StitchPlan>;
 }
 
 interface SelectionSplit {
@@ -46,9 +46,7 @@ interface SelectionSplit {
   otherSelections: ReadonlyArray<SelectionNode>;
 }
 
-export interface StitchTree {
-  fieldPlans: Map<GraphQLObjectType, FieldPlan>;
-}
+export type StitchPlan = Map<GraphQLObjectType, FieldPlan>;
 
 const emptyObject = {};
 
@@ -174,7 +172,7 @@ export class Planner {
     const fieldPlan: FieldPlan = {
       superSchema: this.superSchema,
       subschemaPlans: new Map<Subschema, SubschemaPlan>(),
-      stitchTrees: Object.create(null),
+      stitchPlans: Object.create(null),
     };
 
     for (const fieldNode of fieldNodes) {
@@ -192,7 +190,7 @@ export class Planner {
     const fieldPlan: FieldPlan = {
       superSchema: this.superSchema,
       subschemaPlans: new Map<Subschema, SubschemaPlan>(),
-      stitchTrees: Object.create(null),
+      stitchPlans: Object.create(null),
     };
 
     for (const fieldNode of fieldNodes) {
@@ -251,7 +249,7 @@ export class Planner {
       fromSubschema,
     );
 
-    const stitchTree = this._createStitchTree(
+    const stitchPlan = this._createStitchPlan(
       namedFieldType,
       selectionSplit.otherSelections,
       subschema,
@@ -275,20 +273,20 @@ export class Planner {
         splitField,
       );
 
-      if (stitchTree.fieldPlans.size > 0) {
+      if (stitchPlan.size > 0) {
         const responseKey = field.alias?.value ?? field.name.value;
 
         if (subschema === fromSubschema) {
-          fieldPlan.stitchTrees[responseKey] = stitchTree;
+          fieldPlan.stitchPlans[responseKey] = stitchPlan;
         } else {
-          subschemaPlan.stitchTrees[responseKey] = stitchTree;
+          subschemaPlan.stitchPlans[responseKey] = stitchPlan;
         }
       }
-    } else if (stitchTree.fieldPlans.size > 0) {
+    } else if (stitchPlan.size > 0) {
       const responseKey = field.alias?.value ?? field.name.value;
 
       if (subschema !== undefined && subschema === fromSubschema) {
-        fieldPlan.stitchTrees[responseKey] = stitchTree;
+        fieldPlan.stitchPlans[responseKey] = stitchPlan;
       } else {
         const { subschemaPlan } = this._getSubschemaAndPlan(
           subschemas,
@@ -296,7 +294,7 @@ export class Planner {
           fromSubschema,
         );
 
-        subschemaPlan.stitchTrees[responseKey] = stitchTree;
+        subschemaPlan.stitchPlans[responseKey] = stitchPlan;
       }
     }
   }
@@ -318,7 +316,7 @@ export class Planner {
     const subschemaPlan: SubschemaPlan = {
       fieldNodes: emptyArray as Array<FieldNode>,
       fromSubschema,
-      stitchTrees: Object.create(null),
+      stitchPlans: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
 
@@ -351,19 +349,19 @@ export class Planner {
     subschemaPlan = {
       fieldNodes: emptyArray as Array<FieldNode>,
       fromSubschema,
-      stitchTrees: Object.create(null),
+      stitchPlans: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
 
     return subschemaPlan;
   }
 
-  _createStitchTree(
+  _createStitchPlan(
     parentType: GraphQLCompositeType,
     otherSelections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
-  ): StitchTree {
-    const fieldPlans = new Map<GraphQLObjectType, FieldPlan>();
+  ): StitchPlan {
+    const stitchPlan = new Map<GraphQLObjectType, FieldPlan>();
 
     let possibleTypes: ReadonlyArray<GraphQLObjectType>;
     if (isAbstractType(parentType)) {
@@ -383,13 +381,13 @@ export class Planner {
 
       if (
         fieldPlan.subschemaPlans.size > 0 ||
-        Object.values(fieldPlan.stitchTrees).length > 0
+        Object.values(fieldPlan.stitchPlans).length > 0
       ) {
-        fieldPlans.set(type, fieldPlan);
+        stitchPlan.set(type, fieldPlan);
       }
     }
 
-    return { fieldPlans };
+    return stitchPlan;
   }
 
   _createSelectionSplit(
