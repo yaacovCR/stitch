@@ -70,7 +70,7 @@ function toStitch(
 
   return {
     fromSubschema: subschema,
-    stitchTrees: subschemaPlan.stitchTrees,
+    stitchPlans: subschemaPlan.stitchPlans,
     initialResult: subschema.executor({
       document,
       variables: rawVariableValues,
