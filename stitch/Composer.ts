@@ -151,19 +151,20 @@ export class Composer {
       this._walkStitchTrees(subFetchMap, result.data, stitch.stitchTrees, path);
       for (const [subschema, subFetches] of subFetchMap) {
         for (const subFetch of subFetches) {
-          // TODO: send one document per subschema
-          const subResult = subschema.executor({
-            document: this._createDocument(subFetch.fieldNodes),
-            variables: this.rawVariableValues,
-          });
+          // TODO: batch subStitches by accessors
+          // TODO: batch subStitches by subschema?
+          const subStitch: Stitch = {
+            fromSubschema: subschema,
+            stitchTrees: subFetch.stitchTrees,
+            initialResult: subschema.executor({
+              document: this._createDocument(subFetch.fieldNodes),
+              variables: this.rawVariableValues,
+            }),
+          };
           this._handleMaybeAsyncResult(
             subFetch.parent,
             subFetch.target,
-            {
-              fromSubschema: subschema,
-              stitchTrees: subFetch.stitchTrees,
-              initialResult: subResult,
-            },
+            subStitch,
             subFetch.path,
           );
         }
