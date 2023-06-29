@@ -7,10 +7,9 @@ import { GraphQLError, Kind } from 'graphql';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
-import type { Stitch } from './Composer.ts';
+import type { SubschemaPlanResult } from './Composer.ts';
 import { Composer } from './Composer.ts';
 import type { SubschemaPlan } from './Planner.ts';
-import type { Subschema } from './SuperSchema.ts';
 export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -25,21 +24,20 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   if (rootFieldPlan instanceof GraphQLError) {
     return { data: null, errors: [rootFieldPlan] };
   }
-  const stitches: Array<Stitch> = [];
-  for (const [subschema, subschemaPlan] of rootFieldPlan.subschemaPlans) {
-    stitches.push(
-      toStitch(subschema, subschemaPlan, operation, rawVariableValues),
+  const subschemaPlanResults: Array<SubschemaPlanResult> = [];
+  for (const subschemaPlan of rootFieldPlan.subschemaPlans) {
+    subschemaPlanResults.push(
+      toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues),
     );
   }
   const composer = new Composer(
-    stitches,
+    subschemaPlanResults,
     rootFieldPlan.superSchema,
     rawVariableValues,
   );
   return composer.compose();
 }
-function toStitch(
-  subschema: Subschema,
+function toSubschemaPlanResult(
   subschemaPlan: SubschemaPlan,
   operation: OperationDefinitionNode,
   rawVariableValues:
@@ -47,7 +45,7 @@ function toStitch(
         readonly [variable: string]: unknown;
       }
     | undefined,
-): Stitch {
+): SubschemaPlanResult {
   const document: DocumentNode = {
     kind: Kind.DOCUMENT,
     definitions: [
@@ -61,9 +59,8 @@ function toStitch(
     ],
   };
   return {
-    fromSubschema: subschema,
-    stitchPlans: subschemaPlan.stitchPlans,
-    initialResult: subschema.executor({
+    subschemaPlan,
+    initialResult: subschemaPlan.toSubschema.executor({
       document,
       variables: rawVariableValues,
     }),

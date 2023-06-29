@@ -28,10 +28,16 @@ import { memoize3 } from '../utilities/memoize3.ts';
 import type { Subschema, SuperSchema } from './SuperSchema.ts';
 export interface FieldPlan {
   superSchema: SuperSchema;
+  subschemaPlans: ReadonlyArray<SubschemaPlan>;
+  stitchPlans: ObjMap<StitchPlan>;
+}
+export interface MutableFieldPlan {
+  superSchema: SuperSchema;
   subschemaPlans: Map<Subschema, SubschemaPlan>;
   stitchPlans: ObjMap<StitchPlan>;
 }
 export interface SubschemaPlan {
+  toSubschema: Subschema;
   fromSubschema: Subschema | undefined;
   fieldNodes: Array<FieldNode>;
   stitchPlans: ObjMap<StitchPlan>;
@@ -145,7 +151,7 @@ export class Planner {
     parentType: GraphQLCompositeType,
     fieldNodes: ReadonlyArray<FieldNode>,
   ): FieldPlan {
-    const fieldPlan: FieldPlan = {
+    const fieldPlan: MutableFieldPlan = {
       superSchema: this.superSchema,
       subschemaPlans: new Map<Subschema, SubschemaPlan>(),
       stitchPlans: Object.create(null),
@@ -153,14 +159,18 @@ export class Planner {
     for (const fieldNode of fieldNodes) {
       this._addFieldToFieldPlan(fieldPlan, undefined, parentType, fieldNode);
     }
-    return fieldPlan;
+    return {
+      superSchema: fieldPlan.superSchema,
+      subschemaPlans: [...fieldPlan.subschemaPlans.values()],
+      stitchPlans: fieldPlan.stitchPlans,
+    };
   }
   _createSupplementalFieldPlanImpl(
     parentType: GraphQLCompositeType,
     fieldNodes: ReadonlyArray<FieldNode>,
     fromSubschema: Subschema,
   ): FieldPlan {
-    const fieldPlan: FieldPlan = {
+    const fieldPlan: MutableFieldPlan = {
       superSchema: this.superSchema,
       subschemaPlans: new Map<Subschema, SubschemaPlan>(),
       stitchPlans: Object.create(null),
@@ -173,10 +183,14 @@ export class Planner {
         fieldNode,
       );
     }
-    return fieldPlan;
+    return {
+      superSchema: fieldPlan.superSchema,
+      subschemaPlans: [...fieldPlan.subschemaPlans.values()],
+      stitchPlans: fieldPlan.stitchPlans,
+    };
   }
   _addFieldToFieldPlan(
-    fieldPlan: FieldPlan,
+    fieldPlan: MutableFieldPlan,
     fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     field: FieldNode,
@@ -270,8 +284,9 @@ export class Planner {
     }
     const subschema = subschemas.values().next().value as Subschema;
     const subschemaPlan: SubschemaPlan = {
-      fieldNodes: emptyArray as Array<FieldNode>,
+      toSubschema: subschema,
       fromSubschema,
+      fieldNodes: emptyArray as Array<FieldNode>,
       stitchPlans: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
@@ -299,8 +314,9 @@ export class Planner {
       return subschemaPlan;
     }
     subschemaPlan = {
-      fieldNodes: emptyArray as Array<FieldNode>,
+      toSubschema: subschema,
       fromSubschema,
+      fieldNodes: emptyArray as Array<FieldNode>,
       stitchPlans: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
@@ -326,7 +342,7 @@ export class Planner {
         subschema,
       );
       if (
-        fieldPlan.subschemaPlans.size > 0 ||
+        fieldPlan.subschemaPlans.length > 0 ||
         Object.values(fieldPlan.stitchPlans).length > 0
       ) {
         stitchPlan.set(type, fieldPlan);

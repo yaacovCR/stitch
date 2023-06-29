@@ -26,14 +26,14 @@ export function subscribe(
   if (rootFieldPlan instanceof GraphQLError) {
     return { errors: [rootFieldPlan] };
   }
-  const iteration = rootFieldPlan.subschemaPlans.entries().next();
-  if (iteration.done) {
+  const subschemaPlan = rootFieldPlan.subschemaPlans[0];
+  if (subschemaPlan === undefined) {
     const error = new GraphQLError('Could not route subscription.', {
       nodes: operation,
     });
     return { errors: [error] };
   }
-  const [subschema, subschemaPlan] = iteration.value;
+  const subschema = subschemaPlan.toSubschema;
   const subscriber = subschema.subscriber;
   if (!subscriber) {
     const error = new GraphQLError(
@@ -65,8 +65,7 @@ export function subscribe(
           const composer = new Composer(
             [
               {
-                fromSubschema: subschema,
-                stitchPlans: subschemaPlan.stitchPlans,
+                subschemaPlan,
                 initialResult: payload,
               },
             ],
@@ -84,8 +83,7 @@ export function subscribe(
       const composer = new Composer(
         [
           {
-            fromSubschema: subschema,
-            stitchPlans: subschemaPlan.stitchPlans,
+            subschemaPlan,
             initialResult: payload,
           },
         ],

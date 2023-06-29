@@ -1,9 +1,4 @@
-import type {
-  DocumentNode,
-  ExecutionResult,
-  FieldNode,
-  SelectionNode,
-} from 'graphql';
+import type { DocumentNode, ExecutionResult, SelectionNode } from 'graphql';
 import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
@@ -12,26 +7,26 @@ import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.ts';
-import type { StitchPlan } from './Planner.ts';
+import type { StitchPlan, SubschemaPlan } from './Planner.ts';
 import type { Subschema, SuperSchema } from './SuperSchema.ts';
-type Path = ReadonlyArray<string | number>;
-export interface Stitch {
-  fromSubschema: Subschema;
-  stitchPlans: ObjMap<StitchPlan> | undefined;
+export interface SubschemaPlanResult {
+  subschemaPlan: SubschemaPlan;
   initialResult: PromiseOrValue<ExecutionResult>;
 }
-interface FetchPlan {
-  fieldNodes: ReadonlyArray<FieldNode>;
-  stitchPlans: ObjMap<StitchPlan> | undefined;
+interface Pointer {
   parent: ObjMap<unknown>;
+  responseKey: string | number;
+}
+interface Stitch {
+  subschemaPlan: SubschemaPlan;
   target: ObjMap<unknown>;
-  path: Path;
+  pointer: Pointer | undefined;
 }
 /**
  * @internal
  */
 export class Composer {
-  stitches: Array<Stitch>;
+  subschemaPlanResults: Array<SubschemaPlanResult>;
   superSchema: SuperSchema;
   rawVariableValues:
     | {
@@ -43,7 +38,7 @@ export class Composer {
   nulled: boolean;
   promiseAggregator: PromiseAggregator;
   constructor(
-    stitches: Array<Stitch>,
+    subschemaPlanResults: Array<SubschemaPlanResult>,
     superSchema: SuperSchema,
     rawVariableValues:
       | {
@@ -51,7 +46,7 @@ export class Composer {
         }
       | undefined,
   ) {
-    this.stitches = stitches;
+    this.subschemaPlanResults = subschemaPlanResults;
     this.superSchema = superSchema;
     this.rawVariableValues = rawVariableValues;
     this.fields = Object.create(null);
@@ -60,8 +55,14 @@ export class Composer {
     this.promiseAggregator = new PromiseAggregator();
   }
   compose(): PromiseOrValue<ExecutionResult> {
-    for (const stitch of this.stitches) {
-      this._handleMaybeAsyncResult(undefined, this.fields, stitch, []);
+    for (const subschemaPlanResult of this.subschemaPlanResults) {
+      const { subschemaPlan, initialResult } = subschemaPlanResult;
+      this._handleMaybeAsyncResult(
+        undefined,
+        this.fields,
+        subschemaPlan,
+        initialResult,
+      );
     }
     if (this.promiseAggregator.isEmpty()) {
       return this._buildResponse();
@@ -90,55 +91,47 @@ export class Composer {
       : { data: fieldsOrNull };
   }
   _handleMaybeAsyncResult(
-    parent: ObjMap<unknown> | undefined,
+    pointer: Pointer | undefined,
     fields: ObjMap<unknown>,
-    stitch: Stitch,
-    path: Path,
+    subschemaPlan: SubschemaPlan,
+    initialResult: PromiseOrValue<ExecutionResult>,
   ): void {
-    const initialResult = stitch.initialResult;
     if (!isPromise(initialResult)) {
-      this._handleResult(parent, fields, stitch, initialResult, path);
+      this._handleResult(pointer, fields, subschemaPlan, initialResult);
       return;
     }
     const promise = initialResult.then(
-      (resolved) => this._handleResult(parent, fields, stitch, resolved, path),
+      (resolved) =>
+        this._handleResult(pointer, fields, subschemaPlan, resolved),
       (err) =>
-        this._handleResult(
-          parent,
-          fields,
-          stitch,
-          {
-            data: null,
-            errors: [new GraphQLError(err.message, { originalError: err })],
-          },
-          path,
-        ),
+        this._handleResult(pointer, fields, subschemaPlan, {
+          data: null,
+          errors: [new GraphQLError(err.message, { originalError: err })],
+        }),
     );
     this.promiseAggregator.add(promise);
   }
   _handleResult(
-    parent: ObjMap<unknown> | undefined,
+    pointer: Pointer | undefined,
     fields: ObjMap<unknown>,
-    stitch: Stitch | undefined,
+    subschemaPlan: SubschemaPlan,
     result: ExecutionResult,
-    path: Path,
   ): void {
     if (result.errors != null) {
       this.errors.push(...result.errors);
     }
-    const parentKey: string | number | undefined = path[path.length - 1];
-    if (parent !== undefined) {
-      if (parent[parentKey] === null) {
+    if (pointer !== undefined) {
+      if (pointer.parent[pointer.responseKey] === null) {
         return;
       }
     } else if (this.nulled) {
       return;
     }
     if (result.data == null) {
-      if (parentKey === undefined) {
+      if (pointer === undefined) {
         this.nulled = true;
-      } else if (parent) {
-        parent[parentKey] = null;
+      } else {
+        pointer.parent[pointer.responseKey] = null;
         // TODO: null bubbling?
       }
       return;
@@ -146,64 +139,63 @@ export class Composer {
     for (const [key, value] of Object.entries(result.data)) {
       fields[key] = value;
     }
-    if (stitch?.stitchPlans !== undefined) {
-      const subFetchMap = new AccumulatorMap<Subschema, FetchPlan>();
-      this._walkStitchPlans(subFetchMap, result.data, stitch.stitchPlans, path);
-      for (const [subschema, subFetches] of subFetchMap) {
-        for (const subFetch of subFetches) {
-          // TODO: batch subStitches by accessors
-          // TODO: batch subStitches by subschema?
-          const subStitch: Stitch = {
-            fromSubschema: subschema,
-            stitchPlans: subFetch.stitchPlans,
-            initialResult: subschema.executor({
-              document: this._createDocument(subFetch.fieldNodes),
-              variables: this.rawVariableValues,
-            }),
-          };
-          this._handleMaybeAsyncResult(
-            subFetch.parent,
-            subFetch.target,
-            subStitch,
-            subFetch.path,
-          );
-        }
-      }
+    if (subschemaPlan.stitchPlans !== undefined) {
+      const stitchMap = new AccumulatorMap<Subschema, Stitch>();
+      this._walkStitchPlans(stitchMap, result.data, subschemaPlan.stitchPlans);
+      this._performStitches(stitchMap);
     }
   }
   _walkStitchPlans(
-    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
+    stitchMap: AccumulatorMap<Subschema, Stitch>,
     fields: ObjMap<unknown>,
     stitchPlans: ObjMap<StitchPlan>,
-    path: Path,
   ): void {
     for (const [key, stitchPlan] of Object.entries(stitchPlans)) {
       if (fields[key] !== undefined) {
         this._collectSubFetches(
-          subFetchMap,
+          stitchMap,
           fields,
+          key,
           fields[key] as ObjMap<unknown> | Array<unknown>,
           stitchPlan,
-          [...path, key],
+        );
+      }
+    }
+  }
+  _performStitches(stitchMap: Map<Subschema, ReadonlyArray<Stitch>>): void {
+    for (const [subschema, stitches] of stitchMap) {
+      for (const stitch of stitches) {
+        // TODO: batch subStitches by accessors
+        // TODO: batch subStitches by subschema?
+        const subschemaPlan = stitch.subschemaPlan;
+        const initialResult = subschema.executor({
+          document: this._createDocument(stitch.subschemaPlan.fieldNodes),
+          variables: this.rawVariableValues,
+        });
+        this._handleMaybeAsyncResult(
+          stitch.pointer,
+          stitch.target,
+          subschemaPlan,
+          initialResult,
         );
       }
     }
   }
   _collectSubFetches(
-    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
+    stitchMap: AccumulatorMap<Subschema, Stitch>,
     parent: ObjMap<unknown> | Array<unknown>,
+    responseKey: string | number,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
     stitchPlan: StitchPlan,
-    path: Path,
   ): void {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
         this._collectSubFetches(
-          subFetchMap,
+          stitchMap,
           fieldsOrList,
+          i,
           fieldsOrList[i] as ObjMap<unknown>,
           stitchPlan,
-          [...path, i],
         );
       }
       return;
@@ -225,20 +217,16 @@ export class Composer {
     const fieldPlan = stitchPlan.get(type);
     fieldPlan !== undefined ||
       invariant(false, `Missing field plan for type '${typeName}'.`);
-    for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
-      subFetchMap.add(subschema, {
-        fieldNodes: subschemaPlan.fieldNodes,
-        stitchPlans: subschemaPlan.stitchPlans,
-        parent: parent as ObjMap<unknown>,
+    for (const subschemaPlan of fieldPlan.subschemaPlans) {
+      stitchMap.add(subschemaPlan.toSubschema, {
+        subschemaPlan,
+        pointer: {
+          parent: parent as ObjMap<unknown>,
+          responseKey,
+        },
         target: fieldsOrList,
-        path,
       });
     }
-    this._walkStitchPlans(
-      subFetchMap,
-      fieldsOrList,
-      fieldPlan.stitchPlans,
-      path,
-    );
+    this._walkStitchPlans(stitchMap, fieldsOrList, fieldPlan.stitchPlans);
   }
 }
