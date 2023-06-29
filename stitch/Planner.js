@@ -116,7 +116,11 @@ class Planner {
     for (const fieldNode of fieldNodes) {
       this._addFieldToFieldPlan(fieldPlan, undefined, parentType, fieldNode);
     }
-    return fieldPlan;
+    return {
+      superSchema: fieldPlan.superSchema,
+      subschemaPlans: [...fieldPlan.subschemaPlans.values()],
+      stitchPlans: fieldPlan.stitchPlans,
+    };
   }
   _createSupplementalFieldPlanImpl(parentType, fieldNodes, fromSubschema) {
     const fieldPlan = {
@@ -132,7 +136,11 @@ class Planner {
         fieldNode,
       );
     }
-    return fieldPlan;
+    return {
+      superSchema: fieldPlan.superSchema,
+      subschemaPlans: [...fieldPlan.subschemaPlans.values()],
+      stitchPlans: fieldPlan.stitchPlans,
+    };
   }
   _addFieldToFieldPlan(fieldPlan, fromSubschema, parentType, field) {
     const subschemaSetsByField =
@@ -220,8 +228,9 @@ class Planner {
     }
     const subschema = subschemas.values().next().value;
     const subschemaPlan = {
-      fieldNodes: appendToArray_js_1.emptyArray,
+      toSubschema: subschema,
       fromSubschema,
+      fieldNodes: appendToArray_js_1.emptyArray,
       stitchPlans: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
@@ -242,8 +251,9 @@ class Planner {
       return subschemaPlan;
     }
     subschemaPlan = {
-      fieldNodes: appendToArray_js_1.emptyArray,
+      toSubschema: subschema,
       fromSubschema,
+      fieldNodes: appendToArray_js_1.emptyArray,
       stitchPlans: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
@@ -265,7 +275,7 @@ class Planner {
         subschema,
       );
       if (
-        fieldPlan.subschemaPlans.size > 0 ||
+        fieldPlan.subschemaPlans.length > 0 ||
         Object.values(fieldPlan.stitchPlans).length > 0
       ) {
         stitchPlan.set(type, fieldPlan);

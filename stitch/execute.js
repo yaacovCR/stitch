@@ -20,21 +20,21 @@ function execute(args) {
   if (rootFieldPlan instanceof graphql_1.GraphQLError) {
     return { data: null, errors: [rootFieldPlan] };
   }
-  const stitches = [];
-  for (const [subschema, subschemaPlan] of rootFieldPlan.subschemaPlans) {
-    stitches.push(
-      toStitch(subschema, subschemaPlan, operation, rawVariableValues),
+  const subschemaPlanResults = [];
+  for (const subschemaPlan of rootFieldPlan.subschemaPlans) {
+    subschemaPlanResults.push(
+      toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues),
     );
   }
   const composer = new Composer_js_1.Composer(
-    stitches,
+    subschemaPlanResults,
     rootFieldPlan.superSchema,
     rawVariableValues,
   );
   return composer.compose();
 }
 exports.execute = execute;
-function toStitch(subschema, subschemaPlan, operation, rawVariableValues) {
+function toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues) {
   const document = {
     kind: graphql_1.Kind.DOCUMENT,
     definitions: [
@@ -48,9 +48,8 @@ function toStitch(subschema, subschemaPlan, operation, rawVariableValues) {
     ],
   };
   return {
-    fromSubschema: subschema,
-    stitchPlans: subschemaPlan.stitchPlans,
-    initialResult: subschema.executor({
+    subschemaPlan,
+    initialResult: subschemaPlan.toSubschema.executor({
       document,
       variables: rawVariableValues,
     }),

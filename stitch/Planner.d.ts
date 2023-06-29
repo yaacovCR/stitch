@@ -14,10 +14,16 @@ import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 export interface FieldPlan {
   superSchema: SuperSchema;
+  subschemaPlans: ReadonlyArray<SubschemaPlan>;
+  stitchPlans: ObjMap<StitchPlan>;
+}
+export interface MutableFieldPlan {
+  superSchema: SuperSchema;
   subschemaPlans: Map<Subschema, SubschemaPlan>;
   stitchPlans: ObjMap<StitchPlan>;
 }
 export interface SubschemaPlan {
+  toSubschema: Subschema;
   fromSubschema: Subschema | undefined;
   fieldNodes: Array<FieldNode>;
   stitchPlans: ObjMap<StitchPlan>;
@@ -79,7 +85,7 @@ export declare class Planner {
     fromSubschema: Subschema,
   ): FieldPlan;
   _addFieldToFieldPlan(
-    fieldPlan: FieldPlan,
+    fieldPlan: MutableFieldPlan,
     fromSubschema: Subschema | undefined,
     parentType: GraphQLCompositeType,
     field: FieldNode,

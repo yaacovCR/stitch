@@ -1,34 +1,29 @@
-import type {
-  DocumentNode,
-  ExecutionResult,
-  FieldNode,
-  SelectionNode,
-} from 'graphql';
+import type { DocumentNode, ExecutionResult, SelectionNode } from 'graphql';
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
-import type { StitchPlan } from './Planner.js';
+import type { StitchPlan, SubschemaPlan } from './Planner.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
-type Path = ReadonlyArray<string | number>;
-export interface Stitch {
-  fromSubschema: Subschema;
-  stitchPlans: ObjMap<StitchPlan> | undefined;
+export interface SubschemaPlanResult {
+  subschemaPlan: SubschemaPlan;
   initialResult: PromiseOrValue<ExecutionResult>;
 }
-interface FetchPlan {
-  fieldNodes: ReadonlyArray<FieldNode>;
-  stitchPlans: ObjMap<StitchPlan> | undefined;
+interface Pointer {
   parent: ObjMap<unknown>;
+  responseKey: string | number;
+}
+interface Stitch {
+  subschemaPlan: SubschemaPlan;
   target: ObjMap<unknown>;
-  path: Path;
+  pointer: Pointer | undefined;
 }
 /**
  * @internal
  */
 export declare class Composer {
-  stitches: Array<Stitch>;
+  subschemaPlanResults: Array<SubschemaPlanResult>;
   superSchema: SuperSchema;
   rawVariableValues:
     | {
@@ -40,7 +35,7 @@ export declare class Composer {
   nulled: boolean;
   promiseAggregator: PromiseAggregator;
   constructor(
-    stitches: Array<Stitch>,
+    subschemaPlanResults: Array<SubschemaPlanResult>,
     superSchema: SuperSchema,
     rawVariableValues:
       | {
@@ -52,30 +47,29 @@ export declare class Composer {
   _createDocument(selections: ReadonlyArray<SelectionNode>): DocumentNode;
   _buildResponse(): ExecutionResult;
   _handleMaybeAsyncResult(
-    parent: ObjMap<unknown> | undefined,
+    pointer: Pointer | undefined,
     fields: ObjMap<unknown>,
-    stitch: Stitch,
-    path: Path,
+    subschemaPlan: SubschemaPlan,
+    initialResult: PromiseOrValue<ExecutionResult>,
   ): void;
   _handleResult(
-    parent: ObjMap<unknown> | undefined,
+    pointer: Pointer | undefined,
     fields: ObjMap<unknown>,
-    stitch: Stitch | undefined,
+    subschemaPlan: SubschemaPlan,
     result: ExecutionResult,
-    path: Path,
   ): void;
   _walkStitchPlans(
-    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
+    stitchMap: AccumulatorMap<Subschema, Stitch>,
     fields: ObjMap<unknown>,
     stitchPlans: ObjMap<StitchPlan>,
-    path: Path,
   ): void;
+  _performStitches(stitchMap: Map<Subschema, ReadonlyArray<Stitch>>): void;
   _collectSubFetches(
-    subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
+    stitchMap: AccumulatorMap<Subschema, Stitch>,
     parent: ObjMap<unknown> | Array<unknown>,
+    responseKey: string | number,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
     stitchPlan: StitchPlan,
-    path: Path,
   ): void;
 }
 export {};

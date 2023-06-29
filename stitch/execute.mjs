@@ -15,20 +15,20 @@ export function execute(args) {
   if (rootFieldPlan instanceof GraphQLError) {
     return { data: null, errors: [rootFieldPlan] };
   }
-  const stitches = [];
-  for (const [subschema, subschemaPlan] of rootFieldPlan.subschemaPlans) {
-    stitches.push(
-      toStitch(subschema, subschemaPlan, operation, rawVariableValues),
+  const subschemaPlanResults = [];
+  for (const subschemaPlan of rootFieldPlan.subschemaPlans) {
+    subschemaPlanResults.push(
+      toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues),
     );
   }
   const composer = new Composer(
-    stitches,
+    subschemaPlanResults,
     rootFieldPlan.superSchema,
     rawVariableValues,
   );
   return composer.compose();
 }
-function toStitch(subschema, subschemaPlan, operation, rawVariableValues) {
+function toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues) {
   const document = {
     kind: Kind.DOCUMENT,
     definitions: [
@@ -42,9 +42,8 @@ function toStitch(subschema, subschemaPlan, operation, rawVariableValues) {
     ],
   };
   return {
-    fromSubschema: subschema,
-    stitchPlans: subschemaPlan.stitchPlans,
-    initialResult: subschema.executor({
+    subschemaPlan,
+    initialResult: subschemaPlan.toSubschema.executor({
       document,
       variables: rawVariableValues,
     }),
