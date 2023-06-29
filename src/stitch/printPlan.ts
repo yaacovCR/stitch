@@ -2,7 +2,7 @@ import type { FieldNode, GraphQLObjectType, SelectionSetNode } from 'graphql';
 import { Kind, print } from 'graphql';
 
 import type { FieldPlan, StitchPlan, SubschemaPlan } from './Planner.js';
-import type { Subschema, SuperSchema } from './SuperSchema.js';
+import type { SuperSchema } from './SuperSchema.js';
 
 function generateIndent(indent: number): string {
   return ' '.repeat(indent);
@@ -16,14 +16,14 @@ export function printPlan(
   const superSchema = plan.superSchema;
   const entries = [];
   const stitchPlans = Object.entries(plan.stitchPlans);
-  if (plan.subschemaPlans.size > 0 || stitchPlans.length > 0) {
+  if (plan.subschemaPlans.length > 0 || stitchPlans.length > 0) {
     const spaces = generateIndent(indent);
 
     entries.push(
       `${spaces}${type === undefined ? 'Plan' : `For type '${type.name}'`}:`,
     );
 
-    if (plan.subschemaPlans.size > 0) {
+    if (plan.subschemaPlans.length > 0) {
       entries.push(
         printSubschemaPlans(superSchema, plan.subschemaPlans, indent + 2),
       );
@@ -38,19 +38,18 @@ export function printPlan(
 
 function printSubschemaPlans(
   superSchema: SuperSchema,
-  subschemaPlans: Map<Subschema, SubschemaPlan>,
+  subschemaPlans: ReadonlyArray<SubschemaPlan>,
   indent: number,
 ): string {
-  return [...subschemaPlans.entries()]
-    .map(([subschema, subschemaPlan]) =>
-      printSubschemaPlan(superSchema, subschema, subschemaPlan, indent),
+  return subschemaPlans
+    .map((subschemaPlan) =>
+      printSubschemaPlan(superSchema, subschemaPlan, indent),
     )
     .join('\n');
 }
 
 function printSubschemaPlan(
   superSchema: SuperSchema,
-  subschema: Subschema,
   subschemaPlan: SubschemaPlan,
   indent: number,
 ): string {
@@ -60,7 +59,9 @@ function printSubschemaPlan(
   const stitchPlans = Object.entries(subschemaPlan.stitchPlans);
   if (subschemaPlan.fieldNodes.length > 0 || stitchPlans.length > 0) {
     entries.push(
-      `${spaces}For Subschema: [${superSchema.getSubschemaId(subschema)}]`,
+      `${spaces}For Subschema: [${superSchema.getSubschemaId(
+        subschemaPlan.toSubschema,
+      )}]`,
     );
   }
 

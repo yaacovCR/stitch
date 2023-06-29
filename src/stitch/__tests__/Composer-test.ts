@@ -18,7 +18,7 @@ import { describe, it } from 'mocha';
 
 import { invariant } from '../../utilities/invariant.js';
 
-import type { Stitch } from '../Composer.js';
+import type { SubschemaPlanResult } from '../Composer.js';
 import { Composer } from '../Composer.js';
 import { Planner } from '../Planner.js';
 import type { Subschema } from '../SuperSchema.js';
@@ -48,9 +48,9 @@ function executeWithComposer(
 
   invariant(!(fieldPlan instanceof GraphQLError));
 
-  const stitches: Array<Stitch> = [];
+  const subschemaPlanResults: Array<SubschemaPlanResult> = [];
 
-  for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
+  for (const subschemaPlan of fieldPlan.subschemaPlans) {
     const document: DocumentNode = {
       kind: Kind.DOCUMENT,
       definitions: [
@@ -64,16 +64,19 @@ function executeWithComposer(
       ],
     };
 
-    stitches.push({
-      fromSubschema: subschema,
-      stitchPlans: subschemaPlan.stitchPlans,
-      initialResult: subschema.executor({
+    subschemaPlanResults.push({
+      subschemaPlan,
+      initialResult: subschemaPlan.toSubschema.executor({
         document,
       }),
     });
   }
 
-  const composer = new Composer(stitches, fieldPlan.superSchema, undefined);
+  const composer = new Composer(
+    subschemaPlanResults,
+    fieldPlan.superSchema,
+    undefined,
+  );
 
   return composer.compose();
 }

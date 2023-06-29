@@ -9,10 +9,9 @@ import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 
 import type { ExecutionArgs } from './buildExecutionContext.js';
 import { buildExecutionContext } from './buildExecutionContext.js';
-import type { Stitch } from './Composer.js';
+import type { SubschemaPlanResult } from './Composer.js';
 import { Composer } from './Composer.js';
 import type { SubschemaPlan } from './Planner.js';
-import type { Subschema } from './SuperSchema.js';
 
 export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   // If a valid execution context cannot be created due to incorrect arguments,
@@ -32,16 +31,16 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
     return { data: null, errors: [rootFieldPlan] };
   }
 
-  const stitches: Array<Stitch> = [];
+  const subschemaPlanResults: Array<SubschemaPlanResult> = [];
 
-  for (const [subschema, subschemaPlan] of rootFieldPlan.subschemaPlans) {
-    stitches.push(
-      toStitch(subschema, subschemaPlan, operation, rawVariableValues),
+  for (const subschemaPlan of rootFieldPlan.subschemaPlans) {
+    subschemaPlanResults.push(
+      toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues),
     );
   }
 
   const composer = new Composer(
-    stitches,
+    subschemaPlanResults,
     rootFieldPlan.superSchema,
     rawVariableValues,
   );
@@ -49,12 +48,11 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   return composer.compose();
 }
 
-function toStitch(
-  subschema: Subschema,
+function toSubschemaPlanResult(
   subschemaPlan: SubschemaPlan,
   operation: OperationDefinitionNode,
   rawVariableValues: { readonly [variable: string]: unknown } | undefined,
-): Stitch {
+): SubschemaPlanResult {
   const document: DocumentNode = {
     kind: Kind.DOCUMENT,
     definitions: [
@@ -69,9 +67,8 @@ function toStitch(
   };
 
   return {
-    fromSubschema: subschema,
-    stitchPlans: subschemaPlan.stitchPlans,
-    initialResult: subschema.executor({
+    subschemaPlan,
+    initialResult: subschemaPlan.toSubschema.executor({
       document,
       variables: rawVariableValues,
     }),
