@@ -15,20 +15,18 @@ import type { Subschema, SuperSchema } from './SuperSchema.js';
 export interface FieldPlan {
   superSchema: SuperSchema;
   subschemaPlans: Map<Subschema, SubschemaPlan>;
-  stitchTrees: ObjMap<StitchTree>;
+  stitchPlans: ObjMap<StitchPlan>;
 }
 export interface SubschemaPlan {
   fromSubschema: Subschema | undefined;
   fieldNodes: Array<FieldNode>;
-  stitchTrees: ObjMap<StitchTree>;
+  stitchPlans: ObjMap<StitchPlan>;
 }
 interface SelectionSplit {
   ownSelections: ReadonlyArray<SelectionNode>;
   otherSelections: ReadonlyArray<SelectionNode>;
 }
-export interface StitchTree {
-  fieldPlans: Map<GraphQLObjectType, FieldPlan>;
-}
+export type StitchPlan = Map<GraphQLObjectType, FieldPlan>;
 export declare const createPlanner: (
   a1: SuperSchema,
   a2: OperationDefinitionNode,
@@ -103,11 +101,11 @@ export declare class Planner {
     subschemaPlans: Map<Subschema, SubschemaPlan>,
     fromSubschema: Subschema | undefined,
   ): SubschemaPlan;
-  _createStitchTree(
+  _createStitchPlan(
     parentType: GraphQLCompositeType,
     otherSelections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
-  ): StitchTree;
+  ): StitchPlan;
   _createSelectionSplit(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,

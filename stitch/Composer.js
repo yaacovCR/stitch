@@ -98,16 +98,16 @@ class Composer {
     for (const [key, value] of Object.entries(result.data)) {
       fields[key] = value;
     }
-    if (stitch?.stitchTrees !== undefined) {
+    if (stitch?.stitchPlans !== undefined) {
       const subFetchMap = new AccumulatorMap_js_1.AccumulatorMap();
-      this._walkStitchTrees(subFetchMap, result.data, stitch.stitchTrees, path);
+      this._walkStitchPlans(subFetchMap, result.data, stitch.stitchPlans, path);
       for (const [subschema, subFetches] of subFetchMap) {
         for (const subFetch of subFetches) {
           // TODO: batch subStitches by accessors
           // TODO: batch subStitches by subschema?
           const subStitch = {
             fromSubschema: subschema,
-            stitchTrees: subFetch.stitchTrees,
+            stitchPlans: subFetch.stitchPlans,
             initialResult: subschema.executor({
               document: this._createDocument(subFetch.fieldNodes),
               variables: this.rawVariableValues,
@@ -123,24 +123,24 @@ class Composer {
       }
     }
   }
-  _walkStitchTrees(subFetchMap, fields, stitchTrees, path) {
-    for (const [key, stitchTree] of Object.entries(stitchTrees)) {
+  _walkStitchPlans(subFetchMap, fields, stitchPlans, path) {
+    for (const [key, stitchPlan] of Object.entries(stitchPlans)) {
       if (fields[key] !== undefined) {
-        this._collectSubFetches(subFetchMap, fields, fields[key], stitchTree, [
+        this._collectSubFetches(subFetchMap, fields, fields[key], stitchPlan, [
           ...path,
           key,
         ]);
       }
     }
   }
-  _collectSubFetches(subFetchMap, parent, fieldsOrList, stitchTree, path) {
+  _collectSubFetches(subFetchMap, parent, fieldsOrList, stitchPlan, path) {
     if (Array.isArray(fieldsOrList)) {
       for (let i = 0; i < fieldsOrList.length; i++) {
         this._collectSubFetches(
           subFetchMap,
           fieldsOrList,
           fieldsOrList[i],
-          stitchTree,
+          stitchPlan,
           [...path, i],
         );
       }
@@ -159,7 +159,7 @@ class Composer {
         false,
         `Expected Object type, received '${typeName}'.`,
       );
-    const fieldPlan = stitchTree.fieldPlans.get(type);
+    const fieldPlan = stitchPlan.get(type);
     fieldPlan !== undefined ||
       (0, invariant_js_1.invariant)(
         false,
@@ -168,16 +168,16 @@ class Composer {
     for (const [subschema, subschemaPlan] of fieldPlan.subschemaPlans) {
       subFetchMap.add(subschema, {
         fieldNodes: subschemaPlan.fieldNodes,
-        stitchTrees: subschemaPlan.stitchTrees,
+        stitchPlans: subschemaPlan.stitchPlans,
         parent: parent,
         target: fieldsOrList,
         path,
       });
     }
-    this._walkStitchTrees(
+    this._walkStitchPlans(
       subFetchMap,
       fieldsOrList,
-      fieldPlan.stitchTrees,
+      fieldPlan.stitchPlans,
       path,
     );
   }

@@ -68,7 +68,7 @@ function subscribe(args) {
               [
                 {
                   fromSubschema: subschema,
-                  stitchTrees: subschemaPlan.stitchTrees,
+                  stitchPlans: subschemaPlan.stitchPlans,
                   initialResult: payload,
                 },
               ],
@@ -88,7 +88,7 @@ function subscribe(args) {
         [
           {
             fromSubschema: subschema,
-            stitchTrees: subschemaPlan.stitchTrees,
+            stitchPlans: subschemaPlan.stitchPlans,
             initialResult: payload,
           },
         ],

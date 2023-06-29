@@ -9,17 +9,17 @@ import type { ObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
-import type { StitchTree } from './Planner.js';
+import type { StitchPlan } from './Planner.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 type Path = ReadonlyArray<string | number>;
 export interface Stitch {
   fromSubschema: Subschema;
-  stitchTrees: ObjMap<StitchTree> | undefined;
+  stitchPlans: ObjMap<StitchPlan> | undefined;
   initialResult: PromiseOrValue<ExecutionResult>;
 }
 interface FetchPlan {
   fieldNodes: ReadonlyArray<FieldNode>;
-  stitchTrees: ObjMap<StitchTree> | undefined;
+  stitchPlans: ObjMap<StitchPlan> | undefined;
   parent: ObjMap<unknown>;
   target: ObjMap<unknown>;
   path: Path;
@@ -64,17 +64,17 @@ export declare class Composer {
     result: ExecutionResult,
     path: Path,
   ): void;
-  _walkStitchTrees(
+  _walkStitchPlans(
     subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     fields: ObjMap<unknown>,
-    stitchTrees: ObjMap<StitchTree>,
+    stitchPlans: ObjMap<StitchPlan>,
     path: Path,
   ): void;
   _collectSubFetches(
     subFetchMap: AccumulatorMap<Subschema, FetchPlan>,
     parent: ObjMap<unknown> | Array<unknown>,
     fieldsOrList: ObjMap<unknown> | Array<unknown>,
-    stitchTree: StitchTree,
+    stitchPlan: StitchPlan,
     path: Path,
   ): void;
 }

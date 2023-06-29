@@ -111,7 +111,7 @@ class Planner {
     const fieldPlan = {
       superSchema: this.superSchema,
       subschemaPlans: new Map(),
-      stitchTrees: Object.create(null),
+      stitchPlans: Object.create(null),
     };
     for (const fieldNode of fieldNodes) {
       this._addFieldToFieldPlan(fieldPlan, undefined, parentType, fieldNode);
@@ -122,7 +122,7 @@ class Planner {
     const fieldPlan = {
       superSchema: this.superSchema,
       subschemaPlans: new Map(),
-      stitchTrees: Object.create(null),
+      stitchPlans: Object.create(null),
     };
     for (const fieldNode of fieldNodes) {
       this._addFieldToFieldPlan(
@@ -167,7 +167,7 @@ class Planner {
       subschema,
       fromSubschema,
     );
-    const stitchTree = this._createStitchTree(
+    const stitchPlan = this._createStitchPlan(
       namedFieldType,
       selectionSplit.otherSelections,
       subschema,
@@ -189,25 +189,25 @@ class Planner {
         subschemaPlan.fieldNodes,
         splitField,
       );
-      if (stitchTree.fieldPlans.size > 0) {
+      if (stitchPlan.size > 0) {
         const responseKey = field.alias?.value ?? field.name.value;
         if (subschema === fromSubschema) {
-          fieldPlan.stitchTrees[responseKey] = stitchTree;
+          fieldPlan.stitchPlans[responseKey] = stitchPlan;
         } else {
-          subschemaPlan.stitchTrees[responseKey] = stitchTree;
+          subschemaPlan.stitchPlans[responseKey] = stitchPlan;
         }
       }
-    } else if (stitchTree.fieldPlans.size > 0) {
+    } else if (stitchPlan.size > 0) {
       const responseKey = field.alias?.value ?? field.name.value;
       if (subschema !== undefined && subschema === fromSubschema) {
-        fieldPlan.stitchTrees[responseKey] = stitchTree;
+        fieldPlan.stitchPlans[responseKey] = stitchPlan;
       } else {
         const { subschemaPlan } = this._getSubschemaAndPlan(
           subschemas,
           subschemaPlans,
           fromSubschema,
         );
-        subschemaPlan.stitchTrees[responseKey] = stitchTree;
+        subschemaPlan.stitchPlans[responseKey] = stitchPlan;
       }
     }
   }
@@ -222,7 +222,7 @@ class Planner {
     const subschemaPlan = {
       fieldNodes: appendToArray_js_1.emptyArray,
       fromSubschema,
-      stitchTrees: Object.create(null),
+      stitchPlans: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
     return { subschema, subschemaPlan };
@@ -244,13 +244,13 @@ class Planner {
     subschemaPlan = {
       fieldNodes: appendToArray_js_1.emptyArray,
       fromSubschema,
-      stitchTrees: Object.create(null),
+      stitchPlans: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
     return subschemaPlan;
   }
-  _createStitchTree(parentType, otherSelections, subschema) {
-    const fieldPlans = new Map();
+  _createStitchPlan(parentType, otherSelections, subschema) {
+    const stitchPlan = new Map();
     let possibleTypes;
     if ((0, graphql_1.isAbstractType)(parentType)) {
       possibleTypes = this.superSchema.getPossibleTypes(parentType);
@@ -266,12 +266,12 @@ class Planner {
       );
       if (
         fieldPlan.subschemaPlans.size > 0 ||
-        Object.values(fieldPlan.stitchTrees).length > 0
+        Object.values(fieldPlan.stitchPlans).length > 0
       ) {
-        fieldPlans.set(type, fieldPlan);
+        stitchPlan.set(type, fieldPlan);
       }
     }
-    return { fieldPlans };
+    return stitchPlan;
   }
   _createSelectionSplit(parentType, selections, subschema, fromSubschema) {
     const selectionSplit = {
