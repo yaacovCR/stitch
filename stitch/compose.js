@@ -98,63 +98,58 @@ function handleResult(context, stitch, result) {
     performStitches(context, stitchMap);
   }
 }
-function walkStitchPlans(context, stitchMap, parent, stitchPlans) {
+function walkStitchPlans(context, stitchMap, target, stitchPlans) {
   for (const [responseKey, stitchPlan] of Object.entries(stitchPlans)) {
-    if (parent[responseKey] !== undefined) {
-      collectStitches(
+    if (target[responseKey] !== undefined) {
+      collectPossibleListStitches(
         context,
         stitchMap,
         {
-          parent,
+          parent: target,
           responseKey,
         },
-        parent[responseKey],
         stitchPlan,
       );
     }
   }
 }
-function performStitches(context, stitchMap) {
-  for (const [subschema, stitches] of stitchMap) {
-    for (const stitch of stitches) {
-      // TODO: batch subStitches by accessors
-      // TODO: batch subStitches by subschema?
-      const initialResult = subschema.executor({
-        document: createDocument(stitch.subschemaPlan.fieldNodes),
-        variables: context.rawVariableValues,
-      });
-      handleMaybeAsyncResult(context, stitch, initialResult);
-    }
-  }
-}
-function collectStitches(
-  context,
-  stitchMap,
-  pointer,
-  fieldsOrList,
-  stitchPlan,
-) {
-  if (Array.isArray(fieldsOrList)) {
-    for (let i = 0; i < fieldsOrList.length; i++) {
+function collectPossibleListStitches(context, stitchMap, pointer, stitchPlan) {
+  const { parent, responseKey } = pointer;
+  const target = parent[responseKey];
+  if (Array.isArray(target)) {
+    for (let i = 0; i < target.length; i++) {
       collectStitches(
         context,
         stitchMap,
         {
-          parent: fieldsOrList,
+          parent: target,
           responseKey: i,
         },
-        fieldsOrList[i],
         stitchPlan,
       );
     }
     return;
   }
-  const typeName = fieldsOrList.__stitching__typename;
+  collectStitches(context, stitchMap, pointer, stitchPlan);
+}
+function collectStitches(context, stitchMap, pointer, stitchPlan) {
+  const { parent, responseKey } = pointer;
+  const target = parent[responseKey];
+  const newTarget = Object.create(null);
+  let typeName;
+  for (const [key, value] of Object.entries(target)) {
+    if (key === '__stitching__typename') {
+      typeName = value;
+      continue;
+    }
+    newTarget[key] = value;
+  }
+  parent[responseKey] = newTarget;
   typeName != null ||
     (0, invariant_js_1.invariant)(
       false,
       `Missing entry '__stitching__typename' in response ${(0,
-      inspect_js_1.inspect)(fieldsOrList)}.`,
+      inspect_js_1.inspect)(target)}.`,
     );
   const type = context.superSchema.getType(typeName);
   (0, graphql_1.isObjectType)(type) ||
@@ -169,11 +164,25 @@ function collectStitches(
       `Missing field plan for type '${typeName}'.`,
     );
   for (const subschemaPlan of fieldPlan.subschemaPlans) {
-    stitchMap.add(subschemaPlan.toSubschema, {
+    const stitch = {
       subschemaPlan,
       pointer,
-      target: fieldsOrList,
-    });
+      target: newTarget,
+    };
+    stitchMap.add(subschemaPlan.toSubschema, stitch);
   }
-  walkStitchPlans(context, stitchMap, fieldsOrList, fieldPlan.stitchPlans);
+  walkStitchPlans(context, stitchMap, newTarget, fieldPlan.stitchPlans);
+}
+function performStitches(context, stitchMap) {
+  for (const [subschema, stitches] of stitchMap) {
+    for (const stitch of stitches) {
+      // TODO: batch subStitches by accessors
+      // TODO: batch subStitches by subschema?
+      const initialResult = subschema.executor({
+        document: createDocument(stitch.subschemaPlan.fieldNodes),
+        variables: context.rawVariableValues,
+      });
+      handleMaybeAsyncResult(context, stitch, initialResult);
+    }
+  }
 }
