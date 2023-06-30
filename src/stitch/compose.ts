@@ -64,16 +64,15 @@ export function compose(
 
   for (const subschemaPlanResult of subschemaPlanResults) {
     const { subschemaPlan, initialResult } = subschemaPlanResult;
-    handleMaybeAsyncResult(
-      context,
-      {
+    const stitch: Stitch = {
+      subschemaPlan,
+      target: data,
+      pointer: {
         parent: context as unknown as ObjMap<unknown>,
         responseKey: 'data',
       },
-      data,
-      subschemaPlan,
-      initialResult,
-    );
+    };
+    handleMaybeAsyncResult(context, stitch, initialResult);
   }
 
   if (context.promiseAggregator.isEmpty()) {
@@ -111,21 +110,18 @@ function buildResponse(context: CompositionContext): ExecutionResult {
 
 function handleMaybeAsyncResult(
   context: CompositionContext,
-  pointer: Pointer,
-  fields: ObjMap<unknown>,
-  subschemaPlan: SubschemaPlan,
+  stitch: Stitch,
   initialResult: PromiseOrValue<ExecutionResult>,
 ): void {
   if (!isPromise(initialResult)) {
-    handleResult(context, pointer, fields, subschemaPlan, initialResult);
+    handleResult(context, stitch, initialResult);
     return;
   }
 
   const promise = initialResult.then(
-    (resolved) =>
-      handleResult(context, pointer, fields, subschemaPlan, resolved),
+    (resolved) => handleResult(context, stitch, resolved),
     (err) =>
-      handleResult(context, pointer, fields, subschemaPlan, {
+      handleResult(context, stitch, {
         data: null,
         errors: [new GraphQLError(err.message, { originalError: err })],
       }),
@@ -136,16 +132,18 @@ function handleMaybeAsyncResult(
 
 function handleResult(
   context: CompositionContext,
-  pointer: Pointer,
-  data: ObjMap<unknown>,
-  subschemaPlan: SubschemaPlan,
+  stitch: Stitch,
   result: ExecutionResult,
 ): void {
   if (result.errors != null) {
     context.errors.push(...result.errors);
   }
 
-  const { parent, responseKey } = pointer;
+  const {
+    subschemaPlan,
+    target,
+    pointer: { parent, responseKey },
+  } = stitch;
 
   if (parent[responseKey] === null) {
     return;
@@ -158,12 +156,12 @@ function handleResult(
   }
 
   for (const [key, value] of Object.entries(result.data)) {
-    data[key] = value;
+    target[key] = value;
   }
 
   if (subschemaPlan.stitchPlans !== undefined) {
     const stitchMap = new AccumulatorMap<Subschema, Stitch>();
-    walkStitchPlans(context, stitchMap, data, subschemaPlan.stitchPlans);
+    walkStitchPlans(context, stitchMap, target, subschemaPlan.stitchPlans);
     performStitches(context, stitchMap);
   }
 }
@@ -171,19 +169,19 @@ function handleResult(
 function walkStitchPlans(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
-  fields: ObjMap<unknown>,
+  parent: ObjMap<unknown>,
   stitchPlans: ObjMap<StitchPlan>,
 ): void {
-  for (const [key, stitchPlan] of Object.entries(stitchPlans)) {
-    if (fields[key] !== undefined) {
+  for (const [responseKey, stitchPlan] of Object.entries(stitchPlans)) {
+    if (parent[responseKey] !== undefined) {
       collectStitches(
         context,
         stitchMap,
         {
-          parent: fields,
-          responseKey: key,
+          parent,
+          responseKey,
         },
-        fields[key] as ObjMap<unknown>,
+        parent[responseKey] as ObjMap<unknown>,
         stitchPlan,
       );
     }
@@ -198,18 +196,11 @@ function performStitches(
     for (const stitch of stitches) {
       // TODO: batch subStitches by accessors
       // TODO: batch subStitches by subschema?
-      const subschemaPlan = stitch.subschemaPlan;
       const initialResult = subschema.executor({
         document: createDocument(stitch.subschemaPlan.fieldNodes),
         variables: context.rawVariableValues,
       });
-      handleMaybeAsyncResult(
-        context,
-        stitch.pointer,
-        stitch.target,
-        subschemaPlan,
-        initialResult,
-      );
+      handleMaybeAsyncResult(context, stitch, initialResult);
     }
   }
 }
