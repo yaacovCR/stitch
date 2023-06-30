@@ -7,8 +7,8 @@ import { GraphQLError, Kind } from 'graphql';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
-import type { SubschemaPlanResult } from './Composer.ts';
-import { Composer } from './Composer.ts';
+import type { SubschemaPlanResult } from './compose.ts';
+import { compose } from './compose.ts';
 import type { SubschemaPlan } from './Planner.ts';
 export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   // If a valid execution context cannot be created due to incorrect arguments,
@@ -30,12 +30,11 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
       toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues),
     );
   }
-  const composer = new Composer(
+  return compose(
     subschemaPlanResults,
     rootFieldPlan.superSchema,
     rawVariableValues,
   );
-  return composer.compose();
 }
 function toSubschemaPlanResult(
   subschemaPlan: SubschemaPlan,
