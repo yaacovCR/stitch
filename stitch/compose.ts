@@ -142,23 +142,85 @@ function handleResult(
 function walkStitchPlans(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
-  parent: ObjMap<unknown>,
+  target: ObjMap<unknown>,
   stitchPlans: ObjMap<StitchPlan>,
 ): void {
   for (const [responseKey, stitchPlan] of Object.entries(stitchPlans)) {
-    if (parent[responseKey] !== undefined) {
-      collectStitches(
+    if (target[responseKey] !== undefined) {
+      collectPossibleListStitches(
         context,
         stitchMap,
         {
-          parent,
+          parent: target,
           responseKey,
         },
-        parent[responseKey] as ObjMap<unknown>,
         stitchPlan,
       );
     }
   }
+}
+function collectPossibleListStitches(
+  context: CompositionContext,
+  stitchMap: AccumulatorMap<Subschema, Stitch>,
+  pointer: Pointer,
+  stitchPlan: StitchPlan,
+): void {
+  const { parent, responseKey } = pointer;
+  const target = parent[responseKey] as ObjMap<unknown>;
+  if (Array.isArray(target)) {
+    for (let i = 0; i < target.length; i++) {
+      collectStitches(
+        context,
+        stitchMap,
+        {
+          parent: target,
+          responseKey: i,
+        },
+        stitchPlan,
+      );
+    }
+    return;
+  }
+  collectStitches(context, stitchMap, pointer, stitchPlan);
+}
+function collectStitches(
+  context: CompositionContext,
+  stitchMap: AccumulatorMap<Subschema, Stitch>,
+  pointer: Pointer,
+  stitchPlan: StitchPlan,
+): void {
+  const { parent, responseKey } = pointer;
+  const target = parent[responseKey] as ObjMap<unknown>;
+  const newTarget = Object.create(null);
+  let typeName: string | null | undefined;
+  for (const [key, value] of Object.entries(target)) {
+    if (key === '__stitching__typename') {
+      typeName = value as string;
+      continue;
+    }
+    newTarget[key] = value;
+  }
+  parent[responseKey] = newTarget;
+  typeName != null ||
+    invariant(
+      false,
+      `Missing entry '__stitching__typename' in response ${inspect(target)}.`,
+    );
+  const type = context.superSchema.getType(typeName);
+  isObjectType(type) ||
+    invariant(false, `Expected Object type, received '${typeName}'.`);
+  const fieldPlan = stitchPlan.get(type);
+  fieldPlan !== undefined ||
+    invariant(false, `Missing field plan for type '${typeName}'.`);
+  for (const subschemaPlan of fieldPlan.subschemaPlans) {
+    const stitch: Stitch = {
+      subschemaPlan,
+      pointer,
+      target: newTarget,
+    };
+    stitchMap.add(subschemaPlan.toSubschema, stitch);
+  }
+  walkStitchPlans(context, stitchMap, newTarget, fieldPlan.stitchPlans);
 }
 function performStitches(
   context: CompositionContext,
@@ -175,52 +237,4 @@ function performStitches(
       handleMaybeAsyncResult(context, stitch, initialResult);
     }
   }
-}
-function collectStitches(
-  context: CompositionContext,
-  stitchMap: AccumulatorMap<Subschema, Stitch>,
-  pointer: Pointer,
-  fieldsOrList: ObjMap<unknown>,
-  stitchPlan: StitchPlan,
-): void {
-  if (Array.isArray(fieldsOrList)) {
-    for (let i = 0; i < fieldsOrList.length; i++) {
-      collectStitches(
-        context,
-        stitchMap,
-        {
-          parent: fieldsOrList,
-          responseKey: i,
-        },
-        fieldsOrList[i] as ObjMap<unknown>,
-        stitchPlan,
-      );
-    }
-    return;
-  }
-  const typeName = fieldsOrList.__stitching__typename as
-    | string
-    | undefined
-    | null;
-  typeName != null ||
-    invariant(
-      false,
-      `Missing entry '__stitching__typename' in response ${inspect(
-        fieldsOrList,
-      )}.`,
-    );
-  const type = context.superSchema.getType(typeName);
-  isObjectType(type) ||
-    invariant(false, `Expected Object type, received '${typeName}'.`);
-  const fieldPlan = stitchPlan.get(type);
-  fieldPlan !== undefined ||
-    invariant(false, `Missing field plan for type '${typeName}'.`);
-  for (const subschemaPlan of fieldPlan.subschemaPlans) {
-    stitchMap.add(subschemaPlan.toSubschema, {
-      subschemaPlan,
-      pointer,
-      target: fieldsOrList,
-    });
-  }
-  walkStitchPlans(context, stitchMap, fieldsOrList, fieldPlan.stitchPlans);
 }
