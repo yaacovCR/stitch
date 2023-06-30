@@ -3,7 +3,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 exports.execute = void 0;
 const graphql_1 = require('graphql');
 const buildExecutionContext_js_1 = require('./buildExecutionContext.js');
-const Composer_js_1 = require('./Composer.js');
+const compose_js_1 = require('./compose.js');
 function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -26,12 +26,11 @@ function execute(args) {
       toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues),
     );
   }
-  const composer = new Composer_js_1.Composer(
+  return (0, compose_js_1.compose)(
     subschemaPlanResults,
     rootFieldPlan.superSchema,
     rawVariableValues,
   );
-  return composer.compose();
 }
 exports.execute = execute;
 function toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues) {

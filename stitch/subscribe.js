@@ -6,7 +6,7 @@ const isAsyncIterable_js_1 = require('../predicates/isAsyncIterable.js');
 const isPromise_js_1 = require('../predicates/isPromise.js');
 const invariant_js_1 = require('../utilities/invariant.js');
 const buildExecutionContext_js_1 = require('./buildExecutionContext.js');
-const Composer_js_1 = require('./Composer.js');
+const compose_js_1 = require('./compose.js');
 const mapAsyncIterable_js_1 = require('./mapAsyncIterable.js');
 function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
@@ -63,8 +63,8 @@ function subscribe(args) {
       if ((0, isAsyncIterable_js_1.isAsyncIterable)(resolved)) {
         return (0, mapAsyncIterable_js_1.mapAsyncIterable)(
           resolved,
-          (payload) => {
-            const composer = new Composer_js_1.Composer(
+          (payload) =>
+            (0, compose_js_1.compose)(
               [
                 {
                   subschemaPlan,
@@ -73,17 +73,15 @@ function subscribe(args) {
               ],
               rootFieldPlan.superSchema,
               rawVariableValues,
-            );
-            return composer.compose();
-          },
+            ),
         );
       }
       return result;
     });
   }
   if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
-    return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) => {
-      const composer = new Composer_js_1.Composer(
+    return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) =>
+      (0, compose_js_1.compose)(
         [
           {
             subschemaPlan,
@@ -92,9 +90,8 @@ function subscribe(args) {
         ],
         rootFieldPlan.superSchema,
         rawVariableValues,
-      );
-      return composer.compose();
-    });
+      ),
+    );
   }
   return result;
 }

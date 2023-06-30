@@ -3,7 +3,7 @@ import { isAsyncIterable } from '../predicates/isAsyncIterable.mjs';
 import { isPromise } from '../predicates/isPromise.mjs';
 import { invariant } from '../utilities/invariant.mjs';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
-import { Composer } from './Composer.mjs';
+import { compose } from './compose.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';
 export function subscribe(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
@@ -55,8 +55,8 @@ export function subscribe(args) {
   if (isPromise(result)) {
     return result.then((resolved) => {
       if (isAsyncIterable(resolved)) {
-        return mapAsyncIterable(resolved, (payload) => {
-          const composer = new Composer(
+        return mapAsyncIterable(resolved, (payload) =>
+          compose(
             [
               {
                 subschemaPlan,
@@ -65,16 +65,15 @@ export function subscribe(args) {
             ],
             rootFieldPlan.superSchema,
             rawVariableValues,
-          );
-          return composer.compose();
-        });
+          ),
+        );
       }
       return result;
     });
   }
   if (isAsyncIterable(result)) {
-    return mapAsyncIterable(result, (payload) => {
-      const composer = new Composer(
+    return mapAsyncIterable(result, (payload) =>
+      compose(
         [
           {
             subschemaPlan,
@@ -83,9 +82,8 @@ export function subscribe(args) {
         ],
         rootFieldPlan.superSchema,
         rawVariableValues,
-      );
-      return composer.compose();
-    });
+      ),
+    );
   }
   return result;
 }

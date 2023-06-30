@@ -1,6 +1,6 @@
 import { GraphQLError, Kind } from 'graphql';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
-import { Composer } from './Composer.mjs';
+import { compose } from './compose.mjs';
 export function execute(args) {
   // If a valid execution context cannot be created due to incorrect arguments,
   // a "Response" with only errors is returned.
@@ -21,12 +21,11 @@ export function execute(args) {
       toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues),
     );
   }
-  const composer = new Composer(
+  return compose(
     subschemaPlanResults,
     rootFieldPlan.superSchema,
     rawVariableValues,
   );
-  return composer.compose();
 }
 function toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues) {
   const document = {
