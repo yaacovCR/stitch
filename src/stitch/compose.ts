@@ -19,15 +19,11 @@ export interface SubschemaPlanResult {
   initialResult: PromiseOrValue<ExecutionResult>;
 }
 
-interface Pointer {
-  parent: ObjMap<unknown>;
-  responseKey: string | number;
-}
-
 interface Stitch {
   subschemaPlan: SubschemaPlan;
   target: ObjMap<unknown>;
-  pointer: Pointer;
+  parent: ObjMap<unknown>;
+  responseKey: string | number;
 }
 
 interface CompositionContext {
@@ -67,10 +63,8 @@ export function compose(
     const stitch: Stitch = {
       subschemaPlan,
       target: data,
-      pointer: {
-        parent: context as unknown as ObjMap<unknown>,
-        responseKey: 'data',
-      },
+      parent: context as unknown as ObjMap<unknown>,
+      responseKey: 'data',
     };
     handleMaybeAsyncResult(context, stitch, initialResult);
   }
@@ -139,11 +133,7 @@ function handleResult(
     context.errors.push(...result.errors);
   }
 
-  const {
-    subschemaPlan,
-    target,
-    pointer: { parent, responseKey },
-  } = stitch;
+  const { subschemaPlan, target, parent, responseKey } = stitch;
 
   if (parent[responseKey] === null) {
     return;
@@ -177,10 +167,8 @@ function walkStitchPlans(
       collectPossibleListStitches(
         context,
         stitchMap,
-        {
-          parent: target,
-          responseKey,
-        },
+        target,
+        responseKey,
         stitchPlan,
       );
     }
@@ -190,36 +178,28 @@ function walkStitchPlans(
 function collectPossibleListStitches(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
-  pointer: Pointer,
+  parent: ObjMap<unknown>,
+  responseKey: string | number,
   stitchPlan: StitchPlan,
 ): void {
-  const { parent, responseKey } = pointer;
   const target = parent[responseKey] as ObjMap<unknown>;
   if (Array.isArray(target)) {
     for (let i = 0; i < target.length; i++) {
-      collectStitches(
-        context,
-        stitchMap,
-        {
-          parent: target,
-          responseKey: i,
-        },
-        stitchPlan,
-      );
+      collectStitches(context, stitchMap, target, i, stitchPlan);
     }
     return;
   }
 
-  collectStitches(context, stitchMap, pointer, stitchPlan);
+  collectStitches(context, stitchMap, parent, responseKey, stitchPlan);
 }
 
 function collectStitches(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
-  pointer: Pointer,
+  parent: ObjMap<unknown>,
+  responseKey: string | number,
   stitchPlan: StitchPlan,
 ): void {
-  const { parent, responseKey } = pointer;
   const target = parent[responseKey] as ObjMap<unknown>;
 
   const newTarget = Object.create(null);
@@ -255,7 +235,8 @@ function collectStitches(
   for (const subschemaPlan of fieldPlan.subschemaPlans) {
     const stitch: Stitch = {
       subschemaPlan,
-      pointer,
+      parent,
+      responseKey,
       target: newTarget,
     };
     stitchMap.add(subschemaPlan.toSubschema, stitch);
