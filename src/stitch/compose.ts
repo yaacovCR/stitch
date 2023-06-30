@@ -169,75 +169,73 @@ function handleResult(
 function walkStitchPlans(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
-  parent: ObjMap<unknown>,
+  target: ObjMap<unknown>,
   stitchPlans: ObjMap<StitchPlan>,
 ): void {
   for (const [responseKey, stitchPlan] of Object.entries(stitchPlans)) {
-    if (parent[responseKey] !== undefined) {
-      collectStitches(
+    if (target[responseKey] !== undefined) {
+      collectPossibleListStitches(
         context,
         stitchMap,
         {
-          parent,
+          parent: target,
           responseKey,
         },
-        parent[responseKey] as ObjMap<unknown>,
         stitchPlan,
       );
     }
   }
 }
 
-function performStitches(
-  context: CompositionContext,
-  stitchMap: Map<Subschema, ReadonlyArray<Stitch>>,
-): void {
-  for (const [subschema, stitches] of stitchMap) {
-    for (const stitch of stitches) {
-      // TODO: batch subStitches by accessors
-      // TODO: batch subStitches by subschema?
-      const initialResult = subschema.executor({
-        document: createDocument(stitch.subschemaPlan.fieldNodes),
-        variables: context.rawVariableValues,
-      });
-      handleMaybeAsyncResult(context, stitch, initialResult);
-    }
-  }
-}
-
-function collectStitches(
+function collectPossibleListStitches(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
   pointer: Pointer,
-  fieldsOrList: ObjMap<unknown>,
   stitchPlan: StitchPlan,
 ): void {
-  if (Array.isArray(fieldsOrList)) {
-    for (let i = 0; i < fieldsOrList.length; i++) {
+  const { parent, responseKey } = pointer;
+  const target = parent[responseKey] as ObjMap<unknown>;
+  if (Array.isArray(target)) {
+    for (let i = 0; i < target.length; i++) {
       collectStitches(
         context,
         stitchMap,
         {
-          parent: fieldsOrList,
+          parent: target,
           responseKey: i,
         },
-        fieldsOrList[i] as ObjMap<unknown>,
         stitchPlan,
       );
     }
     return;
   }
 
-  const typeName = fieldsOrList.__stitching__typename as
-    | string
-    | undefined
-    | null;
+  collectStitches(context, stitchMap, pointer, stitchPlan);
+}
+
+function collectStitches(
+  context: CompositionContext,
+  stitchMap: AccumulatorMap<Subschema, Stitch>,
+  pointer: Pointer,
+  stitchPlan: StitchPlan,
+): void {
+  const { parent, responseKey } = pointer;
+  const target = parent[responseKey] as ObjMap<unknown>;
+
+  const newTarget = Object.create(null);
+  let typeName: string | null | undefined;
+  for (const [key, value] of Object.entries(target)) {
+    if (key === '__stitching__typename') {
+      typeName = value as string;
+      continue;
+    }
+    newTarget[key] = value;
+  }
+  parent[responseKey] = newTarget;
 
   invariant(
     typeName != null,
-    `Missing entry '__stitching__typename' in response ${inspect(
-      fieldsOrList,
-    )}.`,
+    `Missing entry '__stitching__typename' in response ${inspect(target)}.`,
   );
 
   const type = context.superSchema.getType(typeName);
@@ -255,12 +253,30 @@ function collectStitches(
   );
 
   for (const subschemaPlan of fieldPlan.subschemaPlans) {
-    stitchMap.add(subschemaPlan.toSubschema, {
+    const stitch: Stitch = {
       subschemaPlan,
       pointer,
-      target: fieldsOrList,
-    });
+      target: newTarget,
+    };
+    stitchMap.add(subschemaPlan.toSubschema, stitch);
   }
 
-  walkStitchPlans(context, stitchMap, fieldsOrList, fieldPlan.stitchPlans);
+  walkStitchPlans(context, stitchMap, newTarget, fieldPlan.stitchPlans);
+}
+
+function performStitches(
+  context: CompositionContext,
+  stitchMap: Map<Subschema, ReadonlyArray<Stitch>>,
+): void {
+  for (const [subschema, stitches] of stitchMap) {
+    for (const stitch of stitches) {
+      // TODO: batch subStitches by accessors
+      // TODO: batch subStitches by subschema?
+      const initialResult = subschema.executor({
+        document: createDocument(stitch.subschemaPlan.fieldNodes),
+        variables: context.rawVariableValues,
+      });
+      handleMaybeAsyncResult(context, stitch, initialResult);
+    }
+  }
 }
