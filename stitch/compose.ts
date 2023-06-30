@@ -20,7 +20,7 @@ interface Pointer {
 interface Stitch {
   subschemaPlan: SubschemaPlan;
   target: ObjMap<unknown>;
-  pointer: Pointer | undefined;
+  pointer: Pointer;
 }
 interface CompositionContext {
   superSchema: SuperSchema;
@@ -29,9 +29,8 @@ interface CompositionContext {
         readonly [variable: string]: unknown;
       }
     | undefined;
-  fields: ObjMap<unknown>;
+  data: ObjMap<unknown>;
   errors: Array<GraphQLError>;
-  nulled: boolean;
   promiseAggregator: PromiseAggregator;
 }
 export function compose(
@@ -43,24 +42,25 @@ export function compose(
       }
     | undefined,
 ): PromiseOrValue<ExecutionResult> {
-  const fields = Object.create(null);
+  const data = Object.create(null);
   const context: CompositionContext = {
     superSchema,
     rawVariableValues,
-    fields,
+    data,
     errors: [],
-    nulled: false,
     promiseAggregator: new PromiseAggregator(),
   };
   for (const subschemaPlanResult of subschemaPlanResults) {
     const { subschemaPlan, initialResult } = subschemaPlanResult;
-    handleMaybeAsyncResult(
-      context,
-      undefined,
-      fields,
+    const stitch: Stitch = {
       subschemaPlan,
-      initialResult,
-    );
+      target: data,
+      pointer: {
+        parent: context as unknown as ObjMap<unknown>,
+        responseKey: 'data',
+      },
+    };
+    handleMaybeAsyncResult(context, stitch, initialResult);
   }
   if (context.promiseAggregator.isEmpty()) {
     return buildResponse(context);
@@ -87,27 +87,22 @@ function createDocument(
   };
 }
 function buildResponse(context: CompositionContext): ExecutionResult {
-  const fieldsOrNull = context.nulled ? null : context.fields;
-  return context.errors.length > 0
-    ? { data: fieldsOrNull, errors: context.errors }
-    : { data: fieldsOrNull };
+  const { data, errors } = context;
+  return errors.length > 0 ? { data, errors } : { data };
 }
 function handleMaybeAsyncResult(
   context: CompositionContext,
-  pointer: Pointer | undefined,
-  fields: ObjMap<unknown>,
-  subschemaPlan: SubschemaPlan,
+  stitch: Stitch,
   initialResult: PromiseOrValue<ExecutionResult>,
 ): void {
   if (!isPromise(initialResult)) {
-    handleResult(context, pointer, fields, subschemaPlan, initialResult);
+    handleResult(context, stitch, initialResult);
     return;
   }
   const promise = initialResult.then(
-    (resolved) =>
-      handleResult(context, pointer, fields, subschemaPlan, resolved),
+    (resolved) => handleResult(context, stitch, resolved),
     (err) =>
-      handleResult(context, pointer, fields, subschemaPlan, {
+      handleResult(context, stitch, {
         data: null,
         errors: [new GraphQLError(err.message, { originalError: err })],
       }),
@@ -116,55 +111,50 @@ function handleMaybeAsyncResult(
 }
 function handleResult(
   context: CompositionContext,
-  pointer: Pointer | undefined,
-  fields: ObjMap<unknown>,
-  subschemaPlan: SubschemaPlan,
+  stitch: Stitch,
   result: ExecutionResult,
 ): void {
   if (result.errors != null) {
     context.errors.push(...result.errors);
   }
-  if (pointer !== undefined) {
-    if (pointer.parent[pointer.responseKey] === null) {
-      return;
-    }
-  } else if (context.nulled) {
+  const {
+    subschemaPlan,
+    target,
+    pointer: { parent, responseKey },
+  } = stitch;
+  if (parent[responseKey] === null) {
     return;
   }
   if (result.data == null) {
-    if (pointer === undefined) {
-      context.nulled = true;
-    } else {
-      pointer.parent[pointer.responseKey] = null;
-      // TODO: null bubbling?
-    }
+    parent[responseKey] = null;
+    // TODO: null bubbling?
     return;
   }
   for (const [key, value] of Object.entries(result.data)) {
-    fields[key] = value;
+    target[key] = value;
   }
   if (subschemaPlan.stitchPlans !== undefined) {
     const stitchMap = new AccumulatorMap<Subschema, Stitch>();
-    walkStitchPlans(context, stitchMap, result.data, subschemaPlan.stitchPlans);
+    walkStitchPlans(context, stitchMap, target, subschemaPlan.stitchPlans);
     performStitches(context, stitchMap);
   }
 }
 function walkStitchPlans(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
-  fields: ObjMap<unknown>,
+  parent: ObjMap<unknown>,
   stitchPlans: ObjMap<StitchPlan>,
 ): void {
-  for (const [key, stitchPlan] of Object.entries(stitchPlans)) {
-    if (fields[key] !== undefined) {
+  for (const [responseKey, stitchPlan] of Object.entries(stitchPlans)) {
+    if (parent[responseKey] !== undefined) {
       collectStitches(
         context,
         stitchMap,
         {
-          parent: fields,
-          responseKey: key,
+          parent,
+          responseKey,
         },
-        fields[key] as ObjMap<unknown>,
+        parent[responseKey] as ObjMap<unknown>,
         stitchPlan,
       );
     }
@@ -178,18 +168,11 @@ function performStitches(
     for (const stitch of stitches) {
       // TODO: batch subStitches by accessors
       // TODO: batch subStitches by subschema?
-      const subschemaPlan = stitch.subschemaPlan;
       const initialResult = subschema.executor({
         document: createDocument(stitch.subschemaPlan.fieldNodes),
         variables: context.rawVariableValues,
       });
-      handleMaybeAsyncResult(
-        context,
-        stitch.pointer,
-        stitch.target,
-        subschemaPlan,
-        initialResult,
-      );
+      handleMaybeAsyncResult(context, stitch, initialResult);
     }
   }
 }
