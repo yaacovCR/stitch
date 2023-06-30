@@ -8,24 +8,25 @@ const inspect_js_1 = require('../utilities/inspect.js');
 const invariant_js_1 = require('../utilities/invariant.js');
 const PromiseAggregator_js_1 = require('../utilities/PromiseAggregator.js');
 function compose(subschemaPlanResults, superSchema, rawVariableValues) {
-  const fields = Object.create(null);
+  const data = Object.create(null);
   const context = {
     superSchema,
     rawVariableValues,
-    fields,
+    data,
     errors: [],
-    nulled: false,
     promiseAggregator: new PromiseAggregator_js_1.PromiseAggregator(),
   };
   for (const subschemaPlanResult of subschemaPlanResults) {
     const { subschemaPlan, initialResult } = subschemaPlanResult;
-    handleMaybeAsyncResult(
-      context,
-      undefined,
-      fields,
+    const stitch = {
       subschemaPlan,
-      initialResult,
-    );
+      target: data,
+      pointer: {
+        parent: context,
+        responseKey: 'data',
+      },
+    };
+    handleMaybeAsyncResult(context, stitch, initialResult);
   }
   if (context.promiseAggregator.isEmpty()) {
     return buildResponse(context);
@@ -51,27 +52,18 @@ function createDocument(selections) {
   };
 }
 function buildResponse(context) {
-  const fieldsOrNull = context.nulled ? null : context.fields;
-  return context.errors.length > 0
-    ? { data: fieldsOrNull, errors: context.errors }
-    : { data: fieldsOrNull };
+  const { data, errors } = context;
+  return errors.length > 0 ? { data, errors } : { data };
 }
-function handleMaybeAsyncResult(
-  context,
-  pointer,
-  fields,
-  subschemaPlan,
-  initialResult,
-) {
+function handleMaybeAsyncResult(context, stitch, initialResult) {
   if (!(0, isPromise_js_1.isPromise)(initialResult)) {
-    handleResult(context, pointer, fields, subschemaPlan, initialResult);
+    handleResult(context, stitch, initialResult);
     return;
   }
   const promise = initialResult.then(
-    (resolved) =>
-      handleResult(context, pointer, fields, subschemaPlan, resolved),
+    (resolved) => handleResult(context, stitch, resolved),
     (err) =>
-      handleResult(context, pointer, fields, subschemaPlan, {
+      handleResult(context, stitch, {
         data: null,
         errors: [
           new graphql_1.GraphQLError(err.message, { originalError: err }),
@@ -80,46 +72,43 @@ function handleMaybeAsyncResult(
   );
   context.promiseAggregator.add(promise);
 }
-function handleResult(context, pointer, fields, subschemaPlan, result) {
+function handleResult(context, stitch, result) {
   if (result.errors != null) {
     context.errors.push(...result.errors);
   }
-  if (pointer !== undefined) {
-    if (pointer.parent[pointer.responseKey] === null) {
-      return;
-    }
-  } else if (context.nulled) {
+  const {
+    subschemaPlan,
+    target,
+    pointer: { parent, responseKey },
+  } = stitch;
+  if (parent[responseKey] === null) {
     return;
   }
   if (result.data == null) {
-    if (pointer === undefined) {
-      context.nulled = true;
-    } else {
-      pointer.parent[pointer.responseKey] = null;
-      // TODO: null bubbling?
-    }
+    parent[responseKey] = null;
+    // TODO: null bubbling?
     return;
   }
   for (const [key, value] of Object.entries(result.data)) {
-    fields[key] = value;
+    target[key] = value;
   }
   if (subschemaPlan.stitchPlans !== undefined) {
     const stitchMap = new AccumulatorMap_js_1.AccumulatorMap();
-    walkStitchPlans(context, stitchMap, result.data, subschemaPlan.stitchPlans);
+    walkStitchPlans(context, stitchMap, target, subschemaPlan.stitchPlans);
     performStitches(context, stitchMap);
   }
 }
-function walkStitchPlans(context, stitchMap, fields, stitchPlans) {
-  for (const [key, stitchPlan] of Object.entries(stitchPlans)) {
-    if (fields[key] !== undefined) {
+function walkStitchPlans(context, stitchMap, parent, stitchPlans) {
+  for (const [responseKey, stitchPlan] of Object.entries(stitchPlans)) {
+    if (parent[responseKey] !== undefined) {
       collectStitches(
         context,
         stitchMap,
         {
-          parent: fields,
-          responseKey: key,
+          parent,
+          responseKey,
         },
-        fields[key],
+        parent[responseKey],
         stitchPlan,
       );
     }
@@ -130,18 +119,11 @@ function performStitches(context, stitchMap) {
     for (const stitch of stitches) {
       // TODO: batch subStitches by accessors
       // TODO: batch subStitches by subschema?
-      const subschemaPlan = stitch.subschemaPlan;
       const initialResult = subschema.executor({
         document: createDocument(stitch.subschemaPlan.fieldNodes),
         variables: context.rawVariableValues,
       });
-      handleMaybeAsyncResult(
-        context,
-        stitch.pointer,
-        stitch.target,
-        subschemaPlan,
-        initialResult,
-      );
+      handleMaybeAsyncResult(context, stitch, initialResult);
     }
   }
 }
