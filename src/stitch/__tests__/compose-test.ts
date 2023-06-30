@@ -177,7 +177,6 @@ describe('Composer', () => {
       expect(result).to.deep.equal({
         data: {
           someObject: {
-            __stitching__typename: 'SomeObject',
             someField: 'someField',
             anotherField: 'anotherField',
           },
@@ -233,9 +232,7 @@ describe('Composer', () => {
       expect(result).to.deep.equal({
         data: {
           someObject: {
-            __stitching__typename: 'SomeObject',
             someField: {
-              __stitching__typename: 'SomeNestedObject',
               someNestedField: 'someNestedField',
               anotherNestedField: 'anotherNestedField',
             },
@@ -341,12 +338,10 @@ describe('Composer', () => {
         data: {
           someObject: [
             {
-              __stitching__typename: 'SomeObject',
               someField: ['someFieldA'],
               anotherField: ['anotherField'],
             },
             {
-              __stitching__typename: 'SomeObject',
               someField: ['someFieldB'],
               anotherField: ['anotherField'],
             },
@@ -388,14 +383,12 @@ describe('Composer', () => {
       const someSubschema = getSubschema(someSchema, {
         someObject: [
           {
-            __stitching__typename: 'SomeObject',
             someField: [
               { someNestedField: ['someNestedFieldA'] },
               { someNestedField: ['someNestedFieldB'] },
             ],
           },
           {
-            __stitching__typename: 'SomeObject',
             someField: [
               { someNestedField: ['someNestedField1'] },
               { someNestedField: ['someNestedField2'] },
@@ -419,30 +412,24 @@ describe('Composer', () => {
         data: {
           someObject: [
             {
-              __stitching__typename: 'SomeObject',
               someField: [
                 {
-                  __stitching__typename: 'SomeNestedObject',
                   someNestedField: ['someNestedFieldA'],
                   anotherNestedField: ['anotherNestedField'],
                 },
                 {
-                  __stitching__typename: 'SomeNestedObject',
                   someNestedField: ['someNestedFieldB'],
                   anotherNestedField: ['anotherNestedField'],
                 },
               ],
             },
             {
-              __stitching__typename: 'SomeObject',
               someField: [
                 {
-                  __stitching__typename: 'SomeNestedObject',
                   someNestedField: ['someNestedField1'],
                   anotherNestedField: ['anotherNestedField'],
                 },
                 {
-                  __stitching__typename: 'SomeNestedObject',
                   someNestedField: ['someNestedField2'],
                   anotherNestedField: ['anotherNestedField'],
                 },
