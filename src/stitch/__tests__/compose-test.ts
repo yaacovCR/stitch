@@ -18,8 +18,8 @@ import { describe, it } from 'mocha';
 
 import { invariant } from '../../utilities/invariant.js';
 
-import type { SubschemaPlanResult } from '../Composer.js';
-import { Composer } from '../Composer.js';
+import type { SubschemaPlanResult } from '../compose.js';
+import { compose } from '../compose.js';
 import { Planner } from '../Planner.js';
 import type { Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
@@ -72,13 +72,7 @@ function executeWithComposer(
     });
   }
 
-  const composer = new Composer(
-    subschemaPlanResults,
-    fieldPlan.superSchema,
-    undefined,
-  );
-
-  return composer.compose();
+  return compose(subschemaPlanResults, fieldPlan.superSchema, undefined);
 }
 
 describe('Composer', () => {
