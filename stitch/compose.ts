@@ -1,4 +1,9 @@
-import type { DocumentNode, ExecutionResult, SelectionNode } from 'graphql';
+import type {
+  DocumentNode,
+  ExecutionResult,
+  GraphQLObjectType,
+  SelectionNode,
+} from 'graphql';
 import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.ts';
 import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
@@ -7,7 +12,7 @@ import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
 import { inspect } from '../utilities/inspect.ts';
 import { invariant } from '../utilities/invariant.ts';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.ts';
-import type { StitchPlan, SubschemaPlan } from './Planner.ts';
+import type { FieldPlan, SubschemaPlan } from './Planner.ts';
 import type { Subschema, SuperSchema } from './SuperSchema.ts';
 export interface SubschemaPlanResult {
   subschemaPlan: SubschemaPlan;
@@ -133,19 +138,19 @@ function handleResult(
   for (const [key, value] of Object.entries(result.data)) {
     target[key] = value;
   }
-  if (subschemaPlan.stitchPlans !== undefined) {
+  if (subschemaPlan.fieldTree !== undefined) {
     const stitchMap = new AccumulatorMap<Subschema, Stitch>();
-    walkStitchPlans(context, stitchMap, target, subschemaPlan.stitchPlans);
+    walkFieldTree(context, stitchMap, target, subschemaPlan.fieldTree);
     performStitches(context, stitchMap);
   }
 }
-function walkStitchPlans(
+function walkFieldTree(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
   target: ObjMap<unknown>,
-  stitchPlans: ObjMap<StitchPlan>,
+  fieldTree: ObjMap<Map<GraphQLObjectType, FieldPlan>>,
 ): void {
-  for (const [responseKey, stitchPlan] of Object.entries(stitchPlans)) {
+  for (const [responseKey, fieldPlansByType] of Object.entries(fieldTree)) {
     if (target[responseKey] !== undefined) {
       collectPossibleListStitches(
         context,
@@ -154,7 +159,7 @@ function walkStitchPlans(
           parent: target,
           responseKey,
         },
-        stitchPlan,
+        fieldPlansByType,
       );
     }
   }
@@ -163,7 +168,7 @@ function collectPossibleListStitches(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
   pointer: Pointer,
-  stitchPlan: StitchPlan,
+  fieldPlansByType: Map<GraphQLObjectType, FieldPlan>,
 ): void {
   const { parent, responseKey } = pointer;
   const target = parent[responseKey] as ObjMap<unknown>;
@@ -176,18 +181,18 @@ function collectPossibleListStitches(
           parent: target,
           responseKey: i,
         },
-        stitchPlan,
+        fieldPlansByType,
       );
     }
     return;
   }
-  collectStitches(context, stitchMap, pointer, stitchPlan);
+  collectStitches(context, stitchMap, pointer, fieldPlansByType);
 }
 function collectStitches(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
   pointer: Pointer,
-  stitchPlan: StitchPlan,
+  fieldPlansByType: Map<GraphQLObjectType, FieldPlan>,
 ): void {
   const { parent, responseKey } = pointer;
   const target = parent[responseKey] as ObjMap<unknown>;
@@ -209,7 +214,7 @@ function collectStitches(
   const type = context.superSchema.getType(typeName);
   isObjectType(type) ||
     invariant(false, `Expected Object type, received '${typeName}'.`);
-  const fieldPlan = stitchPlan.get(type);
+  const fieldPlan = fieldPlansByType.get(type);
   fieldPlan !== undefined ||
     invariant(false, `Missing field plan for type '${typeName}'.`);
   for (const subschemaPlan of fieldPlan.subschemaPlans) {
@@ -220,7 +225,7 @@ function collectStitches(
     };
     stitchMap.add(subschemaPlan.toSubschema, stitch);
   }
-  walkStitchPlans(context, stitchMap, newTarget, fieldPlan.stitchPlans);
+  walkFieldTree(context, stitchMap, newTarget, fieldPlan.fieldTree);
 }
 function performStitches(
   context: CompositionContext,

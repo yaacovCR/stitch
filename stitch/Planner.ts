@@ -26,27 +26,30 @@ import { invariant } from '../utilities/invariant.ts';
 import { memoize2 } from '../utilities/memoize2.ts';
 import { memoize3 } from '../utilities/memoize3.ts';
 import type { Subschema, SuperSchema } from './SuperSchema.ts';
-export interface FieldPlan {
+export interface RootPlan {
   superSchema: SuperSchema;
   subschemaPlans: ReadonlyArray<SubschemaPlan>;
-  stitchPlans: ObjMap<StitchPlan>;
-}
-export interface MutableFieldPlan {
-  superSchema: SuperSchema;
-  subschemaPlans: Map<Subschema, SubschemaPlan>;
-  stitchPlans: ObjMap<StitchPlan>;
 }
 export interface SubschemaPlan {
   toSubschema: Subschema;
   fromSubschema: Subschema | undefined;
   fieldNodes: Array<FieldNode>;
-  stitchPlans: ObjMap<StitchPlan>;
+  fieldTree: ObjMap<Map<GraphQLObjectType, FieldPlan>>;
+}
+export interface FieldPlan {
+  superSchema: SuperSchema;
+  subschemaPlans: ReadonlyArray<SubschemaPlan>;
+  fieldTree: ObjMap<Map<GraphQLObjectType, FieldPlan>>;
+}
+interface MutableFieldPlan {
+  superSchema: SuperSchema;
+  subschemaPlans: Map<Subschema, SubschemaPlan>;
+  fieldTree: ObjMap<Map<GraphQLObjectType, FieldPlan>>;
 }
 interface SelectionSplit {
   ownSelections: ReadonlyArray<SelectionNode>;
   otherSelections: ReadonlyArray<SelectionNode>;
 }
-export type StitchPlan = Map<GraphQLObjectType, FieldPlan>;
 const emptyObject = {};
 export const createPlanner = memoize2(
   (superSchema: SuperSchema, operation: OperationDefinitionNode) =>
@@ -59,21 +62,19 @@ export class Planner {
   superSchema: SuperSchema;
   operation: OperationDefinitionNode;
   variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
-  _createFieldPlan = memoize2(this._createFieldPlanImpl.bind(this));
-  _createSupplementalFieldPlan = memoize3(
-    this._createSupplementalFieldPlanImpl.bind(this),
-  );
+  _createRootPlan = memoize2(this._createRootPlanImpl.bind(this));
+  _createFieldPlan = memoize3(this._createFieldPlanImpl.bind(this));
   _collectSubFields = memoize2(this._collectSubFieldsImpl.bind(this));
   constructor(superSchema: SuperSchema, operation: OperationDefinitionNode) {
     this.superSchema = superSchema;
     this.operation = operation;
     this.variableDefinitions = operation.variableDefinitions ?? [];
   }
-  createRootFieldPlan(
+  createRootPlan(
     variableValues: {
       [key: string]: unknown;
     } = emptyObject,
-  ): FieldPlan | GraphQLError {
+  ): RootPlan | GraphQLError {
     const rootType = this.superSchema.getRootType(this.operation.operation);
     if (rootType === undefined) {
       return new GraphQLError(
@@ -89,7 +90,7 @@ export class Planner {
       rootType,
       filteredOperation.selectionSet.selections,
     );
-    return this._createFieldPlan(rootType, fieldNodes);
+    return this._createRootPlan(rootType, fieldNodes);
   }
   _collectSubFieldsImpl(
     runtimeType: GraphQLObjectType,
@@ -147,14 +148,14 @@ export class Planner {
     }
     return false;
   }
-  _createFieldPlanImpl(
+  _createRootPlanImpl(
     parentType: GraphQLCompositeType,
     fieldNodes: ReadonlyArray<FieldNode>,
   ): FieldPlan {
     const fieldPlan: MutableFieldPlan = {
       superSchema: this.superSchema,
       subschemaPlans: new Map<Subschema, SubschemaPlan>(),
-      stitchPlans: Object.create(null),
+      fieldTree: Object.create(null),
     };
     for (const fieldNode of fieldNodes) {
       this._addFieldToFieldPlan(fieldPlan, undefined, parentType, fieldNode);
@@ -162,10 +163,10 @@ export class Planner {
     return {
       superSchema: fieldPlan.superSchema,
       subschemaPlans: [...fieldPlan.subschemaPlans.values()],
-      stitchPlans: fieldPlan.stitchPlans,
+      fieldTree: fieldPlan.fieldTree,
     };
   }
-  _createSupplementalFieldPlanImpl(
+  _createFieldPlanImpl(
     parentType: GraphQLCompositeType,
     fieldNodes: ReadonlyArray<FieldNode>,
     fromSubschema: Subschema,
@@ -173,7 +174,7 @@ export class Planner {
     const fieldPlan: MutableFieldPlan = {
       superSchema: this.superSchema,
       subschemaPlans: new Map<Subschema, SubschemaPlan>(),
-      stitchPlans: Object.create(null),
+      fieldTree: Object.create(null),
     };
     for (const fieldNode of fieldNodes) {
       this._addFieldToFieldPlan(
@@ -186,7 +187,7 @@ export class Planner {
     return {
       superSchema: fieldPlan.superSchema,
       subschemaPlans: [...fieldPlan.subschemaPlans.values()],
-      stitchPlans: fieldPlan.stitchPlans,
+      fieldTree: fieldPlan.fieldTree,
     };
   }
   _addFieldToFieldPlan(
@@ -224,7 +225,7 @@ export class Planner {
       subschema,
       fromSubschema,
     );
-    const stitchPlan = this._createStitchPlan(
+    const fieldPlansByType = this._createStitchPlan(
       namedFieldType,
       selectionSplit.otherSelections,
       subschema,
@@ -246,25 +247,25 @@ export class Planner {
         subschemaPlan.fieldNodes,
         splitField,
       );
-      if (stitchPlan.size > 0) {
+      if (fieldPlansByType.size > 0) {
         const responseKey = field.alias?.value ?? field.name.value;
         if (subschema === fromSubschema) {
-          fieldPlan.stitchPlans[responseKey] = stitchPlan;
+          fieldPlan.fieldTree[responseKey] = fieldPlansByType;
         } else {
-          subschemaPlan.stitchPlans[responseKey] = stitchPlan;
+          subschemaPlan.fieldTree[responseKey] = fieldPlansByType;
         }
       }
-    } else if (stitchPlan.size > 0) {
+    } else if (fieldPlansByType.size > 0) {
       const responseKey = field.alias?.value ?? field.name.value;
-      if (subschema !== undefined && subschema === fromSubschema) {
-        fieldPlan.stitchPlans[responseKey] = stitchPlan;
+      if (subschema === fromSubschema) {
+        fieldPlan.fieldTree[responseKey] = fieldPlansByType;
       } else {
         const { subschemaPlan } = this._getSubschemaAndPlan(
           subschemas,
           subschemaPlans,
           fromSubschema,
         );
-        subschemaPlan.stitchPlans[responseKey] = stitchPlan;
+        subschemaPlan.fieldTree[responseKey] = fieldPlansByType;
       }
     }
   }
@@ -285,9 +286,9 @@ export class Planner {
     const subschema = subschemas.values().next().value as Subschema;
     const subschemaPlan: SubschemaPlan = {
       toSubschema: subschema,
-      fromSubschema,
+      fromSubschema: fromSubschema as Subschema,
       fieldNodes: emptyArray as Array<FieldNode>,
-      stitchPlans: Object.create(null),
+      fieldTree: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
     return { subschema, subschemaPlan };
@@ -315,9 +316,9 @@ export class Planner {
     }
     subschemaPlan = {
       toSubschema: subschema,
-      fromSubschema,
+      fromSubschema: fromSubschema as Subschema,
       fieldNodes: emptyArray as Array<FieldNode>,
-      stitchPlans: Object.create(null),
+      fieldTree: Object.create(null),
     };
     subschemaPlans.set(subschema, subschemaPlan);
     return subschemaPlan;
@@ -326,8 +327,8 @@ export class Planner {
     parentType: GraphQLCompositeType,
     otherSelections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
-  ): StitchPlan {
-    const stitchPlan = new Map<GraphQLObjectType, FieldPlan>();
+  ): Map<GraphQLObjectType, FieldPlan> {
+    const fieldPlansByType = new Map<GraphQLObjectType, FieldPlan>();
     let possibleTypes: ReadonlyArray<GraphQLObjectType>;
     if (isAbstractType(parentType)) {
       possibleTypes = this.superSchema.getPossibleTypes(parentType);
@@ -336,19 +337,15 @@ export class Planner {
     }
     for (const type of possibleTypes) {
       const fieldNodes = this._collectSubFields(type, otherSelections);
-      const fieldPlan = this._createSupplementalFieldPlan(
-        type,
-        fieldNodes,
-        subschema,
-      );
+      const fieldPlan = this._createFieldPlan(type, fieldNodes, subschema);
       if (
         fieldPlan.subschemaPlans.length > 0 ||
-        Object.values(fieldPlan.stitchPlans).length > 0
+        Object.values(fieldPlan.fieldTree).length > 0
       ) {
-        stitchPlan.set(type, fieldPlan);
+        fieldPlansByType.set(type, fieldPlan);
       }
     }
-    return stitchPlan;
+    return fieldPlansByType;
   }
   _createSelectionSplit(
     parentType: GraphQLCompositeType,
