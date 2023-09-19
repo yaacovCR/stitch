@@ -26,24 +26,20 @@ export function execute(args: ExecutionArgs): PromiseOrValue<ExecutionResult> {
   const { operation, planner, rawVariableValues, coercedVariableValues } =
     exeContext;
 
-  const rootFieldPlan = planner.createRootFieldPlan(coercedVariableValues);
-  if (rootFieldPlan instanceof GraphQLError) {
-    return { data: null, errors: [rootFieldPlan] };
+  const plan = planner.createRootPlan(coercedVariableValues);
+  if (plan instanceof GraphQLError) {
+    return { data: null, errors: [plan] };
   }
 
   const subschemaPlanResults: Array<SubschemaPlanResult> = [];
 
-  for (const subschemaPlan of rootFieldPlan.subschemaPlans) {
+  for (const subschemaPlan of plan.subschemaPlans) {
     subschemaPlanResults.push(
       toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues),
     );
   }
 
-  return compose(
-    subschemaPlanResults,
-    rootFieldPlan.superSchema,
-    rawVariableValues,
-  );
+  return compose(subschemaPlanResults, plan.superSchema, rawVariableValues);
 }
 
 function toSubschemaPlanResult(

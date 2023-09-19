@@ -1,7 +1,7 @@
 import type { FieldNode, GraphQLObjectType, SelectionSetNode } from 'graphql';
 import { Kind, print } from 'graphql';
 
-import type { FieldPlan, StitchPlan, SubschemaPlan } from './Planner.js';
+import type { FieldPlan, RootPlan, SubschemaPlan } from './Planner.js';
 import type { SuperSchema } from './SuperSchema.js';
 
 function generateIndent(indent: number): string {
@@ -9,14 +9,18 @@ function generateIndent(indent: number): string {
 }
 
 export function printPlan(
-  plan: FieldPlan,
+  plan: FieldPlan | RootPlan,
   indent = 0,
   type?: GraphQLObjectType | undefined,
 ): string {
   const superSchema = plan.superSchema;
+  if (!('fieldTree' in plan)) {
+    return '';
+  }
+
   const entries = [];
-  const stitchPlans = Object.entries(plan.stitchPlans);
-  if (plan.subschemaPlans.length > 0 || stitchPlans.length > 0) {
+  const fieldTree = Object.entries(plan.fieldTree);
+  if (plan.subschemaPlans.length > 0 || fieldTree.length > 0) {
     const spaces = generateIndent(indent);
 
     entries.push(
@@ -28,8 +32,8 @@ export function printPlan(
         printSubschemaPlans(superSchema, plan.subschemaPlans, indent + 2),
       );
     }
-    if (stitchPlans.length > 0) {
-      entries.push(printStitchPlans(stitchPlans, indent + 2));
+    if (fieldTree.length > 0) {
+      entries.push(printFieldTree(fieldTree, indent + 2));
     }
   }
 
@@ -56,8 +60,8 @@ function printSubschemaPlan(
   const spaces = generateIndent(indent);
   const entries = [];
 
-  const stitchPlans = Object.entries(subschemaPlan.stitchPlans);
-  if (subschemaPlan.fieldNodes.length > 0 || stitchPlans.length > 0) {
+  const fieldTree = Object.entries(subschemaPlan.fieldTree);
+  if (subschemaPlan.fieldNodes.length > 0 || fieldTree.length > 0) {
     entries.push(
       `${spaces}For Subschema: [${superSchema.getSubschemaId(
         subschemaPlan.toSubschema,
@@ -78,8 +82,8 @@ function printSubschemaPlan(
     );
   }
 
-  if (stitchPlans.length > 0) {
-    entries.push(printStitchPlans(stitchPlans, indent + 2));
+  if (fieldTree.length > 0) {
+    entries.push(printFieldTree(fieldTree, indent + 2));
   }
   return entries.join('\n');
 }
@@ -98,27 +102,27 @@ function printSubschemaFieldNodes(
   )}`;
 }
 
-function printStitchPlans(
-  stitchPlans: ReadonlyArray<[string, StitchPlan]>,
+function printFieldTree(
+  fieldTree: ReadonlyArray<[string, Map<GraphQLObjectType, FieldPlan>]>,
   indent: number,
 ): string {
-  return stitchPlans
-    .map(([responseKey, stitchPlan]) =>
-      printStitchPlan(responseKey, stitchPlan, indent),
+  return fieldTree
+    .map(([responseKey, fieldPlansByType]) =>
+      printStitchPlan(responseKey, fieldPlansByType, indent),
     )
     .join('\n');
 }
 
 function printStitchPlan(
   responseKey: string,
-  stitchPlan: StitchPlan,
+  fieldPlansByType: Map<GraphQLObjectType, FieldPlan>,
   indent: number,
 ): string {
   const spaces = generateIndent(indent);
   const entries = [];
   entries.push(`${spaces}For key '${responseKey}':`);
 
-  for (const [type, fieldPlan] of stitchPlan) {
+  for (const [type, fieldPlan] of fieldPlansByType) {
     entries.push(printPlan(fieldPlan, indent + 2, type));
   }
 
