@@ -16,19 +16,19 @@ function execute(args) {
   }
   const { operation, planner, rawVariableValues, coercedVariableValues } =
     exeContext;
-  const rootFieldPlan = planner.createRootFieldPlan(coercedVariableValues);
-  if (rootFieldPlan instanceof graphql_1.GraphQLError) {
-    return { data: null, errors: [rootFieldPlan] };
+  const plan = planner.createRootPlan(coercedVariableValues);
+  if (plan instanceof graphql_1.GraphQLError) {
+    return { data: null, errors: [plan] };
   }
   const subschemaPlanResults = [];
-  for (const subschemaPlan of rootFieldPlan.subschemaPlans) {
+  for (const subschemaPlan of plan.subschemaPlans) {
     subschemaPlanResults.push(
       toSubschemaPlanResult(subschemaPlan, operation, rawVariableValues),
     );
   }
   return (0, compose_js_1.compose)(
     subschemaPlanResults,
-    rootFieldPlan.superSchema,
+    plan.superSchema,
     rawVariableValues,
   );
 }

@@ -22,11 +22,11 @@ function subscribe(args) {
     exeContext;
   operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION ||
     (0, invariant_js_1.invariant)(false);
-  const rootFieldPlan = planner.createRootFieldPlan(coercedVariableValues);
-  if (rootFieldPlan instanceof graphql_1.GraphQLError) {
-    return { errors: [rootFieldPlan] };
+  const plan = planner.createRootPlan(coercedVariableValues);
+  if (plan instanceof graphql_1.GraphQLError) {
+    return { errors: [plan] };
   }
-  const subschemaPlan = rootFieldPlan.subschemaPlans[0];
+  const subschemaPlan = plan.subschemaPlans[0];
   if (subschemaPlan === undefined) {
     const error = new graphql_1.GraphQLError('Could not route subscription.', {
       nodes: operation,
@@ -71,7 +71,7 @@ function subscribe(args) {
                   initialResult: payload,
                 },
               ],
-              rootFieldPlan.superSchema,
+              plan.superSchema,
               rawVariableValues,
             ),
         );
@@ -88,7 +88,7 @@ function subscribe(args) {
             initialResult: payload,
           },
         ],
-        rootFieldPlan.superSchema,
+        plan.superSchema,
         rawVariableValues,
       ),
     );

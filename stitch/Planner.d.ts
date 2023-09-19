@@ -12,27 +12,30 @@ import type {
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
-export interface FieldPlan {
+export interface RootPlan {
   superSchema: SuperSchema;
   subschemaPlans: ReadonlyArray<SubschemaPlan>;
-  stitchPlans: ObjMap<StitchPlan>;
-}
-export interface MutableFieldPlan {
-  superSchema: SuperSchema;
-  subschemaPlans: Map<Subschema, SubschemaPlan>;
-  stitchPlans: ObjMap<StitchPlan>;
 }
 export interface SubschemaPlan {
   toSubschema: Subschema;
   fromSubschema: Subschema | undefined;
   fieldNodes: Array<FieldNode>;
-  stitchPlans: ObjMap<StitchPlan>;
+  fieldTree: ObjMap<Map<GraphQLObjectType, FieldPlan>>;
+}
+export interface FieldPlan {
+  superSchema: SuperSchema;
+  subschemaPlans: ReadonlyArray<SubschemaPlan>;
+  fieldTree: ObjMap<Map<GraphQLObjectType, FieldPlan>>;
+}
+interface MutableFieldPlan {
+  superSchema: SuperSchema;
+  subschemaPlans: Map<Subschema, SubschemaPlan>;
+  fieldTree: ObjMap<Map<GraphQLObjectType, FieldPlan>>;
 }
 interface SelectionSplit {
   ownSelections: ReadonlyArray<SelectionNode>;
   otherSelections: ReadonlyArray<SelectionNode>;
 }
-export type StitchPlan = Map<GraphQLObjectType, FieldPlan>;
 export declare const createPlanner: (
   a1: SuperSchema,
   a2: OperationDefinitionNode,
@@ -44,11 +47,11 @@ export declare class Planner {
   superSchema: SuperSchema;
   operation: OperationDefinitionNode;
   variableDefinitions: ReadonlyArray<VariableDefinitionNode>;
-  _createFieldPlan: (
+  _createRootPlan: (
     a1: GraphQLCompositeType,
     a2: readonly FieldNode[],
   ) => FieldPlan;
-  _createSupplementalFieldPlan: (
+  _createFieldPlan: (
     a1: GraphQLCompositeType,
     a2: readonly FieldNode[],
     a3: Subschema,
@@ -58,9 +61,9 @@ export declare class Planner {
     a2: readonly SelectionNode[],
   ) => readonly FieldNode[];
   constructor(superSchema: SuperSchema, operation: OperationDefinitionNode);
-  createRootFieldPlan(variableValues?: {
+  createRootPlan(variableValues?: {
     [key: string]: unknown;
-  }): FieldPlan | GraphQLError;
+  }): RootPlan | GraphQLError;
   _collectSubFieldsImpl(
     runtimeType: GraphQLObjectType,
     selections: ReadonlyArray<SelectionNode>,
@@ -75,11 +78,11 @@ export declare class Planner {
     fragment: FragmentDefinitionNode | InlineFragmentNode,
     type: GraphQLObjectType,
   ): boolean;
-  _createFieldPlanImpl(
+  _createRootPlanImpl(
     parentType: GraphQLCompositeType,
     fieldNodes: ReadonlyArray<FieldNode>,
   ): FieldPlan;
-  _createSupplementalFieldPlanImpl(
+  _createFieldPlanImpl(
     parentType: GraphQLCompositeType,
     fieldNodes: ReadonlyArray<FieldNode>,
     fromSubschema: Subschema,
@@ -111,7 +114,7 @@ export declare class Planner {
     parentType: GraphQLCompositeType,
     otherSelections: ReadonlyArray<SelectionNode>,
     subschema: Subschema,
-  ): StitchPlan;
+  ): Map<GraphQLObjectType, FieldPlan>;
   _createSelectionSplit(
     parentType: GraphQLCompositeType,
     selections: ReadonlyArray<SelectionNode>,

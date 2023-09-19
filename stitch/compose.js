@@ -92,14 +92,14 @@ function handleResult(context, stitch, result) {
   for (const [key, value] of Object.entries(result.data)) {
     target[key] = value;
   }
-  if (subschemaPlan.stitchPlans !== undefined) {
+  if (subschemaPlan.fieldTree !== undefined) {
     const stitchMap = new AccumulatorMap_js_1.AccumulatorMap();
-    walkStitchPlans(context, stitchMap, target, subschemaPlan.stitchPlans);
+    walkFieldTree(context, stitchMap, target, subschemaPlan.fieldTree);
     performStitches(context, stitchMap);
   }
 }
-function walkStitchPlans(context, stitchMap, target, stitchPlans) {
-  for (const [responseKey, stitchPlan] of Object.entries(stitchPlans)) {
+function walkFieldTree(context, stitchMap, target, fieldTree) {
+  for (const [responseKey, fieldPlansByType] of Object.entries(fieldTree)) {
     if (target[responseKey] !== undefined) {
       collectPossibleListStitches(
         context,
@@ -108,12 +108,17 @@ function walkStitchPlans(context, stitchMap, target, stitchPlans) {
           parent: target,
           responseKey,
         },
-        stitchPlan,
+        fieldPlansByType,
       );
     }
   }
 }
-function collectPossibleListStitches(context, stitchMap, pointer, stitchPlan) {
+function collectPossibleListStitches(
+  context,
+  stitchMap,
+  pointer,
+  fieldPlansByType,
+) {
   const { parent, responseKey } = pointer;
   const target = parent[responseKey];
   if (Array.isArray(target)) {
@@ -125,14 +130,14 @@ function collectPossibleListStitches(context, stitchMap, pointer, stitchPlan) {
           parent: target,
           responseKey: i,
         },
-        stitchPlan,
+        fieldPlansByType,
       );
     }
     return;
   }
-  collectStitches(context, stitchMap, pointer, stitchPlan);
+  collectStitches(context, stitchMap, pointer, fieldPlansByType);
 }
-function collectStitches(context, stitchMap, pointer, stitchPlan) {
+function collectStitches(context, stitchMap, pointer, fieldPlansByType) {
   const { parent, responseKey } = pointer;
   const target = parent[responseKey];
   const newTarget = Object.create(null);
@@ -157,7 +162,7 @@ function collectStitches(context, stitchMap, pointer, stitchPlan) {
       false,
       `Expected Object type, received '${typeName}'.`,
     );
-  const fieldPlan = stitchPlan.get(type);
+  const fieldPlan = fieldPlansByType.get(type);
   fieldPlan !== undefined ||
     (0, invariant_js_1.invariant)(
       false,
@@ -171,7 +176,7 @@ function collectStitches(context, stitchMap, pointer, stitchPlan) {
     };
     stitchMap.add(subschemaPlan.toSubschema, stitch);
   }
-  walkStitchPlans(context, stitchMap, newTarget, fieldPlan.stitchPlans);
+  walkFieldTree(context, stitchMap, newTarget, fieldPlan.fieldTree);
 }
 function performStitches(context, stitchMap) {
   for (const [subschema, stitches] of stitchMap) {
