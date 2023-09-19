@@ -13,7 +13,7 @@ import { dedent } from '../../__testUtils__/dedent.js';
 
 import { invariant } from '../../utilities/invariant.js';
 
-import type { FieldPlan } from '../Planner.js';
+import type { RootPlan } from '../Planner.js';
 import { Planner } from '../Planner.js';
 import { printPlan } from '../printPlan.js';
 import type { Subschema } from '../SuperSchema.js';
@@ -30,21 +30,21 @@ function getSubschema(schema: GraphQLSchema): Subschema {
   };
 }
 
-function createFieldPlan(
+function createRootPlan(
   superSchema: SuperSchema,
   operation: OperationDefinitionNode,
-): FieldPlan {
+): RootPlan {
   const queryType = superSchema.getRootType(OperationTypeNode.QUERY);
 
   invariant(queryType !== undefined);
 
   const planner = new Planner(superSchema, operation);
 
-  const fieldPlan = planner.createRootFieldPlan();
+  const rootPlan = planner.createRootPlan();
 
-  invariant(!(fieldPlan instanceof GraphQLError));
+  invariant(!(rootPlan instanceof GraphQLError));
 
-  return fieldPlan;
+  return rootPlan;
 }
 
 describe('FieldPlan', () => {
@@ -83,9 +83,9 @@ describe('FieldPlan', () => {
       { noLocation: true },
     ).definitions[0] as OperationDefinitionNode;
 
-    const fieldPlan = createFieldPlan(superSchema, operation);
+    const plan = createRootPlan(superSchema, operation);
 
-    expect(printPlan(fieldPlan)).to.equal(dedent`
+    expect(printPlan(plan)).to.equal(dedent`
       Plan:
         For Subschema: [0]
           FieldNodes:
@@ -148,9 +148,9 @@ describe('FieldPlan', () => {
       { noLocation: true },
     ).definitions[0] as OperationDefinitionNode;
 
-    const fieldPlan = createFieldPlan(superSchema, operation);
+    const plan = createRootPlan(superSchema, operation);
 
-    expect(printPlan(fieldPlan)).to.equal(dedent`
+    expect(printPlan(plan)).to.equal(dedent`
       Plan:
         For Subschema: [0]
           FieldNodes:
@@ -211,9 +211,9 @@ describe('FieldPlan', () => {
       { noLocation: true },
     ).definitions[0] as OperationDefinitionNode;
 
-    const fieldPlan = createFieldPlan(superSchema, operation);
+    const plan = createRootPlan(superSchema, operation);
 
-    expect(printPlan(fieldPlan)).to.equal(dedent`
+    expect(printPlan(plan)).to.equal(dedent`
       Plan:
         For Subschema: [0]
           FieldNodes:
@@ -294,9 +294,9 @@ describe('FieldPlan', () => {
       { noLocation: true },
     ).definitions[0] as OperationDefinitionNode;
 
-    const fieldPlan = createFieldPlan(superSchema, operation);
+    const plan = createRootPlan(superSchema, operation);
 
-    expect(printPlan(fieldPlan)).to.equal(dedent`
+    expect(printPlan(plan)).to.equal(dedent`
       Plan:
         For Subschema: [0]
           FieldNodes:
@@ -371,9 +371,9 @@ describe('FieldPlan', () => {
       { noLocation: true },
     ).definitions[0] as OperationDefinitionNode;
 
-    const fieldPlan = createFieldPlan(superSchema, operation);
+    const plan = createRootPlan(superSchema, operation);
 
-    expect(printPlan(fieldPlan)).to.equal(dedent`
+    expect(printPlan(plan)).to.equal(dedent`
       Plan:
         For Subschema: [0]
           FieldNodes:

@@ -1,4 +1,9 @@
-import type { DocumentNode, ExecutionResult, SelectionNode } from 'graphql';
+import type {
+  DocumentNode,
+  ExecutionResult,
+  GraphQLObjectType,
+  SelectionNode,
+} from 'graphql';
 import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
 
 import type { ObjMap } from '../types/ObjMap.js';
@@ -11,7 +16,7 @@ import { inspect } from '../utilities/inspect.js';
 import { invariant } from '../utilities/invariant.js';
 import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 
-import type { StitchPlan, SubschemaPlan } from './Planner.js';
+import type { FieldPlan, SubschemaPlan } from './Planner.js';
 import type { Subschema, SuperSchema } from './SuperSchema.js';
 
 export interface SubschemaPlanResult {
@@ -159,20 +164,20 @@ function handleResult(
     target[key] = value;
   }
 
-  if (subschemaPlan.stitchPlans !== undefined) {
+  if (subschemaPlan.fieldTree !== undefined) {
     const stitchMap = new AccumulatorMap<Subschema, Stitch>();
-    walkStitchPlans(context, stitchMap, target, subschemaPlan.stitchPlans);
+    walkFieldTree(context, stitchMap, target, subschemaPlan.fieldTree);
     performStitches(context, stitchMap);
   }
 }
 
-function walkStitchPlans(
+function walkFieldTree(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
   target: ObjMap<unknown>,
-  stitchPlans: ObjMap<StitchPlan>,
+  fieldTree: ObjMap<Map<GraphQLObjectType, FieldPlan>>,
 ): void {
-  for (const [responseKey, stitchPlan] of Object.entries(stitchPlans)) {
+  for (const [responseKey, fieldPlansByType] of Object.entries(fieldTree)) {
     if (target[responseKey] !== undefined) {
       collectPossibleListStitches(
         context,
@@ -181,7 +186,7 @@ function walkStitchPlans(
           parent: target,
           responseKey,
         },
-        stitchPlan,
+        fieldPlansByType,
       );
     }
   }
@@ -191,7 +196,7 @@ function collectPossibleListStitches(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
   pointer: Pointer,
-  stitchPlan: StitchPlan,
+  fieldPlansByType: Map<GraphQLObjectType, FieldPlan>,
 ): void {
   const { parent, responseKey } = pointer;
   const target = parent[responseKey] as ObjMap<unknown>;
@@ -204,20 +209,20 @@ function collectPossibleListStitches(
           parent: target,
           responseKey: i,
         },
-        stitchPlan,
+        fieldPlansByType,
       );
     }
     return;
   }
 
-  collectStitches(context, stitchMap, pointer, stitchPlan);
+  collectStitches(context, stitchMap, pointer, fieldPlansByType);
 }
 
 function collectStitches(
   context: CompositionContext,
   stitchMap: AccumulatorMap<Subschema, Stitch>,
   pointer: Pointer,
-  stitchPlan: StitchPlan,
+  fieldPlansByType: Map<GraphQLObjectType, FieldPlan>,
 ): void {
   const { parent, responseKey } = pointer;
   const target = parent[responseKey] as ObjMap<unknown>;
@@ -245,7 +250,7 @@ function collectStitches(
     `Expected Object type, received '${typeName}'.`,
   );
 
-  const fieldPlan = stitchPlan.get(type);
+  const fieldPlan = fieldPlansByType.get(type);
 
   invariant(
     fieldPlan !== undefined,
@@ -261,7 +266,7 @@ function collectStitches(
     stitchMap.add(subschemaPlan.toSubschema, stitch);
   }
 
-  walkStitchPlans(context, stitchMap, newTarget, fieldPlan.stitchPlans);
+  walkFieldTree(context, stitchMap, newTarget, fieldPlan.fieldTree);
 }
 
 function performStitches(

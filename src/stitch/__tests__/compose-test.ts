@@ -44,13 +44,13 @@ function executeWithComposer(
 
   invariant(queryType !== undefined);
 
-  const fieldPlan = new Planner(superSchema, operation).createRootFieldPlan();
+  const plan = new Planner(superSchema, operation).createRootPlan();
 
-  invariant(!(fieldPlan instanceof GraphQLError));
+  invariant(!(plan instanceof GraphQLError));
 
   const subschemaPlanResults: Array<SubschemaPlanResult> = [];
 
-  for (const subschemaPlan of fieldPlan.subschemaPlans) {
+  for (const subschemaPlan of plan.subschemaPlans) {
     const document: DocumentNode = {
       kind: Kind.DOCUMENT,
       definitions: [
@@ -72,7 +72,7 @@ function executeWithComposer(
     });
   }
 
-  return compose(subschemaPlanResults, fieldPlan.superSchema, undefined);
+  return compose(subschemaPlanResults, plan.superSchema, undefined);
 }
 
 describe('Composer', () => {
