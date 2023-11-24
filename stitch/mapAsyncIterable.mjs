@@ -1,5 +1,5 @@
 import { Repeater } from '@repeaterjs/repeater';
-import { isPromise } from '../predicates/isPromise.mjs';
+import { isPromise } from '../predicates/isPromise.js';
 export function mapAsyncIterable(iterable, fn) {
   return new Repeater(async (push, stop) => {
     const iter = iterable[Symbol.asyncIterator]();

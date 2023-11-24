@@ -1,5 +1,5 @@
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
-import { inlineFragments } from '../utilities/inlineFragments.mjs';
+import { inlineFragments } from '../utilities/inlineFragments.js';
 import { createPlanner } from './Planner.mjs';
 import { SuperSchema } from './SuperSchema.mjs';
 export function buildExecutionContext(args) {

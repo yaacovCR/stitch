@@ -1,7 +1,7 @@
 import { GraphQLError, Kind, OperationTypeNode } from 'graphql';
-import { isAsyncIterable } from '../predicates/isAsyncIterable.mjs';
-import { isPromise } from '../predicates/isPromise.mjs';
-import { invariant } from '../utilities/invariant.mjs';
+import { isAsyncIterable } from '../predicates/isAsyncIterable.js';
+import { isPromise } from '../predicates/isPromise.js';
+import { invariant } from '../utilities/invariant.js';
 import { buildExecutionContext } from './buildExecutionContext.mjs';
 import { compose } from './compose.mjs';
 import { mapAsyncIterable } from './mapAsyncIterable.mjs';

@@ -7,12 +7,12 @@ import {
   typeFromAST,
   TypeNameMetaFieldDef,
 } from 'graphql';
-import { appendToArray, emptyArray } from '../utilities/appendToArray.mjs';
-import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.mjs';
-import { inspect } from '../utilities/inspect.mjs';
-import { invariant } from '../utilities/invariant.mjs';
-import { memoize2 } from '../utilities/memoize2.mjs';
-import { memoize3 } from '../utilities/memoize3.mjs';
+import { appendToArray, emptyArray } from '../utilities/appendToArray.js';
+import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.js';
+import { inspect } from '../utilities/inspect.js';
+import { invariant } from '../utilities/invariant.js';
+import { memoize2 } from '../utilities/memoize2.js';
+import { memoize3 } from '../utilities/memoize3.js';
 const emptyObject = {};
 export const createPlanner = memoize2(
   (superSchema, operation) => new Planner(superSchema, operation),

@@ -37,13 +37,13 @@
     "composition"
   ],
   "engines": {
-    "node": "^16.19.0 || ^18.14.0 || >=19.7.0"
+    "node": "^18.14.0 || >=19.7.0"
   },
   "publishConfig": {
     "tag": "alpha"
   },
   "dependencies": {
-    "@repeaterjs/repeater": "^3.0.4",
+    "@repeaterjs/repeater": "^3.0.5",
     "graphql": "^17.0.0-alpha.3"
   },
   "main": "index",

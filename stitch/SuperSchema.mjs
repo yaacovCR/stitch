@@ -23,9 +23,9 @@ import {
   print,
   valueFromAST,
 } from 'graphql';
-import { AccumulatorMap } from '../utilities/AccumulatorMap.mjs';
-import { inspect } from '../utilities/inspect.mjs';
-import { printPathArray } from '../utilities/printPathArray.mjs';
+import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
+import { inspect } from '../utilities/inspect.js';
+import { printPathArray } from '../utilities/printPathArray.js';
 const operations = [
   OperationTypeNode.QUERY,
   OperationTypeNode.MUTATION,

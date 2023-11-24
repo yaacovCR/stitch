@@ -1,9 +1,9 @@
 import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
-import { isPromise } from '../predicates/isPromise.mjs';
-import { AccumulatorMap } from '../utilities/AccumulatorMap.mjs';
-import { inspect } from '../utilities/inspect.mjs';
-import { invariant } from '../utilities/invariant.mjs';
-import { PromiseAggregator } from '../utilities/PromiseAggregator.mjs';
+import { isPromise } from '../predicates/isPromise.js';
+import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
+import { inspect } from '../utilities/inspect.js';
+import { invariant } from '../utilities/invariant.js';
+import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 export function compose(subschemaPlanResults, superSchema, rawVariableValues) {
   const data = Object.create(null);
   const context = {

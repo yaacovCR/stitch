@@ -64,8 +64,8 @@ type ASTReducerFn<TReducedNode extends ASTNode, R> = (
 type ReducedField<T, R> = T extends ASTNode
   ? R
   : T extends ReadonlyArray<ASTNode>
-  ? ReadonlyArray<R>
-  : T;
+    ? ReadonlyArray<R>
+    : T;
 interface EnterLeaveVisitor<TVisitedNode extends ASTNode> {
   readonly enter?: ASTVisitFn<TVisitedNode> | undefined;
   readonly leave?: ASTVisitFn<TVisitedNode> | undefined;
