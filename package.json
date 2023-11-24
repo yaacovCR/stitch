@@ -34,10 +34,10 @@
     "composition"
   ],
   "engines": {
-    "node": "^16.19.0 || ^18.14.0 || >=19.7.0"
+    "node": "^18.14.0 || >=19.7.0"
   },
   "scripts": {
-    "benchmark": "ts-node resources/benchmark.ts",
+    "benchmark": "node --loader resources/benchmark.ts",
     "test": "npm run lint && npm run check && npm run testonly && npm run prettier:check && npm run check:spelling",
     "lint": "eslint --rulesdir resources/eslint-internal-rules --cache --max-warnings 0 .",
     "check": "tsc --pretty",
@@ -47,42 +47,43 @@
     "prettier": "prettier --cache --cache-strategy metadata --write --list-different .",
     "prettier:check": "prettier --cache --cache-strategy metadata --check .",
     "check:spelling": "cspell --cache --no-progress '**/*'",
-    "build:npm:dual": "ts-node resources/build-npm-dual.ts",
-    "build:npm:esm-only": "ts-node resources/build-npm-esm-only.ts",
-    "build:deno": "ts-node resources/build-deno.ts",
-    "diff:npm": "ts-node resources/diff-npm-package.ts",
+    "build:npm:dual": "node --loader ts-node/esm resources/build-npm-dual.ts",
+    "build:npm:esm-only": "node --loader ts-node/esm resources/build-npm-esm-only.ts",
+    "build:deno": "node --loader ts-node/esm resources/build-deno.ts",
+    "diff:npm": "node --loader ts-node/esm resources/diff-npm-package.ts",
     "changeset": "changeset add",
     "changeset:version": "changeset version && npm install --package-lock-only",
-    "changeset:publish": "ts-node resources/prepare-for-publish.ts && cd publishWorkspaceConfig && changeset publish"
+    "changeset:publish": "node --loader ts-node/esm resources/prepare-for-publish.ts && cd publishWorkspaceConfig && changeset publish"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.26.1",
-    "@types/chai": "4.3.5",
-    "@types/mocha": "10.0.1",
-    "@types/node": "20.2.5",
+    "@changesets/cli": "^2.26.2",
+    "@prettier/sync": "^0.3.0",
+    "@types/chai": "4.3.11",
+    "@types/mocha": "10.0.6",
+    "@types/node": "20.9.5",
     "@types/prettier": "2.7.3",
-    "@types/sinon": "^10.0.15",
-    "@typescript-eslint/eslint-plugin": "5.59.8",
-    "@typescript-eslint/parser": "5.59.8",
-    "c8": "7.14.0",
-    "chai": "4.3.7",
-    "clsx": "1.2.1",
-    "cspell": "6.31.1",
-    "eslint": "8.41.0",
-    "eslint-plugin-import": "2.27.5",
+    "@types/sinon": "^17.0.2",
+    "@typescript-eslint/eslint-plugin": "6.12.0",
+    "@typescript-eslint/parser": "6.12.0",
+    "c8": "8.0.1",
+    "chai": "4.3.10",
+    "clsx": "2.0.0",
+    "cspell": "8.0.0",
+    "eslint": "8.54.0",
+    "eslint-plugin-import": "2.29.0",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-simple-import-sort": "10.0.0",
     "mocha": "10.2.0",
-    "prettier": "2.8.8",
-    "sinon": "^15.1.0",
+    "prettier": "3.1.0",
+    "sinon": "^17.0.1",
     "ts-node": "10.9.1",
-    "typescript": "5.0.4"
+    "typescript": "5.2.2"
   },
   "publishConfig": {
     "tag": "alpha"
   },
   "dependencies": {
-    "@repeaterjs/repeater": "^3.0.4",
+    "@repeaterjs/repeater": "^3.0.5",
     "graphql": "^17.0.0-alpha.3"
   }
 }
