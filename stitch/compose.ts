@@ -5,13 +5,13 @@ import type {
   SelectionNode,
 } from 'graphql';
 import { GraphQLError, isObjectType, Kind, OperationTypeNode } from 'graphql';
-import type { ObjMap } from '../types/ObjMap.ts';
-import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
-import { isPromise } from '../predicates/isPromise.ts';
-import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
-import { inspect } from '../utilities/inspect.ts';
-import { invariant } from '../utilities/invariant.ts';
-import { PromiseAggregator } from '../utilities/PromiseAggregator.ts';
+import type { ObjMap } from '../types/ObjMap.js';
+import type { PromiseOrValue } from '../types/PromiseOrValue.js';
+import { isPromise } from '../predicates/isPromise.js';
+import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
+import { inspect } from '../utilities/inspect.js';
+import { invariant } from '../utilities/invariant.js';
+import { PromiseAggregator } from '../utilities/PromiseAggregator.js';
 import type { FieldPlan, SubschemaPlan } from './Planner.ts';
 import type { Subschema, SuperSchema } from './SuperSchema.ts';
 export interface SubschemaPlanResult {

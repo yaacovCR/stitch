@@ -4,7 +4,7 @@ import type {
   OperationDefinitionNode,
 } from 'graphql';
 import { GraphQLError, Kind } from 'graphql';
-import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
+import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
 import type { SubschemaPlanResult } from './compose.ts';

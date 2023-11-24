@@ -1,10 +1,10 @@
 import type { DocumentNode, ExecutionResult } from 'graphql';
 import { GraphQLError, Kind, OperationTypeNode } from 'graphql';
-import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
-import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.ts';
-import { isAsyncIterable } from '../predicates/isAsyncIterable.ts';
-import { isPromise } from '../predicates/isPromise.ts';
-import { invariant } from '../utilities/invariant.ts';
+import type { PromiseOrValue } from '../types/PromiseOrValue.js';
+import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
+import { isAsyncIterable } from '../predicates/isAsyncIterable.js';
+import { isPromise } from '../predicates/isPromise.js';
+import { invariant } from '../utilities/invariant.js';
 import type { ExecutionArgs } from './buildExecutionContext.ts';
 import { buildExecutionContext } from './buildExecutionContext.ts';
 import { compose } from './compose.ts';

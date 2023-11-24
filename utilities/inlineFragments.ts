@@ -7,7 +7,7 @@ import type {
   SelectionSetNode,
 } from 'graphql';
 import { Kind } from 'graphql';
-import type { ObjMap } from '../types/ObjMap.ts';
+import type { ObjMap } from '../types/ObjMap.js';
 import { appendToArray, emptyArray } from './appendToArray.ts';
 import { memoize2 } from './memoize2.ts';
 import { updateNode } from './updateNode.ts';

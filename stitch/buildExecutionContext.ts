@@ -4,7 +4,7 @@ import type {
   OperationDefinitionNode,
 } from 'graphql';
 import { assertValidSchema, GraphQLError, Kind } from 'graphql';
-import { inlineFragments } from '../utilities/inlineFragments.ts';
+import { inlineFragments } from '../utilities/inlineFragments.js';
 import type { Planner } from './Planner.ts';
 import { createPlanner } from './Planner.ts';
 import type { Subschema } from './SuperSchema.ts';

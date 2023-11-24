@@ -19,12 +19,12 @@ import {
   TypeNameMetaFieldDef,
 } from 'graphql';
 import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
-import { appendToArray, emptyArray } from '../utilities/appendToArray.ts';
-import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.ts';
-import { inspect } from '../utilities/inspect.ts';
-import { invariant } from '../utilities/invariant.ts';
-import { memoize2 } from '../utilities/memoize2.ts';
-import { memoize3 } from '../utilities/memoize3.ts';
+import { appendToArray, emptyArray } from '../utilities/appendToArray.js';
+import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.js';
+import { inspect } from '../utilities/inspect.js';
+import { invariant } from '../utilities/invariant.js';
+import { memoize2 } from '../utilities/memoize2.js';
+import { memoize3 } from '../utilities/memoize3.js';
 import type { Subschema, SuperSchema } from './SuperSchema.ts';
 export interface RootPlan {
   superSchema: SuperSchema;

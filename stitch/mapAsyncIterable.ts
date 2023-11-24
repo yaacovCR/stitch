@@ -1,6 +1,6 @@
 import { Repeater } from '@repeaterjs/repeater';
-import type { PromiseOrValue } from '../types/PromiseOrValue.ts';
-import { isPromise } from '../predicates/isPromise.ts';
+import type { PromiseOrValue } from '../types/PromiseOrValue.js';
+import { isPromise } from '../predicates/isPromise.js';
 interface CustomAsyncIterable<T, R, N> {
   [Symbol.asyncIterator]: () => AsyncIterator<T, R, N>;
 }

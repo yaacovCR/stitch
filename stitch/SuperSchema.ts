@@ -53,9 +53,9 @@ import {
 import type { ObjMap } from '../types/ObjMap';
 import type { PromiseOrValue } from '../types/PromiseOrValue';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator';
-import { AccumulatorMap } from '../utilities/AccumulatorMap.ts';
-import { inspect } from '../utilities/inspect.ts';
-import { printPathArray } from '../utilities/printPathArray.ts';
+import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
+import { inspect } from '../utilities/inspect.js';
+import { printPathArray } from '../utilities/printPathArray.js';
 type CoercedVariableValues =
   | {
       errors: ReadonlyArray<GraphQLError>;
