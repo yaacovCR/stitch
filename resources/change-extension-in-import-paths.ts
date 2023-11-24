@@ -34,7 +34,7 @@ export function changeExtensionInImportPaths(config: { extension: string }) {
 
     function visitNode(node: ts.Node): ts.Node {
       const source: string | undefined = (node as any).moduleSpecifier?.text;
-      if (source?.startsWith('./') || source?.startsWith('../')) {
+      if (source?.startsWith('./') ?? source?.startsWith('../')) {
         const newSource = source.replace(/\.js$/, extension);
 
         if (ts.isImportDeclaration(node)) {
