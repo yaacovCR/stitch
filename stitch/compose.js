@@ -153,8 +153,7 @@ function collectStitches(context, stitchMap, pointer, fieldPlansByType) {
   typeName != null ||
     (0, invariant_js_1.invariant)(
       false,
-      `Missing entry '__stitching__typename' in response ${(0,
-      inspect_js_1.inspect)(target)}.`,
+      `Missing entry '__stitching__typename' in response ${(0, inspect_js_1.inspect)(target)}.`,
     );
   const type = context.superSchema.getType(typeName);
   (0, graphql_1.isObjectType)(type) ||

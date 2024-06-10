@@ -27,9 +27,7 @@ class PromiseAggregator {
       },
       (err) => {
         throw new Error(
-          `Error thrown by aggregated promise: ${(0, inspect_js_1.inspect)(
-            err,
-          )}`,
+          `Error thrown by aggregated promise: ${(0, inspect_js_1.inspect)(err)}`,
         );
       },
     );

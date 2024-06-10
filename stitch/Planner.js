@@ -340,9 +340,7 @@ class Planner {
           (0, graphql_1.isCompositeType)(refinedType) ||
             (0, invariant_js_1.invariant)(
               false,
-              `Invalid type condition ${(0, inspect_js_1.inspect)(
-                refinedType,
-              )}`,
+              `Invalid type condition ${(0, inspect_js_1.inspect)(refinedType)}`,
             );
           this._addFragmentToSelectionSplit(
             selectionSplit,

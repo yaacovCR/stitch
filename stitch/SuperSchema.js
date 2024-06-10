@@ -427,9 +427,7 @@ class SuperSchema {
             `Variable "$${varName}" got invalid value ` +
             (0, inspect_js_1.inspect)(invalidValue);
           if (path.length > 0) {
-            prefix += ` at "${varName}${(0, printPathArray_js_1.printPathArray)(
-              path,
-            )}"`;
+            prefix += ` at "${varName}${(0, printPathArray_js_1.printPathArray)(path)}"`;
           }
           onError(
             new graphql_1.GraphQLError(prefix + '; ' + error.message, {
