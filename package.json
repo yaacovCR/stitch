@@ -56,34 +56,34 @@
     "changeset:publish": "node --loader ts-node/esm resources/prepare-for-publish.ts && cd publishWorkspaceConfig && changeset publish"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.26.2",
-    "@prettier/sync": "^0.3.0",
-    "@types/chai": "4.3.11",
+    "@changesets/cli": "^2.27.5",
+    "@prettier/sync": "^0.5.2",
+    "@types/chai": "4.3.16",
     "@types/mocha": "10.0.6",
-    "@types/node": "20.9.5",
+    "@types/node": "20.14.2",
     "@types/prettier": "2.7.3",
-    "@types/sinon": "^17.0.2",
+    "@types/sinon": "^17.0.3",
     "@typescript-eslint/eslint-plugin": "6.12.0",
     "@typescript-eslint/parser": "6.12.0",
-    "c8": "8.0.1",
-    "chai": "4.3.10",
-    "clsx": "2.0.0",
-    "cspell": "8.0.0",
+    "c8": "10.0.0",
+    "chai": "5.1.1",
+    "clsx": "2.1.1",
+    "cspell": "8.8.4",
     "eslint": "8.54.0",
     "eslint-plugin-import": "2.29.0",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-simple-import-sort": "10.0.0",
-    "mocha": "10.2.0",
-    "prettier": "3.1.0",
-    "sinon": "^17.0.1",
-    "ts-node": "10.9.1",
-    "typescript": "5.2.2"
+    "mocha": "10.4.0",
+    "prettier": "3.3.1",
+    "sinon": "^18.0.0",
+    "ts-node": "10.9.2",
+    "typescript": "5.4.5"
   },
   "publishConfig": {
     "tag": "alpha"
   },
   "dependencies": {
-    "@repeaterjs/repeater": "^3.0.5",
+    "@repeaterjs/repeater": "^3.0.6",
     "graphql": "^17.0.0-alpha.3"
   }
 }
