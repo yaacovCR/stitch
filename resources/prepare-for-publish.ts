@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-import { npm, readPackageJSON, writeGeneratedFile } from './utils.js';
+import { npm, prettify, readPackageJSON, writeGeneratedFile } from './utils.js';
 
 const publishWorkspaceConfigDir = 'publishWorkspaceConfig';
 
@@ -17,9 +17,8 @@ const packageJSON = readPackageJSON();
 delete packageJSON.private;
 packageJSON.workspaces = ['../npmDist'];
 
-writeGeneratedFile(
-  `./${publishWorkspaceConfigDir}/package.json`,
-  JSON.stringify(packageJSON),
-);
+const destPath = `./${publishWorkspaceConfigDir}/package.json`;
+const prettified = await prettify(destPath, JSON.stringify(packageJSON));
+writeGeneratedFile(destPath, prettified);
 
 npm().run('build:npm:dual');

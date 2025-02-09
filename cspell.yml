@@ -5,6 +5,12 @@ ignorePaths:
   # Excluded from spelling check
   - cspell.yml
   - package.json
+overrides:
+  - filename: 'eslint.config.*'
+    words:
+      - chunkname
+      - nonconstructor
+      - nonoctal
 
 validateDirectives: true
 ignoreRegExpList:

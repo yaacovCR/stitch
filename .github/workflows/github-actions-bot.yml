@@ -18,7 +18,6 @@ env:
     <summary> Supported commands </summary>
 
     Please post this commands in separate comments and only one per comment:
-    * `@github-actions run-benchmark` - Run benchmark comparing base and merge commits for this PR
     * `@github-actions publish-pr-on-npm` - Build package from this PR and publish it on NPM
     </details>
 permissions: {}
@@ -38,7 +37,7 @@ jobs:
           WORKFLOW_ID: ${{github.event.workflow_run.id}}
 
       - name: Add comment on PR
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('node:fs');
@@ -64,7 +63,7 @@ jobs:
       cmd: ${{ steps.parse-cmd.outputs.cmd }}
       pull_request_json: ${{ steps.parse-cmd.outputs.pull_request_json }}
     steps:
-      - uses: actions/github-script@v6
+      - uses: actions/github-script@v7
         with:
           script: |
             await github.rest.reactions.createForIssueComment({
@@ -74,7 +73,7 @@ jobs:
             });
 
       - id: parse-cmd
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const comment = context.payload.comment.body;
@@ -95,32 +94,21 @@ jobs:
     secrets:
       npm_canary_pr_publish_token: ${{ secrets.npm_canary_pr_publish_token }}
 
-  cmd-run-benchmark:
-    needs: [accept-cmd]
-    if: needs.accept-cmd.outputs.cmd == 'run-benchmark'
-    permissions:
-      contents: read # for actions/checkout
-      actions: read # to list workflow runs
-    uses: ./.github/workflows/cmd-run-benchmark.yml
-    with:
-      pull_request_json: ${{ needs.accept-cmd.outputs.pull_request_json }}
-
   respond-to-cmd:
     needs:
       - accept-cmd
       - cmd-publish-pr-on-npm
-      - cmd-run-benchmark
     if: needs.accept-cmd.result != 'skipped' && always()
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write # to add comment to pull request
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: replyMessage
 
       - if: failure()
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('node:fs');
@@ -144,7 +132,7 @@ jobs:
           RUN_URL: ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
 
       - if: always()
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('node:fs');

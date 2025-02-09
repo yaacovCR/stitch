@@ -13,8 +13,9 @@ import {
   OperationTypeNode,
   parse,
 } from 'graphql';
-import type { PromiseOrValue } from 'graphql/jsutils/PromiseOrValue.js';
 import { describe, it } from 'mocha';
+
+import type { PromiseOrValue } from '../../types/PromiseOrValue.js';
 
 import { invariant } from '../../utilities/invariant.js';
 

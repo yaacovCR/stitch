@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import prettier from '@prettier/sync';
+import prettier from 'prettier';
 import ts from 'typescript';
 
 export function localRepoPath(...paths: ReadonlyArray<string>): string {
@@ -193,10 +193,19 @@ const prettierConfig = JSON.parse(
   fs.readFileSync(localRepoPath('.prettierrc'), 'utf-8'),
 );
 
+export async function prettify(
+  filepath: string,
+  body: string,
+): Promise<string> {
+  return prettier.format(body, {
+    filepath,
+    ...prettierConfig,
+  });
+}
+
 export function writeGeneratedFile(filepath: string, body: string): void {
-  const formatted = prettier.format(body, { filepath, ...prettierConfig });
   fs.mkdirSync(path.dirname(filepath), { recursive: true });
-  fs.writeFileSync(filepath, formatted);
+  fs.writeFileSync(filepath, body);
 }
 
 interface PackageJSON {
@@ -233,9 +242,12 @@ export function readTSConfig(overrides?: any): ts.CompilerOptions {
       tsConfigPath,
       fs.readFileSync(tsConfigPath, 'utf-8'),
     );
-  assert(tsConfigError === undefined, 'Fail to parse config: ' + tsConfigError);
   assert(
-    tsConfig.compilerOptions,
+    tsConfigError === undefined,
+    'Fail to parse config: ' + JSON.stringify(tsConfigError),
+  );
+  assert(
+    tsConfig.compilerOptions !== undefined,
     '"tsconfig.json" should have `compilerOptions`',
   );
 
@@ -247,7 +259,7 @@ export function readTSConfig(overrides?: any): ts.CompilerOptions {
 
   assert(
     tsOptionsErrors.length === 0,
-    'Fail to parse options: ' + tsOptionsErrors,
+    'Fail to parse options: ' + JSON.stringify(tsOptionsErrors),
   );
 
   return tsOptions;

@@ -284,7 +284,7 @@ describe('FieldPlan', () => {
             ... {
               someField {
                 ... {
-                  anotherNestedField  
+                  anotherNestedField
                 }
               }
             }

@@ -419,7 +419,7 @@ export function visitWithMemo(
     } else {
       stack = { inArray, index, keys, edits, prev: stack };
       inArray = Array.isArray(node);
-      keys = inArray ? node : (visitorKeys as any)[node.kind] ?? [];
+      keys = inArray ? node : ((visitorKeys as any)[node.kind] ?? []);
       index = -1;
       edits = new Map();
       if (parent != null) {

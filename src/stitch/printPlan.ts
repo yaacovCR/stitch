@@ -11,7 +11,7 @@ function generateIndent(indent: number): string {
 export function printPlan(
   plan: FieldPlan | RootPlan,
   indent = 0,
-  type?: GraphQLObjectType | undefined,
+  type?: GraphQLObjectType,
 ): string {
   const superSchema = plan.superSchema;
   if (!('fieldTree' in plan)) {
