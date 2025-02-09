@@ -9,14 +9,14 @@ import { inlineFragments } from '../utilities/inlineFragments.js';
 
 import type { Planner } from './Planner.js';
 import { createPlanner } from './Planner.js';
-import type { Subschema } from './SuperSchema.js';
+import type { Subschema, VariableValues } from './SuperSchema.js';
 import { SuperSchema } from './SuperSchema.js';
 
 export interface ExecutionContext {
   operation: OperationDefinitionNode;
   planner: Planner;
   rawVariableValues: { readonly [variable: string]: unknown } | undefined;
-  coercedVariableValues: { [variable: string]: unknown };
+  variableValues: VariableValues;
 }
 
 export interface ExecutionArgs {
@@ -80,17 +80,15 @@ export function buildExecutionContext(
   /* c8 ignore next */
   const variableDefinitions = operation.variableDefinitions ?? [];
 
-  const coercedVariableValues = superSchema.getVariableValues(
+  const variableValuesOrErrors = superSchema.getVariableValues(
     variableDefinitions,
     rawVariableValues ?? {},
     { maxErrors: 50 },
   );
 
-  if (coercedVariableValues.errors) {
-    return coercedVariableValues.errors;
+  if (variableValuesOrErrors.errors) {
+    return variableValuesOrErrors.errors;
   }
-
-  const coerced = coercedVariableValues.coerced;
 
   operation = inlineFragments(operation, fragments);
 
@@ -98,6 +96,6 @@ export function buildExecutionContext(
     operation,
     planner: createPlanner(superSchema, operation),
     rawVariableValues,
-    coercedVariableValues: coerced,
+    variableValues: variableValuesOrErrors.variableValues,
   };
 }

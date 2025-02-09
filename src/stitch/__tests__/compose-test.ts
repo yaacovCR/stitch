@@ -28,12 +28,7 @@ import { SuperSchema } from '../SuperSchema.js';
 function getSubschema(schema: GraphQLSchema, rootValue: unknown): Subschema {
   return {
     schema,
-    executor: (args) =>
-      execute({
-        ...args,
-        schema,
-        rootValue,
-      }),
+    executor: (args) => execute({ ...args, schema, rootValue }),
   };
 }
 
@@ -45,7 +40,10 @@ function executeWithComposer(
 
   invariant(queryType !== undefined);
 
-  const plan = new Planner(superSchema, operation).createRootPlan();
+  const plan = new Planner(superSchema, operation).createRootPlan({
+    coerced: {},
+    sources: {},
+  });
 
   invariant(!(plan instanceof GraphQLError));
 
@@ -67,9 +65,7 @@ function executeWithComposer(
 
     subschemaPlanResults.push({
       subschemaPlan,
-      initialResult: subschemaPlan.toSubschema.executor({
-        document,
-      }),
+      initialResult: subschemaPlan.toSubschema.executor({ document }),
     });
   }
 
@@ -121,20 +117,10 @@ describe('Composer', () => {
 
       expect(result).to.deep.equal({
         data: {
-          __schema: {
-            queryType: {
-              name: 'Query',
-            },
-          },
-          __type: {
-            name: 'Query',
-          },
-          someObject: {
-            someField: 'someField',
-          },
-          anotherObject: {
-            someField: 'someField',
-          },
+          __schema: { queryType: { name: 'Query' } },
+          __type: { name: 'Query' },
+          someObject: { someField: 'someField' },
+          anotherObject: { someField: 'someField' },
         },
       });
     });
@@ -177,10 +163,7 @@ describe('Composer', () => {
 
       expect(result).to.deep.equal({
         data: {
-          someObject: {
-            someField: 'someField',
-            anotherField: 'anotherField',
-          },
+          someObject: { someField: 'someField', anotherField: 'anotherField' },
         },
       });
     });
@@ -282,16 +265,8 @@ describe('Composer', () => {
 
       expect(result).to.deep.equal({
         data: {
-          someObject: [
-            {
-              someField: ['someField'],
-            },
-          ],
-          anotherObject: [
-            {
-              someField: ['someField'],
-            },
-          ],
+          someObject: [{ someField: ['someField'] }],
+          anotherObject: [{ someField: ['someField'] }],
         },
       });
     });
@@ -338,14 +313,8 @@ describe('Composer', () => {
       expect(result).to.deep.equal({
         data: {
           someObject: [
-            {
-              someField: ['someFieldA'],
-              anotherField: ['anotherField'],
-            },
-            {
-              someField: ['someFieldB'],
-              anotherField: ['anotherField'],
-            },
+            { someField: ['someFieldA'], anotherField: ['anotherField'] },
+            { someField: ['someFieldB'], anotherField: ['anotherField'] },
           ],
         },
       });

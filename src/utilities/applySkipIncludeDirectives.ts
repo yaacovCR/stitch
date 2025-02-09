@@ -14,6 +14,8 @@ import {
   Kind,
 } from 'graphql';
 
+import type { VariableValues } from '../stitch/SuperSchema.js';
+
 import { appendToArray, emptyArray } from './appendToArray.js';
 import { memoize2 } from './memoize2.js';
 import { updateNode } from './updateNode.js';
@@ -26,7 +28,7 @@ export const applySkipIncludeDirectives = memoize2(_applySkipIncludeDirectives);
 
 function _applySkipIncludeDirectives<
   T extends OperationDefinitionNode | FragmentDefinitionNode,
->(node: T, variableValues: { [key: string]: unknown }): T {
+>(node: T, variableValues: VariableValues): T {
   return visitWithMemo(
     node,
     {
@@ -49,7 +51,7 @@ function _applySkipIncludeDirectives<
 
 function applyDirectivesToSelection(
   node: FieldNode | FragmentSpreadNode | InlineFragmentNode,
-  variableValues: { [key: string]: unknown },
+  variableValues: VariableValues,
 ): ASTNode | null {
   const directives: ReadonlyArray<DirectiveNode> | undefined = node.directives;
 

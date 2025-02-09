@@ -40,12 +40,12 @@
     "test": "npm run lint && npm run check && npm run testonly && npm run prettier:check && npm run check:spelling",
     "lint": "eslint --cache --max-warnings 0 .",
     "check": "tsc --pretty",
-    "testonly": "mocha --full-trace 'src/**/__tests__/**/*-test.ts'",
+    "testonly": "mocha --full-trace src/**/__tests__/**/*-test.ts",
     "testonly:cover": "c8 npm run testonly",
     "testonly:watch": "npm run testonly -- --watch",
     "prettier": "prettier --cache --cache-strategy metadata --write --list-different .",
     "prettier:check": "prettier --cache --cache-strategy metadata --check .",
-    "check:spelling": "cspell --cache --no-progress '**/*'",
+    "check:spelling": "cspell --cache --no-progress \"**/*\"",
     "build:npm:dual": "node --loader ts-node/esm resources/build-npm-dual.ts",
     "build:npm:esm-only": "node --loader ts-node/esm resources/build-npm-esm-only.ts",
     "build:deno": "node --loader ts-node/esm resources/build-deno.ts",
@@ -77,6 +77,6 @@
   },
   "dependencies": {
     "@repeaterjs/repeater": "^3.0.6",
-    "graphql": "^17.0.0-alpha.3"
+    "graphql": "^17.0.0-alpha.8"
   }
 }

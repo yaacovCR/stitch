@@ -137,9 +137,7 @@ describe('Execute: Handles inputs', () => {
         `);
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }',
-          },
+          data: { fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }' },
         });
       });
 
@@ -151,9 +149,7 @@ describe('Execute: Handles inputs', () => {
         `);
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }',
-          },
+          data: { fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }' },
         });
       });
 
@@ -179,9 +175,7 @@ describe('Execute: Handles inputs', () => {
         `);
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithObjectInput: '{ b: ["A", null, "C"], c: "C" }',
-          },
+          data: { fieldWithObjectInput: '{ b: ["A", null, "C"], c: "C" }' },
         });
       });
 
@@ -193,13 +187,11 @@ describe('Execute: Handles inputs', () => {
         `);
 
         expectJSON(result).toDeepEqual({
-          data: {
-            fieldWithObjectInput: null,
-          },
+          data: { fieldWithObjectInput: null },
           errors: [
             {
               message:
-                'Argument "input" has invalid value ["foo", "bar", "baz"].',
+                'Argument "TestType.fieldWithObjectInput(input:)" has invalid value: Expected value of type "TestInputObject" to be an object, found: ["foo", "bar", "baz"].',
               path: ['fieldWithObjectInput'],
               locations: [{ line: 3, column: 41 }],
             },
@@ -234,9 +226,7 @@ describe('Execute: Handles inputs', () => {
         const result = executeQuery(doc, params);
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }',
-          },
+          data: { fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }' },
         });
       });
 
@@ -252,9 +242,7 @@ describe('Execute: Handles inputs', () => {
         );
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithNullableStringInput: null,
-          },
+          data: { fieldWithNullableStringInput: null },
         });
       });
 
@@ -268,9 +256,7 @@ describe('Execute: Handles inputs', () => {
         );
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithNullableStringInput: 'null',
-          },
+          data: { fieldWithNullableStringInput: 'null' },
         });
       });
 
@@ -282,9 +268,7 @@ describe('Execute: Handles inputs', () => {
         `);
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }',
-          },
+          data: { fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }' },
         });
       });
 
@@ -299,9 +283,7 @@ describe('Execute: Handles inputs', () => {
         );
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithNullableStringInput: '"Variable value"',
-          },
+          data: { fieldWithNullableStringInput: '"Variable value"' },
         });
       });
 
@@ -315,9 +297,7 @@ describe('Execute: Handles inputs', () => {
         );
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithNullableStringInput: 'null',
-          },
+          data: { fieldWithNullableStringInput: 'null' },
         });
       });
 
@@ -333,9 +313,7 @@ describe('Execute: Handles inputs', () => {
         );
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithNullableStringInput: 'null',
-          },
+          data: { fieldWithNullableStringInput: 'null' },
         });
       });
 
@@ -344,9 +322,7 @@ describe('Execute: Handles inputs', () => {
         const result = executeQuery(doc, params);
 
         expect(result).to.deep.equal({
-          data: {
-            fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }',
-          },
+          data: { fieldWithObjectInput: '{ a: "foo", b: ["bar"], c: "baz" }' },
         });
       });
 
@@ -369,7 +345,7 @@ describe('Execute: Handles inputs', () => {
           errors: [
             {
               message:
-                'Variable "$input" got invalid value null at "input.c"; Expected non-nullable type "String!" not to be null.',
+                'Variable "$input" has invalid value.c: Expected value of non-null type "String!" not to be null.',
               locations: [{ line: 2, column: 16 }],
             },
           ],
@@ -383,7 +359,7 @@ describe('Execute: Handles inputs', () => {
           errors: [
             {
               message:
-                'Variable "$input" got invalid value "foo bar"; Expected type "TestInputObject" to be an object.',
+                'Variable "$input" has invalid value: Expected value of type "TestInputObject" to be an object, found: "foo bar".',
               locations: [{ line: 2, column: 16 }],
             },
           ],
@@ -397,7 +373,7 @@ describe('Execute: Handles inputs', () => {
           errors: [
             {
               message:
-                'Variable "$input" got invalid value { a: "foo", b: "bar" }; Field "c" of required type "String!" was not provided.',
+                'Variable "$input" has invalid value: Expected value of type "TestInputObject" to include required field "c", found: { a: "foo", b: "bar" }.',
               locations: [{ line: 2, column: 16 }],
             },
           ],
@@ -416,12 +392,12 @@ describe('Execute: Handles inputs', () => {
           errors: [
             {
               message:
-                'Variable "$input" got invalid value { a: "foo" } at "input.na"; Field "c" of required type "String!" was not provided.',
+                'Variable "$input" has invalid value.na: Expected value of type "TestInputObject" to include required field "c", found: { a: "foo" }.',
               locations: [{ line: 2, column: 18 }],
             },
             {
               message:
-                'Variable "$input" got invalid value { na: { a: "foo" } }; Field "nb" of required type "String!" was not provided.',
+                'Variable "$input" has invalid value: Expected value of type "TestNestedInputObject" to include required field "nb", found: { na: { a: "foo" } }.',
               locations: [{ line: 2, column: 18 }],
             },
           ],
@@ -438,7 +414,7 @@ describe('Execute: Handles inputs', () => {
           errors: [
             {
               message:
-                'Variable "$input" got invalid value { a: "foo", b: "bar", c: "baz", extra: "dog" }; Field "extra" is not defined by type "TestInputObject".',
+                'Variable "$input" has invalid value: Expected value of type "TestInputObject" not to include unknown field "extra", found: { a: "foo", b: "bar", c: "baz", extra: "dog" }.',
               locations: [{ line: 2, column: 16 }],
             },
           ],
@@ -478,9 +454,7 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNonNullableEnumInput: 'null',
-        },
+        data: { fieldWithNonNullableEnumInput: 'null' },
       });
     });
   });
@@ -494,9 +468,7 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNullableStringInput: null,
-        },
+        data: { fieldWithNullableStringInput: null },
       });
     });
 
@@ -508,9 +480,7 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNullableStringInput: null,
-        },
+        data: { fieldWithNullableStringInput: null },
       });
     });
 
@@ -522,9 +492,7 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNullableStringInput: null,
-        },
+        data: { fieldWithNullableStringInput: null },
       });
     });
 
@@ -537,9 +505,7 @@ describe('Execute: Handles inputs', () => {
       const result = executeQuery(doc, { value: null });
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNullableStringInput: 'null',
-        },
+        data: { fieldWithNullableStringInput: 'null' },
       });
     });
 
@@ -552,9 +518,7 @@ describe('Execute: Handles inputs', () => {
       const result = executeQuery(doc, { value: 'a' });
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNullableStringInput: '"a"',
-        },
+        data: { fieldWithNullableStringInput: '"a"' },
       });
     });
 
@@ -566,9 +530,7 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNullableStringInput: '"a"',
-        },
+        data: { fieldWithNullableStringInput: '"a"' },
       });
     });
   });
@@ -582,9 +544,7 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNullableStringInput: '"default"',
-        },
+        data: { fieldWithNullableStringInput: '"default"' },
       });
     });
 
@@ -596,9 +556,7 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNonNullableStringInput: '"default"',
-        },
+        data: { fieldWithNonNullableStringInput: '"default"' },
       });
     });
 
@@ -613,7 +571,7 @@ describe('Execute: Handles inputs', () => {
         errors: [
           {
             message:
-              'Variable "$value" of required type "String!" was not provided.',
+              'Variable "$value" has invalid value: Expected a value of non-null type "String!" to be provided.',
             locations: [{ line: 2, column: 16 }],
           },
         ],
@@ -632,7 +590,7 @@ describe('Execute: Handles inputs', () => {
         errors: [
           {
             message:
-              'Variable "$value" of non-null type "String!" must not be null.',
+              'Variable "$value" has invalid value: Expected value of non-null type "String!" not to be null.',
             locations: [{ line: 2, column: 16 }],
           },
         ],
@@ -648,9 +606,7 @@ describe('Execute: Handles inputs', () => {
       const result = executeQuery(doc, { value: 'a' });
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNonNullableStringInput: '"a"',
-        },
+        data: { fieldWithNonNullableStringInput: '"a"' },
       });
     });
 
@@ -662,9 +618,7 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithNonNullableStringInput: '"a"',
-        },
+        data: { fieldWithNonNullableStringInput: '"a"' },
       });
     });
 
@@ -672,13 +626,11 @@ describe('Execute: Handles inputs', () => {
       const result = executeQuery('{ fieldWithNonNullableStringInput }');
 
       expectJSON(result).toDeepEqual({
-        data: {
-          fieldWithNonNullableStringInput: null,
-        },
+        data: { fieldWithNonNullableStringInput: null },
         errors: [
           {
             message:
-              'Argument "input" of required type "String!" was not provided.',
+              'Argument "TestType.fieldWithNonNullableStringInput(input:)" of required type "String!" was not provided.',
             locations: [{ line: 1, column: 3 }],
             path: ['fieldWithNonNullableStringInput'],
           },
@@ -698,7 +650,7 @@ describe('Execute: Handles inputs', () => {
         errors: [
           {
             message:
-              'Variable "$value" got invalid value [1, 2, 3]; String cannot represent a non string value: [1, 2, 3]',
+              'Variable "$value" has invalid value: String cannot represent a non string value: [1, 2, 3]',
             locations: [{ line: 2, column: 16 }],
           },
         ],
@@ -720,13 +672,11 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expectJSON(result).toDeepEqual({
-        data: {
-          fieldWithNonNullableStringInput: null,
-        },
+        data: { fieldWithNonNullableStringInput: null },
         errors: [
           {
             message:
-              'Argument "input" of required type "String!" was provided the variable "$foo" which was not provided a runtime value.',
+              'Argument "TestType.fieldWithNonNullableStringInput(input:)" has invalid value: Expected variable "$foo" provided to type "String!" to provide a runtime value.',
             locations: [{ line: 3, column: 50 }],
             path: ['fieldWithNonNullableStringInput'],
           },
@@ -781,7 +731,7 @@ describe('Execute: Handles inputs', () => {
         errors: [
           {
             message:
-              'Variable "$input" of non-null type "[String]!" must not be null.',
+              'Variable "$input" has invalid value: Expected value of non-null type "[String]!" not to be null.',
             locations: [{ line: 2, column: 16 }],
           },
         ],
@@ -844,7 +794,7 @@ describe('Execute: Handles inputs', () => {
         errors: [
           {
             message:
-              'Variable "$input" got invalid value null at "input[1]"; Expected non-nullable type "String!" not to be null.',
+              'Variable "$input" has invalid value[1]: Expected value of non-null type "String!" not to be null.',
             locations: [{ line: 2, column: 16 }],
           },
         ],
@@ -863,7 +813,7 @@ describe('Execute: Handles inputs', () => {
         errors: [
           {
             message:
-              'Variable "$input" of non-null type "[String!]!" must not be null.',
+              'Variable "$input" has invalid value: Expected value of non-null type "[String!]!" not to be null.',
             locations: [{ line: 2, column: 16 }],
           },
         ],
@@ -893,7 +843,7 @@ describe('Execute: Handles inputs', () => {
         errors: [
           {
             message:
-              'Variable "$input" got invalid value null at "input[1]"; Expected non-nullable type "String!" not to be null.',
+              'Variable "$input" has invalid value[1]: Expected value of non-null type "String!" not to be null.',
             locations: [{ line: 2, column: 16 }],
           },
         ],
@@ -944,9 +894,7 @@ describe('Execute: Handles inputs', () => {
       const result = executeQuery('{ fieldWithDefaultArgumentValue }');
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithDefaultArgumentValue: '"Hello World"',
-        },
+        data: { fieldWithDefaultArgumentValue: '"Hello World"' },
       });
     });
 
@@ -958,9 +906,7 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expect(result).to.deep.equal({
-        data: {
-          fieldWithDefaultArgumentValue: '"Hello World"',
-        },
+        data: { fieldWithDefaultArgumentValue: '"Hello World"' },
       });
     });
 
@@ -972,12 +918,11 @@ describe('Execute: Handles inputs', () => {
       `);
 
       expectJSON(result).toDeepEqual({
-        data: {
-          fieldWithDefaultArgumentValue: null,
-        },
+        data: { fieldWithDefaultArgumentValue: null },
         errors: [
           {
-            message: 'Argument "input" has invalid value WRONG_TYPE.',
+            message:
+              'Argument "TestType.fieldWithDefaultArgumentValue(input:)" has invalid value: String cannot represent a non string value: WRONG_TYPE',
             locations: [{ line: 3, column: 48 }],
             path: ['fieldWithDefaultArgumentValue'],
           },
@@ -1017,7 +962,7 @@ describe('Execute: Handles inputs', () => {
 
     function invalidValueError(value: number, index: number) {
       return {
-        message: `Variable "$input" got invalid value ${value} at "input[${index}]"; String cannot represent a non string value: ${value}`,
+        message: `Variable "$input" has invalid value at [${index}]: String cannot represent a non string value: ${value}`,
         locations: [{ line: 2, column: 14 }],
       };
     }
