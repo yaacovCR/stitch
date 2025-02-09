@@ -5,7 +5,6 @@ import { inspect } from '../utilities/inspect.js';
 import { invariant } from '../utilities/invariant.js';
 import { memoize2 } from '../utilities/memoize2.js';
 import { memoize3 } from '../utilities/memoize3.js';
-const emptyObject = {};
 export const createPlanner = memoize2((superSchema, operation) => new Planner(superSchema, operation));
 /**
  * @internal
@@ -19,7 +18,7 @@ export class Planner {
         this.operation = operation;
         this.variableDefinitions = operation.variableDefinitions ?? [];
     }
-    createRootPlan(variableValues = emptyObject) {
+    createRootPlan(variableValues) {
         const rootType = this.superSchema.getRootType(this.operation.operation);
         if (rootType === undefined) {
             return new GraphQLError(`Schema is not configured to execute ${this.operation.operation} operation.`, { nodes: this.operation });
@@ -219,14 +218,8 @@ export class Planner {
             selectionSplit.otherSelections.length > 0) {
             selectionSplit.ownSelections = appendToArray(selectionSplit.ownSelections, {
                 kind: Kind.FIELD,
-                name: {
-                    kind: Kind.NAME,
-                    value: TypeNameMetaFieldDef.name,
-                },
-                alias: {
-                    kind: Kind.NAME,
-                    value: '__stitching__typename',
-                },
+                name: { kind: Kind.NAME, value: TypeNameMetaFieldDef.name },
+                alias: { kind: Kind.NAME, value: '__stitching__typename' },
             });
         }
         return selectionSplit;

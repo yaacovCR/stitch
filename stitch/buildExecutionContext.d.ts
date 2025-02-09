@@ -1,16 +1,14 @@
 import type { DocumentNode, OperationDefinitionNode } from 'graphql';
 import { GraphQLError } from 'graphql';
 import type { Planner } from './Planner.js';
-import type { Subschema } from './SuperSchema.js';
+import type { Subschema, VariableValues } from './SuperSchema.js';
 export interface ExecutionContext {
     operation: OperationDefinitionNode;
     planner: Planner;
     rawVariableValues: {
         readonly [variable: string]: unknown;
     } | undefined;
-    coercedVariableValues: {
-        [variable: string]: unknown;
-    };
+    variableValues: VariableValues;
 }
 export interface ExecutionArgs {
     subschemas: ReadonlyArray<Subschema>;

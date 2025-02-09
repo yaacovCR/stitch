@@ -18,22 +18,9 @@ const DocumentKeys = {
     VariableDefinition: ['variable', 'type', 'defaultValue', 'directives'],
     Variable: ['name'],
     SelectionSet: ['selections'],
-    Field: [
-        'alias',
-        'name',
-        'arguments',
-        'directives',
-        'selectionSet',
-        // Note: Client Controlled Nullability is experimental and may be changed
-        // or removed in the future.
-        'nullabilityAssertion',
-    ],
+    Field: ['alias', 'name', 'arguments', 'directives', 'selectionSet'],
     Argument: ['name', 'value'],
-    // Note: Client Controlled Nullability is experimental and may be changed
-    // or removed in the future.
-    ListNullabilityOperator: ['nullabilityAssertion'],
-    NonNullAssertion: ['nullabilityAssertion'],
-    ErrorBoundary: ['nullabilityAssertion'],
+    FragmentArgument: ['name', 'value'],
     FragmentSpread: ['name', 'directives'],
     InlineFragment: ['typeCondition', 'directives', 'selectionSet'],
     FragmentDefinition: [

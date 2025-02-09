@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SuperSchema = void 0;
 const graphql_1 = require("graphql");
 const AccumulatorMap_js_1 = require("../utilities/AccumulatorMap.js");
-const inspect_js_1 = require("../utilities/inspect.js");
 const printPathArray_js_1 = require("../utilities/printPathArray.js");
 const operations = [
     graphql_1.OperationTypeNode.QUERY,
@@ -35,10 +34,7 @@ class SuperSchema {
         }
         const introspectionSubschema = {
             schema: this.mergedSchema,
-            executor: (args) => (0, graphql_1.execute)({
-                ...args,
-                schema: this.mergedSchema,
-            }),
+            executor: (args) => (0, graphql_1.execute)({ ...args, schema: this.mergedSchema }),
         };
         for (const [name, type] of Object.entries(this.mergedSchema.getTypeMap())) {
             if (!name.startsWith('__')) {
@@ -340,14 +336,14 @@ class SuperSchema {
         const errors = [];
         const maxErrors = options?.maxErrors;
         try {
-            const coerced = this._coerceVariableValues(varDefNodes, inputs, (error) => {
+            const variableValues = this._coerceVariableValues(varDefNodes, inputs, (error) => {
                 if (maxErrors != null && errors.length >= maxErrors) {
                     throw new graphql_1.GraphQLError('Too many errors processing variables, error limit reached. Execution aborted.');
                 }
                 errors.push(error);
             });
             if (errors.length === 0) {
-                return { coerced };
+                return { variableValues };
             }
         }
         catch (error) {
@@ -369,46 +365,59 @@ class SuperSchema {
                 return this.mergedTypes[typeNode.name.value];
         }
     }
-    _coerceVariableValues(varDefNodes, inputs, onError) {
-        const coercedValues = {};
+    _coerceVariableValues(varDefNodes, inputs, onError, hideSuggestions) {
+        const sources = Object.create(null);
+        const coerced = Object.create(null);
         for (const varDefNode of varDefNodes) {
-            const varName = varDefNode.variable.name.value;
-            const varType = this._typeFromAST(varDefNode.type);
-            if (!(0, graphql_1.isInputType)(varType)) {
-                // Must use input types for variables. This should be caught during
-                // validation, however is checked again here for safety.
-                const varTypeStr = (0, graphql_1.print)(varDefNode.type);
-                onError(new graphql_1.GraphQLError(`Variable "$${varName}" expected value of type "${varTypeStr}" which cannot be used as an input type.`, { nodes: varDefNode.type }));
+            const varSignature = this._getVariableSignature(varDefNode);
+            if (varSignature instanceof graphql_1.GraphQLError) {
+                onError(varSignature);
                 continue;
             }
+            const { name: varName, type: varType } = varSignature;
+            let value;
             if (!Object.hasOwn(inputs, varName)) {
+                sources[varName] = { signature: varSignature };
                 if (varDefNode.defaultValue) {
-                    coercedValues[varName] = (0, graphql_1.valueFromAST)(varDefNode.defaultValue, varType);
+                    coerced[varName] = (0, graphql_1.coerceInputLiteral)(varDefNode.defaultValue, varType);
+                    continue;
                 }
-                else if ((0, graphql_1.isNonNullType)(varType)) {
-                    const varTypeStr = (0, inspect_js_1.inspect)(varType);
-                    onError(new graphql_1.GraphQLError(`Variable "$${varName}" of required type "${varTypeStr}" was not provided.`, { nodes: varDefNode }));
+                else if (!(0, graphql_1.isNonNullType)(varType)) {
+                    // Non-provided values for nullable variables are omitted.
+                    continue;
                 }
-                continue;
             }
-            const value = inputs[varName];
-            if (value === null && (0, graphql_1.isNonNullType)(varType)) {
-                const varTypeStr = (0, inspect_js_1.inspect)(varType);
-                onError(new graphql_1.GraphQLError(`Variable "$${varName}" of non-null type "${varTypeStr}" must not be null.`, { nodes: varDefNode }));
-                continue;
+            else {
+                value = inputs[varName];
+                sources[varName] = { signature: varSignature, value };
             }
-            coercedValues[varName] = (0, graphql_1.coerceInputValue)(value, varType, (path, invalidValue, error) => {
-                let prefix = `Variable "$${varName}" got invalid value ` + (0, inspect_js_1.inspect)(invalidValue);
-                if (path.length > 0) {
-                    prefix += ` at "${varName}${(0, printPathArray_js_1.printPathArray)(path)}"`;
-                }
-                onError(new graphql_1.GraphQLError(prefix + '; ' + error.message, {
-                    nodes: varDefNode,
-                    originalError: error.originalError,
-                }));
-            });
+            const coercedValue = (0, graphql_1.coerceInputValue)(value, varType);
+            if (coercedValue !== undefined) {
+                coerced[varName] = coercedValue;
+            }
+            else {
+                (0, graphql_1.validateInputValue)(value, varType, (error, path) => {
+                    onError(new graphql_1.GraphQLError(`Variable "$${varName}" has invalid value${(0, printPathArray_js_1.printPathArray)(path)}: ${error.message}`, { nodes: varDefNode, originalError: error }));
+                }, hideSuggestions);
+            }
         }
-        return coercedValues;
+        return { sources, coerced };
+    }
+    _getVariableSignature(varDefNode) {
+        const varName = varDefNode.variable.name.value;
+        const varType = this._typeFromAST(varDefNode.type);
+        if (!(0, graphql_1.isInputType)(varType)) {
+            // Must use input types for variables. This should be caught during
+            // validation, however is checked again here for safety.
+            const varTypeStr = (0, graphql_1.print)(varDefNode.type);
+            return new graphql_1.GraphQLError(`Variable "$${varName}" expected value of type "${varTypeStr}" which cannot be used as an input type.`, { nodes: varDefNode.type });
+        }
+        const defaultValue = varDefNode.defaultValue;
+        return {
+            name: varName,
+            type: varType,
+            default: defaultValue && { literal: defaultValue },
+        };
     }
     getSubschemaId(subschema) {
         let subschemaId = this.subschemaIds.get(subschema);

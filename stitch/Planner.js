@@ -8,7 +8,6 @@ const inspect_js_1 = require("../utilities/inspect.js");
 const invariant_js_1 = require("../utilities/invariant.js");
 const memoize2_js_1 = require("../utilities/memoize2.js");
 const memoize3_js_1 = require("../utilities/memoize3.js");
-const emptyObject = {};
 exports.createPlanner = (0, memoize2_js_1.memoize2)((superSchema, operation) => new Planner(superSchema, operation));
 /**
  * @internal
@@ -22,7 +21,7 @@ class Planner {
         this.operation = operation;
         this.variableDefinitions = operation.variableDefinitions ?? [];
     }
-    createRootPlan(variableValues = emptyObject) {
+    createRootPlan(variableValues) {
         const rootType = this.superSchema.getRootType(this.operation.operation);
         if (rootType === undefined) {
             return new graphql_1.GraphQLError(`Schema is not configured to execute ${this.operation.operation} operation.`, { nodes: this.operation });
@@ -222,14 +221,8 @@ class Planner {
             selectionSplit.otherSelections.length > 0) {
             selectionSplit.ownSelections = (0, appendToArray_js_1.appendToArray)(selectionSplit.ownSelections, {
                 kind: graphql_1.Kind.FIELD,
-                name: {
-                    kind: graphql_1.Kind.NAME,
-                    value: graphql_1.TypeNameMetaFieldDef.name,
-                },
-                alias: {
-                    kind: graphql_1.Kind.NAME,
-                    value: '__stitching__typename',
-                },
+                name: { kind: graphql_1.Kind.NAME, value: graphql_1.TypeNameMetaFieldDef.name },
+                alias: { kind: graphql_1.Kind.NAME, value: '__stitching__typename' },
             });
         }
         return selectionSplit;

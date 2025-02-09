@@ -16,9 +16,9 @@ function subscribe(args) {
     if (!('planner' in exeContext)) {
         return { errors: exeContext };
     }
-    const { operation, planner, rawVariableValues, coercedVariableValues } = exeContext;
+    const { operation, planner, rawVariableValues, variableValues } = exeContext;
     (operation.operation === graphql_1.OperationTypeNode.SUBSCRIPTION) || (0, invariant_js_1.invariant)(false);
-    const plan = planner.createRootPlan(coercedVariableValues);
+    const plan = planner.createRootPlan(variableValues);
     if (plan instanceof graphql_1.GraphQLError) {
         return { errors: [plan] };
     }
@@ -47,30 +47,17 @@ function subscribe(args) {
             },
         ],
     };
-    const result = subscriber({
-        document,
-        variables: rawVariableValues,
-    });
+    const result = subscriber({ document, variables: rawVariableValues });
     if ((0, isPromise_js_1.isPromise)(result)) {
         return result.then((resolved) => {
             if ((0, isAsyncIterable_js_1.isAsyncIterable)(resolved)) {
-                return (0, mapAsyncIterable_js_1.mapAsyncIterable)(resolved, (payload) => (0, compose_js_1.compose)([
-                    {
-                        subschemaPlan,
-                        initialResult: payload,
-                    },
-                ], plan.superSchema, rawVariableValues));
+                return (0, mapAsyncIterable_js_1.mapAsyncIterable)(resolved, (payload) => (0, compose_js_1.compose)([{ subschemaPlan, initialResult: payload }], plan.superSchema, rawVariableValues));
             }
             return result;
         });
     }
     if ((0, isAsyncIterable_js_1.isAsyncIterable)(result)) {
-        return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) => (0, compose_js_1.compose)([
-            {
-                subschemaPlan,
-                initialResult: payload,
-            },
-        ], plan.superSchema, rawVariableValues));
+        return (0, mapAsyncIterable_js_1.mapAsyncIterable)(result, (payload) => (0, compose_js_1.compose)([{ subschemaPlan, initialResult: payload }], plan.superSchema, rawVariableValues));
     }
     return result;
 }

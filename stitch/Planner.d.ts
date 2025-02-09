@@ -1,7 +1,7 @@
 import type { FieldNode, FragmentDefinitionNode, GraphQLCompositeType, GraphQLObjectType, GraphQLSchema, InlineFragmentNode, OperationDefinitionNode, SelectionNode, VariableDefinitionNode } from 'graphql';
 import { GraphQLError } from 'graphql';
 import type { ObjMap } from '../types/ObjMap.js';
-import type { Subschema, SuperSchema } from './SuperSchema.js';
+import type { Subschema, SuperSchema, VariableValues } from './SuperSchema.js';
 export interface RootPlan {
     superSchema: SuperSchema;
     subschemaPlans: ReadonlyArray<SubschemaPlan>;
@@ -38,9 +38,7 @@ export declare class Planner {
     _createFieldPlan: (a1: GraphQLCompositeType, a2: readonly FieldNode[], a3: Subschema) => FieldPlan;
     _collectSubFields: (a1: GraphQLObjectType<any, any>, a2: readonly SelectionNode[]) => readonly FieldNode[];
     constructor(superSchema: SuperSchema, operation: OperationDefinitionNode);
-    createRootPlan(variableValues?: {
-        [key: string]: unknown;
-    }): RootPlan | GraphQLError;
+    createRootPlan(variableValues: VariableValues): RootPlan | GraphQLError;
     _collectSubFieldsImpl(runtimeType: GraphQLObjectType, selections: ReadonlyArray<SelectionNode>, fieldNodes?: ReadonlyArray<FieldNode>, visitedFragmentNames?: Set<string>): ReadonlyArray<FieldNode>;
     /**
      * Determines if a fragment is applicable to the given type.

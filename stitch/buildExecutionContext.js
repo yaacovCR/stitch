@@ -45,16 +45,15 @@ function buildExecutionContext(args) {
     // FIXME: https://github.com/graphql/graphql-js/issues/2203
     /* c8 ignore next */
     const variableDefinitions = operation.variableDefinitions ?? [];
-    const coercedVariableValues = superSchema.getVariableValues(variableDefinitions, rawVariableValues ?? {}, { maxErrors: 50 });
-    if (coercedVariableValues.errors) {
-        return coercedVariableValues.errors;
+    const variableValuesOrErrors = superSchema.getVariableValues(variableDefinitions, rawVariableValues ?? {}, { maxErrors: 50 });
+    if (variableValuesOrErrors.errors) {
+        return variableValuesOrErrors.errors;
     }
-    const coerced = coercedVariableValues.coerced;
     operation = (0, inlineFragments_js_1.inlineFragments)(operation, fragments);
     return {
         operation,
         planner: (0, Planner_js_1.createPlanner)(superSchema, operation),
         rawVariableValues,
-        coercedVariableValues: coerced,
+        variableValues: variableValuesOrErrors.variableValues,
     };
 }

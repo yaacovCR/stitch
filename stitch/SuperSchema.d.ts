@@ -1,17 +1,8 @@
-import type { DirectiveLocation, DocumentNode, ExecutionResult, GraphQLAbstractType, GraphQLArgument, GraphQLArgumentConfig, GraphQLCompositeType, GraphQLEnumValue, GraphQLEnumValueConfig, GraphQLEnumValueConfigMap, GraphQLField, GraphQLFieldConfig, GraphQLFieldConfigMap, GraphQLInputField, GraphQLInputFieldConfig, GraphQLInputFieldConfigMap, GraphQLInputType, GraphQLNamedType, GraphQLOutputType, GraphQLType, ListTypeNode, NamedTypeNode, NonNullTypeNode, TypeNode, VariableDefinitionNode } from 'graphql';
+import type { ConstValueNode, DirectiveLocation, DocumentNode, ExecutionResult, GraphQLAbstractType, GraphQLArgument, GraphQLArgumentConfig, GraphQLCompositeType, GraphQLEnumValue, GraphQLEnumValueConfig, GraphQLEnumValueConfigMap, GraphQLField, GraphQLFieldConfig, GraphQLFieldConfigMap, GraphQLInputField, GraphQLInputFieldConfig, GraphQLInputFieldConfigMap, GraphQLInputType, GraphQLNamedType, GraphQLOutputType, GraphQLType, ListTypeNode, NamedTypeNode, NonNullTypeNode, TypeNode, VariableDefinitionNode } from 'graphql';
 import { GraphQLDirective, GraphQLEnumType, GraphQLError, GraphQLInputObjectType, GraphQLInterfaceType, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLScalarType, GraphQLSchema, GraphQLUnionType, OperationTypeNode } from 'graphql';
-import type { ObjMap } from '../types/ObjMap.js';
+import type { ObjMap, ReadOnlyObjMap } from '../types/ObjMap.js';
 import type { PromiseOrValue } from '../types/PromiseOrValue.js';
 import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
-type CoercedVariableValues = {
-    errors: ReadonlyArray<GraphQLError>;
-    coerced?: never;
-} | {
-    coerced: {
-        [variable: string]: unknown;
-    };
-    errors?: never;
-};
 export type Executor = (args: {
     document: DocumentNode;
     variables?: {
@@ -29,6 +20,29 @@ export interface Subschema {
     executor: Executor;
     subscriber?: Subscriber;
 }
+export interface VariableValues {
+    readonly sources: ReadOnlyObjMap<VariableValueSource>;
+    readonly coerced: ReadOnlyObjMap<unknown>;
+}
+interface VariableValueSource {
+    readonly signature: GraphQLVariableSignature;
+    readonly value?: unknown;
+}
+export interface GraphQLVariableSignature {
+    name: string;
+    type: GraphQLInputType;
+    defaultValue?: never;
+    default: {
+        literal: ConstValueNode;
+    } | undefined;
+}
+type VariableValuesOrErrors = {
+    variableValues: VariableValues;
+    errors?: never;
+} | {
+    errors: ReadonlyArray<GraphQLError>;
+    variableValues?: never;
+};
 /**
  * @internal
  */
@@ -63,7 +77,7 @@ export declare class SuperSchema {
     _getMergedType(type: GraphQLOutputType): GraphQLOutputType;
     _getMergedType(type: GraphQLInputType): GraphQLInputType;
     _getMergedType(type: GraphQLType): GraphQLType;
-    getFieldDef(parentType: GraphQLCompositeType, fieldName: string): GraphQLField<any, any> | undefined;
+    getFieldDef(parentType: GraphQLCompositeType, fieldName: string): GraphQLField | undefined;
     getPossibleTypes(abstractType: GraphQLAbstractType): ReadonlyArray<GraphQLObjectType>;
     getRootType(operation: OperationTypeNode): GraphQLObjectType | undefined;
     getType(name: string): GraphQLNamedType | undefined;
@@ -80,7 +94,7 @@ export declare class SuperSchema {
         readonly [variable: string]: unknown;
     }, options?: {
         maxErrors?: number;
-    }): CoercedVariableValues;
+    }): VariableValuesOrErrors;
     /**
      * Given a Schema and an AST node describing a type, return a GraphQLType
      * definition which applies to that type. For example, if provided the parsed
@@ -94,9 +108,8 @@ export declare class SuperSchema {
     _typeFromAST(typeNode: TypeNode): GraphQLType | undefined;
     _coerceVariableValues(varDefNodes: ReadonlyArray<VariableDefinitionNode>, inputs: {
         readonly [variable: string]: unknown;
-    }, onError: (error: GraphQLError) => void): {
-        [variable: string]: unknown;
-    };
+    }, onError: (error: GraphQLError) => void, hideSuggestions?: boolean): VariableValues;
+    _getVariableSignature(varDefNode: VariableDefinitionNode): GraphQLVariableSignature | GraphQLError;
     getSubschemaId(subschema: Subschema): string;
 }
 export {};

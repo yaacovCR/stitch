@@ -13,9 +13,9 @@ export function subscribe(args) {
     if (!('planner' in exeContext)) {
         return { errors: exeContext };
     }
-    const { operation, planner, rawVariableValues, coercedVariableValues } = exeContext;
+    const { operation, planner, rawVariableValues, variableValues } = exeContext;
     (operation.operation === OperationTypeNode.SUBSCRIPTION) || invariant(false);
-    const plan = planner.createRootPlan(coercedVariableValues);
+    const plan = planner.createRootPlan(variableValues);
     if (plan instanceof GraphQLError) {
         return { errors: [plan] };
     }
@@ -44,30 +44,17 @@ export function subscribe(args) {
             },
         ],
     };
-    const result = subscriber({
-        document,
-        variables: rawVariableValues,
-    });
+    const result = subscriber({ document, variables: rawVariableValues });
     if (isPromise(result)) {
         return result.then((resolved) => {
             if (isAsyncIterable(resolved)) {
-                return mapAsyncIterable(resolved, (payload) => compose([
-                    {
-                        subschemaPlan,
-                        initialResult: payload,
-                    },
-                ], plan.superSchema, rawVariableValues));
+                return mapAsyncIterable(resolved, (payload) => compose([{ subschemaPlan, initialResult: payload }], plan.superSchema, rawVariableValues));
             }
             return result;
         });
     }
     if (isAsyncIterable(result)) {
-        return mapAsyncIterable(result, (payload) => compose([
-            {
-                subschemaPlan,
-                initialResult: payload,
-            },
-        ], plan.superSchema, rawVariableValues));
+        return mapAsyncIterable(result, (payload) => compose([{ subschemaPlan, initialResult: payload }], plan.superSchema, rawVariableValues));
     }
     return result;
 }

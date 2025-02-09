@@ -12,8 +12,8 @@ function execute(args) {
     if (!('planner' in exeContext)) {
         return { errors: exeContext };
     }
-    const { operation, planner, rawVariableValues, coercedVariableValues } = exeContext;
-    const plan = planner.createRootPlan(coercedVariableValues);
+    const { operation, planner, rawVariableValues, variableValues } = exeContext;
+    const plan = planner.createRootPlan(variableValues);
     if (plan instanceof graphql_1.GraphQLError) {
         return { data: null, errors: [plan] };
     }
