@@ -50,9 +50,9 @@ import {
   print,
   valueFromAST,
 } from 'graphql';
-import type { ObjMap } from '../types/ObjMap';
-import type { PromiseOrValue } from '../types/PromiseOrValue';
-import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator';
+import type { ObjMap } from '../types/ObjMap.js';
+import type { PromiseOrValue } from '../types/PromiseOrValue.js';
+import type { SimpleAsyncGenerator } from '../types/SimpleAsyncGenerator.js';
 import { AccumulatorMap } from '../utilities/AccumulatorMap.js';
 import { inspect } from '../utilities/inspect.js';
 import { printPathArray } from '../utilities/printPathArray.js';

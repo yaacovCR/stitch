@@ -18,7 +18,7 @@ import {
   typeFromAST,
   TypeNameMetaFieldDef,
 } from 'graphql';
-import type { ObjMap } from 'graphql/jsutils/ObjMap.js';
+import type { ObjMap } from '../types/ObjMap.js';
 import { appendToArray, emptyArray } from '../utilities/appendToArray.js';
 import { applySkipIncludeDirectives } from '../utilities/applySkipIncludeDirectives.js';
 import { inspect } from '../utilities/inspect.js';

@@ -7,9 +7,7 @@ interface CustomAsyncIterable<T, R, N> {
 interface CustomAsyncIterableIterator<T, R, N> {
   [Symbol.asyncIterator]: () => AsyncIterator<T, R, N>;
   next: (...args: [] | [N]) => Promise<IteratorResult<T, R>>;
-  return?: (
-    value?: R | PromiseLike<R> | undefined,
-  ) => Promise<IteratorResult<T, R>>;
+  return?: (value?: R | PromiseLike<R>) => Promise<IteratorResult<T, R>>;
   throw?: (e?: any) => Promise<IteratorResult<T, R>>;
 }
 /**
@@ -47,7 +45,7 @@ export function mapAsyncIterable<T, U, R, N>(
       let eventStream: Repeater<IteratorResult<T> | undefined>;
       if (thrown) {
         if (typeof iter.throw !== 'function') {
-          // eslint-disable-next-line @typescript-eslint/no-throw-literal
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
           throw nextValue;
         }
         thrown = false;
