@@ -414,7 +414,7 @@ describe('Execute: Handles inputs', () => {
           errors: [
             {
               message:
-                'Variable \"$input\" has invalid value: Expected value of type \"TestInputObject\" not to include unknown field \"extra\", found: { a: \"foo\", b: \"bar\", c: \"baz\", extra: \"dog\" }.',
+                'Variable "$input" has invalid value: Expected value of type "TestInputObject" not to include unknown field "extra", found: { a: "foo", b: "bar", c: "baz", extra: "dog" }.',
               locations: [{ line: 2, column: 16 }],
             },
           ],

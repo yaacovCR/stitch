@@ -514,7 +514,7 @@ export class SuperSchema {
   getFieldDef(
     parentType: GraphQLCompositeType,
     fieldName: string,
-  ): GraphQLField<any, any> | undefined {
+  ): GraphQLField | undefined {
     return this.mergedSchema.getField(parentType, fieldName);
   }
 

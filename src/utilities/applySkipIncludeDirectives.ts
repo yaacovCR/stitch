@@ -14,11 +14,12 @@ import {
   Kind,
 } from 'graphql';
 
+import type { VariableValues } from '../stitch/SuperSchema.js';
+
 import { appendToArray, emptyArray } from './appendToArray.js';
 import { memoize2 } from './memoize2.js';
 import { updateNode } from './updateNode.js';
 import { visitWithMemo } from './visitWithMemo.js';
-import type { VariableValues } from '../stitch/SuperSchema.js';
 
 /**
  * Function that applies the @skip and @include directives to a given OperationDefinitionNode or FragmentDefinitionNode.
