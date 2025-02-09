@@ -125,10 +125,14 @@ function handleMaybeAsyncResult(
 
   const promise = initialResult.then(
     (resolved) => handleResult(context, stitch, resolved),
-    (err) =>
+    (err: unknown) =>
       handleResult(context, stitch, {
         data: null,
-        errors: [new GraphQLError(err.message, { originalError: err })],
+        errors: [
+          new GraphQLError((err as GraphQLError).message, {
+            originalError: err as GraphQLError,
+          }),
+        ],
       }),
   );
 

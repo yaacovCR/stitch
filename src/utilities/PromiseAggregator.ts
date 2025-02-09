@@ -31,7 +31,7 @@ export class PromiseAggregator {
       () => {
         this._decrement();
       },
-      (err) => {
+      (err: unknown) => {
         throw new Error(`Error thrown by aggregated promise: ${inspect(err)}`);
       },
     );

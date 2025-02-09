@@ -11,7 +11,7 @@ describe('applySkipIncludeDirectives', () => {
   it('can apply directives', () => {
     const document = parse(dedent`
       query withSkipInclude($skipA: Boolean, $skipB: Boolean, $includeC: Boolean, $includeD: Boolean) {
-        a @skip(if: $skipA) 
+        a @skip(if: $skipA)
         b @skip(if: $skipB)
         c @include(if: $includeC)
         d @include(if: $includeD)
@@ -40,7 +40,7 @@ describe('applySkipIncludeDirectives', () => {
   it('maintains cache', () => {
     const document = parse(dedent`
       query withSkipInclude($skipA: Boolean, $skipB: Boolean, $includeC: Boolean, $includeD: Boolean) {
-        a @skip(if: $skipA) 
+        a @skip(if: $skipA)
         b @skip(if: $skipB)
         c @include(if: $includeC)
         d @include(if: $includeD)

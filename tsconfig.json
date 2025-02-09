@@ -1,5 +1,5 @@
 {
-  "include": ["src/**/*", "resources/*", "benchmark/benchmark.ts"],
+  "include": ["src/**/*", "resources/*"],
   "compilerOptions": {
     "lib": [
       "es2022",

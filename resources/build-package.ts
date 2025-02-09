@@ -6,9 +6,17 @@ import ts from 'typescript';
 
 import { changeExtensionInImportPaths } from './change-extension-in-import-paths.js';
 import { inlineInvariant } from './inline-invariant.js';
-import { readPackageJSON, readTSConfig, writeGeneratedFile } from './utils.js';
+import {
+  prettify,
+  readPackageJSON,
+  readTSConfig,
+  writeGeneratedFile,
+} from './utils.js';
 
-export function buildPackage(outDir: string, isESMOnly: boolean): void {
+export async function buildPackage(
+  outDir: string,
+  isESMOnly: boolean,
+): Promise<void> {
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir);
 
@@ -98,8 +106,13 @@ export function buildPackage(outDir: string, isESMOnly: boolean): void {
     emitTSFiles({ outDir, module: 'es2020', extension: '.mjs' });
   }
 
+  const packageJsonPath = `./${outDir}/package.json`;
+  const prettified = await prettify(
+    packageJsonPath,
+    JSON.stringify(packageJSON),
+  );
   // Should be done as the last step so only valid packages can be published
-  writeGeneratedFile(`./${outDir}/package.json`, JSON.stringify(packageJSON));
+  writeGeneratedFile(packageJsonPath, prettified);
 }
 
 // Based on https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API#getting-the-dts-from-a-javascript-file

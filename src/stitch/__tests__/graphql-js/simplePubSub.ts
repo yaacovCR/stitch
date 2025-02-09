@@ -1,10 +1,11 @@
 import { assert } from 'chai';
 
-import type { SimpleAsyncGenerator } from '../../../types/SimpleAsyncGenerator';
+import type { SimpleAsyncGenerator } from '../../../types/SimpleAsyncGenerator.js';
 
 /**
  * Create an AsyncIterator from an EventEmitter. Useful for mocking a
  * PubSub system for tests.
+ * @internal
  */
 export class SimplePubSub<T> {
   private _subscribers: Set<(value: T) => void>;
@@ -55,6 +56,7 @@ export class SimplePubSub<T> {
       },
       throw(error: unknown) {
         emptyQueue();
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
         return Promise.reject(error);
       },
       [Symbol.asyncIterator]() {

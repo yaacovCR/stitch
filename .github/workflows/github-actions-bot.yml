@@ -18,7 +18,6 @@ env:
     <summary> Supported commands </summary>
 
     Please post this commands in separate comments and only one per comment:
-    * `@github-actions run-benchmark` - Run benchmark comparing base and merge commits for this PR
     * `@github-actions publish-pr-on-npm` - Build package from this PR and publish it on NPM
     </details>
 permissions: {}
@@ -95,21 +94,10 @@ jobs:
     secrets:
       npm_canary_pr_publish_token: ${{ secrets.npm_canary_pr_publish_token }}
 
-  cmd-run-benchmark:
-    needs: [accept-cmd]
-    if: needs.accept-cmd.outputs.cmd == 'run-benchmark'
-    permissions:
-      contents: read # for actions/checkout
-      actions: read # to list workflow runs
-    uses: ./.github/workflows/cmd-run-benchmark.yml
-    with:
-      pull_request_json: ${{ needs.accept-cmd.outputs.pull_request_json }}
-
   respond-to-cmd:
     needs:
       - accept-cmd
       - cmd-publish-pr-on-npm
-      - cmd-run-benchmark
     if: needs.accept-cmd.result != 'skipped' && always()
     runs-on: ubuntu-latest
     permissions:

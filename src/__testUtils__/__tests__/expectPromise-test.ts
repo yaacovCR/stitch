@@ -45,7 +45,7 @@ describe('expectPromise', () => {
       await expectPromise(Promise.reject(new Error('foo'))).toRejectWith(
         'foo',
       ); /* c8 ignore start */
-    } catch (err) {
+    } catch {
       // Not reached.
       expect.fail('promise threw unexpectedly');
     } /* c8 ignore stop */
