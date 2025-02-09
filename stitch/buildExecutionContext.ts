@@ -7,7 +7,7 @@ import { assertValidSchema, GraphQLError, Kind } from 'graphql';
 import { inlineFragments } from '../utilities/inlineFragments.js';
 import type { Planner } from './Planner.ts';
 import { createPlanner } from './Planner.ts';
-import type { Subschema } from './SuperSchema.ts';
+import type { Subschema, VariableValues } from './SuperSchema.ts';
 import { SuperSchema } from './SuperSchema.ts';
 export interface ExecutionContext {
   operation: OperationDefinitionNode;
@@ -17,9 +17,7 @@ export interface ExecutionContext {
         readonly [variable: string]: unknown;
       }
     | undefined;
-  coercedVariableValues: {
-    [variable: string]: unknown;
-  };
+  variableValues: VariableValues;
 }
 export interface ExecutionArgs {
   subschemas: ReadonlyArray<Subschema>;
@@ -79,20 +77,19 @@ export function buildExecutionContext(
   // FIXME: https://github.com/graphql/graphql-js/issues/2203
   /* c8 ignore next */
   const variableDefinitions = operation.variableDefinitions ?? [];
-  const coercedVariableValues = superSchema.getVariableValues(
+  const variableValuesOrErrors = superSchema.getVariableValues(
     variableDefinitions,
     rawVariableValues ?? {},
     { maxErrors: 50 },
   );
-  if (coercedVariableValues.errors) {
-    return coercedVariableValues.errors;
+  if (variableValuesOrErrors.errors) {
+    return variableValuesOrErrors.errors;
   }
-  const coerced = coercedVariableValues.coerced;
   operation = inlineFragments(operation, fragments);
   return {
     operation,
     planner: createPlanner(superSchema, operation),
     rawVariableValues,
-    coercedVariableValues: coerced,
+    variableValues: variableValuesOrErrors.variableValues,
   };
 }
