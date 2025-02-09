@@ -159,9 +159,7 @@ describe('Execute: handles non-nullable types', () => {
 
     it('that returns null', async () => {
       const result = await executeSyncAndAsync(query, nullingData);
-      expect(result).to.deep.equal({
-        data: { sync: null },
-      });
+      expect(result).to.deep.equal({ data: { sync: null } });
     });
 
     it('that throws', async () => {
@@ -544,11 +542,7 @@ describe('Execute: handles non-nullable types', () => {
         fields: {
           withNonNullArg: {
             type: GraphQLString,
-            args: {
-              cannotBeNull: {
-                type: new GraphQLNonNull(GraphQLString),
-              },
-            },
+            args: { cannotBeNull: { type: new GraphQLNonNull(GraphQLString) } },
             resolve: (_, args) => 'Passed: ' + String(args.cannotBeNull),
           },
         },
@@ -566,9 +560,7 @@ describe('Execute: handles non-nullable types', () => {
       });
 
       expect(result).to.deep.equal({
-        data: {
-          withNonNullArg: 'Passed: literal value',
-        },
+        data: { withNonNullArg: 'Passed: literal value' },
       });
     });
 
@@ -580,15 +572,11 @@ describe('Execute: handles non-nullable types', () => {
             withNonNullArg (cannotBeNull: $testVar)
           }
         `),
-        variableValues: {
-          testVar: 'variable value',
-        },
+        variableValues: { testVar: 'variable value' },
       });
 
       expect(result).to.deep.equal({
-        data: {
-          withNonNullArg: 'Passed: variable value',
-        },
+        data: { withNonNullArg: 'Passed: variable value' },
       });
     });
 
@@ -606,9 +594,7 @@ describe('Execute: handles non-nullable types', () => {
       });
 
       expect(result).to.deep.equal({
-        data: {
-          withNonNullArg: 'Passed: default value',
-        },
+        data: { withNonNullArg: 'Passed: default value' },
       });
     });
 
@@ -625,13 +611,11 @@ describe('Execute: handles non-nullable types', () => {
       });
 
       expectJSON(result).toDeepEqual({
-        data: {
-          withNonNullArg: null,
-        },
+        data: { withNonNullArg: null },
         errors: [
           {
             message:
-              'Argument "cannotBeNull" of required type "String!" was not provided.',
+              'Argument "Query.withNonNullArg(cannotBeNull:)" of required type "String!" was not provided.',
             locations: [{ line: 3, column: 13 }],
             path: ['withNonNullArg'],
           },
@@ -652,13 +636,11 @@ describe('Execute: handles non-nullable types', () => {
       });
 
       expectJSON(result).toDeepEqual({
-        data: {
-          withNonNullArg: null,
-        },
+        data: { withNonNullArg: null },
         errors: [
           {
             message:
-              'Argument "cannotBeNull" of non-null type "String!" must not be null.',
+              'Argument "Query.withNonNullArg(cannotBeNull:)" has invalid value: Expected value of non-null type "String!" not to be null.',
             locations: [{ line: 3, column: 42 }],
             path: ['withNonNullArg'],
           },
@@ -682,13 +664,11 @@ describe('Execute: handles non-nullable types', () => {
       });
 
       expectJSON(result).toDeepEqual({
-        data: {
-          withNonNullArg: null,
-        },
+        data: { withNonNullArg: null },
         errors: [
           {
             message:
-              'Argument "cannotBeNull" of required type "String!" was provided the variable "$testVar" which was not provided a runtime value.',
+              'Argument "Query.withNonNullArg(cannotBeNull:)" has invalid value: Expected variable "$testVar" provided to type "String!" to provide a runtime value.',
             locations: [{ line: 3, column: 42 }],
             path: ['withNonNullArg'],
           },
@@ -704,19 +684,15 @@ describe('Execute: handles non-nullable types', () => {
             withNonNullArg (cannotBeNull: $testVar)
           }
         `),
-        variableValues: {
-          testVar: null,
-        },
+        variableValues: { testVar: null },
       });
 
       expectJSON(result).toDeepEqual({
-        data: {
-          withNonNullArg: null,
-        },
+        data: { withNonNullArg: null },
         errors: [
           {
             message:
-              'Argument "cannotBeNull" of non-null type "String!" must not be null.',
+              'Argument "Query.withNonNullArg(cannotBeNull:)" has invalid value: Expected variable "$testVar" provided to non-null type "String!" not to be null.',
             locations: [{ line: 3, column: 43 }],
             path: ['withNonNullArg'],
           },

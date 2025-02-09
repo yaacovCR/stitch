@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import type { OperationDefinitionNode } from 'graphql';
-import { getOperationAST, parse, print } from 'graphql';
+import { getOperationAST, GraphQLBoolean, parse, print } from 'graphql';
 import { describe, it } from 'mocha';
 
 import { dedent } from '../../__testUtils__/dedent.js';
@@ -22,12 +22,47 @@ describe('applySkipIncludeDirectives', () => {
       document,
       'withSkipInclude',
     ) as OperationDefinitionNode;
-    const transformedAST = applySkipIncludeDirectives(operation, {
-      skipA: true,
-      skipB: false,
-      includeC: true,
-      includeD: false,
-    });
+    const variableValues = {
+      coerced: { skipA: true, skipB: false, includeC: true, includeD: false },
+      sources: {
+        skipA: {
+          signature: {
+            name: 'skipA',
+            type: GraphQLBoolean,
+            default: undefined,
+          },
+          value: true,
+        },
+        skipB: {
+          signature: {
+            name: 'skipB',
+            type: GraphQLBoolean,
+            default: undefined,
+          },
+          value: false,
+        },
+        includeC: {
+          signature: {
+            name: 'includeC',
+            type: GraphQLBoolean,
+            default: undefined,
+          },
+          value: true,
+        },
+        includeD: {
+          signature: {
+            name: 'includeD',
+            type: GraphQLBoolean,
+            default: undefined,
+          },
+          value: false,
+        },
+      },
+    };
+    const transformedAST = applySkipIncludeDirectives(
+      operation,
+      variableValues,
+    );
 
     expect(print(transformedAST)).to.equal(dedent`
       query withSkipInclude($skipA: Boolean, $skipB: Boolean, $includeC: Boolean, $includeD: Boolean) {
@@ -51,19 +86,52 @@ describe('applySkipIncludeDirectives', () => {
       document,
       'withSkipInclude',
     ) as OperationDefinitionNode;
-    const aTransformedAST = applySkipIncludeDirectives(operation, {
-      skipA: true,
-      skipB: false,
-      includeC: true,
-      includeD: false,
-    });
+    const variableValues = {
+      coerced: { skipA: true, skipB: false, includeC: true, includeD: false },
+      sources: {
+        skipA: {
+          signature: {
+            name: 'skipA',
+            type: GraphQLBoolean,
+            default: undefined,
+          },
+          value: true,
+        },
+        skipB: {
+          signature: {
+            name: 'skipB',
+            type: GraphQLBoolean,
+            default: undefined,
+          },
+          value: false,
+        },
+        includeC: {
+          signature: {
+            name: 'includeC',
+            type: GraphQLBoolean,
+            default: undefined,
+          },
+          value: true,
+        },
+        includeD: {
+          signature: {
+            name: 'includeD',
+            type: GraphQLBoolean,
+            default: undefined,
+          },
+          value: false,
+        },
+      },
+    };
 
-    const anotherTransformedAST = applySkipIncludeDirectives(operation, {
-      skipA: true,
-      skipB: false,
-      includeC: true,
-      includeD: false,
-    });
+    const aTransformedAST = applySkipIncludeDirectives(
+      operation,
+      variableValues,
+    );
+    const anotherTransformedAST = applySkipIncludeDirectives(
+      operation,
+      variableValues,
+    );
 
     expect(aTransformedAST).to.equal(anotherTransformedAST);
   });

@@ -20,14 +20,7 @@ import type { Subschema } from '../SuperSchema.js';
 import { SuperSchema } from '../SuperSchema.js';
 
 function getSubschema(schema: GraphQLSchema): Subschema {
-  return {
-    schema,
-    executor: (args) =>
-      execute({
-        ...args,
-        schema,
-      }),
-  };
+  return { schema, executor: (args) => execute({ ...args, schema }) };
 }
 
 function createRootPlan(
@@ -40,7 +33,7 @@ function createRootPlan(
 
   const planner = new Planner(superSchema, operation);
 
-  const rootPlan = planner.createRootPlan();
+  const rootPlan = planner.createRootPlan({ coerced: {}, sources: {} });
 
   invariant(!(rootPlan instanceof GraphQLError));
 

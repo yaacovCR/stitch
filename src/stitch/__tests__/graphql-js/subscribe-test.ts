@@ -48,10 +48,7 @@ const EmailType = new GraphQLObjectType({
 const InboxType = new GraphQLObjectType({
   name: 'Inbox',
   fields: {
-    total: {
-      type: GraphQLInt,
-      resolve: (inbox) => inbox.emails.length,
-    },
+    total: { type: GraphQLInt, resolve: (inbox) => inbox.emails.length },
     unread: {
       type: GraphQLInt,
       resolve: (inbox) =>
@@ -63,17 +60,12 @@ const InboxType = new GraphQLObjectType({
 
 const QueryType = new GraphQLObjectType({
   name: 'Query',
-  fields: {
-    inbox: { type: InboxType },
-  },
+  fields: { inbox: { type: InboxType } },
 });
 
 const EmailEventType = new GraphQLObjectType({
   name: 'EmailEvent',
-  fields: {
-    email: { type: EmailType },
-    inbox: { type: InboxType },
-  },
+  fields: { email: { type: EmailType }, inbox: { type: InboxType } },
 });
 
 const emailSchema = new GraphQLSchema({
@@ -83,9 +75,7 @@ const emailSchema = new GraphQLSchema({
     fields: {
       importantEmail: {
         type: EmailEventType,
-        args: {
-          priority: { type: GraphQLInt },
-        },
+        args: { priority: { type: GraphQLInt } },
       },
     },
   }),
@@ -131,12 +121,7 @@ function createSubscription(
     importantEmail: pubsub.getSubscriber((newEmail) => {
       emails.push(newEmail);
 
-      return {
-        importantEmail: {
-          email: newEmail,
-          inbox: data.inbox,
-        },
-      };
+      return { importantEmail: { email: newEmail, inbox: data.inbox } };
     }),
   };
 
@@ -150,9 +135,7 @@ function createSubscription(
 
 const DummyQueryType = new GraphQLObjectType({
   name: 'Query',
-  fields: {
-    dummy: { type: GraphQLString },
-  },
+  fields: { dummy: { type: GraphQLString } },
 });
 
 function subscribeWithBadFn(
@@ -162,9 +145,7 @@ function subscribeWithBadFn(
     query: DummyQueryType,
     subscription: new GraphQLObjectType({
       name: 'Subscription',
-      fields: {
-        foo: { type: GraphQLString, subscribe: subscribeFn },
-      },
+      fields: { foo: { type: GraphQLString, subscribe: subscribeFn } },
     }),
   });
   const document = parse('subscription { foo }');
@@ -180,10 +161,7 @@ describe('Subscription Initialization Phase', () => {
       query: DummyQueryType,
       subscription: new GraphQLObjectType({
         name: 'Subscription',
-        fields: {
-          foo: { type: GraphQLString },
-          bar: { type: GraphQLString },
-        },
+        fields: { foo: { type: GraphQLString }, bar: { type: GraphQLString } },
       }),
     });
 
@@ -218,12 +196,7 @@ describe('Subscription Initialization Phase', () => {
       query: DummyQueryType,
       subscription: new GraphQLObjectType({
         name: 'Subscription',
-        fields: {
-          foo: {
-            type: GraphQLString,
-            subscribe: fooGenerator,
-          },
-        },
+        fields: { foo: { type: GraphQLString, subscribe: fooGenerator } },
       }),
     });
 
@@ -290,9 +263,7 @@ describe('Subscription Initialization Phase', () => {
       query: DummyQueryType,
       subscription: new GraphQLObjectType({
         name: 'Subscription',
-        fields: {
-          foo: { type: GraphQLString },
-        },
+        fields: { foo: { type: GraphQLString } },
       }),
     });
 
@@ -388,9 +359,7 @@ describe('Subscription Initialization Phase', () => {
       query: DummyQueryType,
       subscription: new GraphQLObjectType({
         name: 'Subscription',
-        fields: {
-          foo: { type: GraphQLString },
-        },
+        fields: { foo: { type: GraphQLString } },
       }),
     });
     const document = parse('subscription { unknownField }');
@@ -421,9 +390,7 @@ describe('Subscription Initialization Phase', () => {
       query: DummyQueryType,
       subscription: new GraphQLObjectType({
         name: 'Subscription',
-        fields: {
-          foo: { type: GraphQLString },
-        },
+        fields: { foo: { type: GraphQLString } },
       }),
     });
 
@@ -496,10 +463,7 @@ describe('Subscription Initialization Phase', () => {
       subscription: new GraphQLObjectType({
         name: 'Subscription',
         fields: {
-          foo: {
-            type: GraphQLString,
-            args: { arg: { type: GraphQLInt } },
-          },
+          foo: { type: GraphQLString, args: { arg: { type: GraphQLInt } } },
         },
       }),
     });
@@ -518,7 +482,7 @@ describe('Subscription Initialization Phase', () => {
       errors: [
         {
           message:
-            'Variable "$arg" got invalid value "meow"; Int cannot represent non-integer value: "meow"',
+            'Variable "$arg" has invalid value: Int cannot represent non-integer value: "meow"',
           locations: [{ line: 2, column: 21 }],
         },
       ],
@@ -554,14 +518,8 @@ describe('Subscription Publish Phase', () => {
       value: {
         data: {
           importantEmail: {
-            email: {
-              from: 'yuzhi@graphql.org',
-              subject: 'Alright',
-            },
-            inbox: {
-              unread: 1,
-              total: 2,
-            },
+            email: { from: 'yuzhi@graphql.org', subject: 'Alright' },
+            inbox: { unread: 1, total: 2 },
           },
         },
       },
@@ -596,10 +554,7 @@ describe('Subscription Publish Phase', () => {
               subject: 'Alright',
               asyncSubject: 'Alright',
             },
-            inbox: {
-              unread: 1,
-              total: 2,
-            },
+            inbox: { unread: 1, total: 2 },
           },
         },
       },
@@ -634,14 +589,8 @@ describe('Subscription Publish Phase', () => {
       value: {
         data: {
           importantEmail: {
-            email: {
-              from: 'yuzhi@graphql.org',
-              subject: 'Alright',
-            },
-            inbox: {
-              unread: 1,
-              total: 2,
-            },
+            email: { from: 'yuzhi@graphql.org', subject: 'Alright' },
+            inbox: { unread: 1, total: 2 },
           },
         },
       },
@@ -663,14 +612,8 @@ describe('Subscription Publish Phase', () => {
       value: {
         data: {
           importantEmail: {
-            email: {
-              from: 'hyo@graphql.org',
-              subject: 'Tools',
-            },
-            inbox: {
-              unread: 2,
-              total: 3,
-            },
+            email: { from: 'hyo@graphql.org', subject: 'Tools' },
+            inbox: { unread: 2, total: 3 },
           },
         },
       },
@@ -721,14 +664,8 @@ describe('Subscription Publish Phase', () => {
       value: {
         data: {
           importantEmail: {
-            email: {
-              from: 'yuzhi@graphql.org',
-              subject: 'Alright',
-            },
-            inbox: {
-              unread: 1,
-              total: 2,
-            },
+            email: { from: 'yuzhi@graphql.org', subject: 'Alright' },
+            inbox: { unread: 1, total: 2 },
           },
         },
       },
@@ -751,14 +688,8 @@ describe('Subscription Publish Phase', () => {
       value: {
         data: {
           importantEmail: {
-            email: {
-              from: 'yuzhi@graphql.org',
-              subject: 'Alright 2',
-            },
-            inbox: {
-              unread: 2,
-              total: 3,
-            },
+            email: { from: 'yuzhi@graphql.org', subject: 'Alright 2' },
+            inbox: { unread: 2, total: 3 },
           },
         },
       },
@@ -787,14 +718,8 @@ describe('Subscription Publish Phase', () => {
       value: {
         data: {
           importantEmail: {
-            email: {
-              from: 'yuzhi@graphql.org',
-              subject: 'Alright',
-            },
-            inbox: {
-              unread: 1,
-              total: 2,
-            },
+            email: { from: 'yuzhi@graphql.org', subject: 'Alright' },
+            inbox: { unread: 1, total: 2 },
           },
         },
       },
@@ -813,10 +738,7 @@ describe('Subscription Publish Phase', () => {
       }),
     ).to.equal(false);
 
-    expect(await payload).to.deep.equal({
-      done: true,
-      value: undefined,
-    });
+    expect(await payload).to.deep.equal({ done: true, value: undefined });
   });
 
   it('should not trigger when subscription is thrown', async () => {
@@ -841,14 +763,8 @@ describe('Subscription Publish Phase', () => {
       value: {
         data: {
           importantEmail: {
-            email: {
-              from: 'yuzhi@graphql.org',
-              subject: 'Alright',
-            },
-            inbox: {
-              unread: 1,
-              total: 2,
-            },
+            email: { from: 'yuzhi@graphql.org', subject: 'Alright' },
+            inbox: { unread: 1, total: 2 },
           },
         },
       },
@@ -920,14 +836,8 @@ describe('Subscription Publish Phase', () => {
       value: {
         data: {
           importantEmail: {
-            email: {
-              from: 'yuzhi@graphql.org',
-              subject: 'Message',
-            },
-            inbox: {
-              unread: 2,
-              total: 3,
-            },
+            email: { from: 'yuzhi@graphql.org', subject: 'Message' },
+            inbox: { unread: 2, total: 3 },
           },
         },
       },
@@ -940,14 +850,8 @@ describe('Subscription Publish Phase', () => {
       value: {
         data: {
           importantEmail: {
-            email: {
-              from: 'yuzhi@graphql.org',
-              subject: 'Message 2',
-            },
-            inbox: {
-              unread: 2,
-              total: 3,
-            },
+            email: { from: 'yuzhi@graphql.org', subject: 'Message 2' },
+            inbox: { unread: 2, total: 3 },
           },
         },
       },
@@ -986,9 +890,7 @@ describe('Subscription Publish Phase', () => {
 
     expect(await subscription.next()).to.deep.equal({
       done: false,
-      value: {
-        data: { newMessage: 'Hello' },
-      },
+      value: { data: { newMessage: 'Hello' } },
     });
 
     // An error in execution is presented as such.
@@ -1010,9 +912,7 @@ describe('Subscription Publish Phase', () => {
     // Subsequent events are still executed.
     expectJSON(await subscription.next()).toDeepEqual({
       done: false,
-      value: {
-        data: { newMessage: 'Bonjour' },
-      },
+      value: { data: { newMessage: 'Bonjour' } },
     });
 
     expectJSON(await subscription.next()).toDeepEqual({
@@ -1047,9 +947,7 @@ describe('Subscription Publish Phase', () => {
 
     expect(await subscription.next()).to.deep.equal({
       done: false,
-      value: {
-        data: { newMessage: 'Hello' },
-      },
+      value: { data: { newMessage: 'Hello' } },
     });
 
     await expectPromise(subscription.next()).toRejectWith('test error');

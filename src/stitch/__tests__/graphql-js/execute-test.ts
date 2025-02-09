@@ -176,10 +176,7 @@ describe('Execute: Handles basic execution tasks', () => {
         deep: {
           b: 'Banana',
           c: 'Cherry',
-          deeper: {
-            b: 'Banana',
-            c: 'Cherry',
-          },
+          deeper: { b: 'Banana', c: 'Cherry' },
         },
       },
     });
@@ -237,7 +234,15 @@ describe('Execute: Handles basic execution tasks', () => {
     expect(resolvedInfo).to.deep.include({
       fieldNodes: [field],
       path: { prev: undefined, key: 'result', typename: 'Test' },
-      variableValues: { var: 'abc' },
+      variableValues: {
+        coerced: { var: 'abc' },
+        sources: {
+          var: {
+            signature: { name: 'var', type: GraphQLString, default: undefined },
+            value: 'abc',
+          },
+        },
+      },
     });
   });
 
@@ -291,11 +296,7 @@ describe('Execute: Handles basic execution tasks', () => {
       prev: {
         key: 0,
         typename: undefined,
-        prev: {
-          key: 'l1',
-          typename: 'SomeQuery',
-          prev: undefined,
-        },
+        prev: { key: 'l1', typename: 'SomeQuery', prev: undefined },
       },
     });
   });
@@ -547,9 +548,7 @@ describe('Execute: Handles basic execution tasks', () => {
             type: new GraphQLList(
               new GraphQLObjectType({
                 name: 'Food',
-                fields: {
-                  name: { type: GraphQLString },
-                },
+                fields: { name: { type: GraphQLString } },
               }),
             ),
             resolve() {
@@ -636,14 +635,8 @@ describe('Execute: Handles basic execution tasks', () => {
     const A: GraphQLObjectType = new GraphQLObjectType({
       name: 'A',
       fields: () => ({
-        nullableA: {
-          type: A,
-          resolve: () => ({}),
-        },
-        nonNullA: {
-          type: new GraphQLNonNull(A),
-          resolve: () => ({}),
-        },
+        nullableA: { type: A, resolve: () => ({}) },
+        nonNullA: { type: new GraphQLNonNull(A), resolve: () => ({}) },
         throws: {
           type: new GraphQLNonNull(GraphQLString),
           resolve: () => {
@@ -655,12 +648,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'query',
-        fields: () => ({
-          nullableA: {
-            type: A,
-            resolve: () => ({}),
-          },
-        }),
+        fields: () => ({ nullableA: { type: A, resolve: () => ({}) } }),
       }),
     });
 
@@ -680,11 +668,7 @@ describe('Execute: Handles basic execution tasks', () => {
 
     const result = executeSync({ schema, document });
     expectJSON(result).toDeepEqual({
-      data: {
-        nullableA: {
-          aliasedA: null,
-        },
-      },
+      data: { nullableA: { aliasedA: null } },
       errors: [
         {
           message: 'Catch me if you can',
@@ -699,9 +683,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Type',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse('{ a }');
@@ -715,9 +697,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Type',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse('query Example { a }');
@@ -731,9 +711,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Type',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
 
@@ -752,9 +730,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Type',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse('fragment Example on Type { a }');
@@ -770,9 +746,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Type',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse(`
@@ -795,9 +769,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Type',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse(`
@@ -816,9 +788,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Type',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse('{ a }');
@@ -834,21 +804,15 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Q',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
       mutation: new GraphQLObjectType({
         name: 'M',
-        fields: {
-          c: { type: GraphQLString },
-        },
+        fields: { c: { type: GraphQLString } },
       }),
       subscription: new GraphQLObjectType({
         name: 'S',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse(`
@@ -867,15 +831,11 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Q',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
       mutation: new GraphQLObjectType({
         name: 'M',
-        fields: {
-          c: { type: GraphQLString },
-        },
+        fields: { c: { type: GraphQLString } },
       }),
     });
     const document = parse(`
@@ -893,15 +853,11 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Q',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
       subscription: new GraphQLObjectType({
         name: 'S',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse(`
@@ -980,9 +936,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Type',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse(`
@@ -1000,50 +954,38 @@ describe('Execute: Handles basic execution tasks', () => {
     const rootValue = { a: 'b' };
 
     const result = executeSync({ schema, document, rootValue });
-    expect(result).to.deep.equal({
-      data: { a: 'b' },
-    });
+    expect(result).to.deep.equal({ data: { a: 'b' } });
   });
 
   it('ignores missing sub selections on fields', () => {
     const someType = new GraphQLObjectType({
       name: 'SomeType',
-      fields: {
-        b: { type: GraphQLString },
-      },
+      fields: { b: { type: GraphQLString } },
     });
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Query',
-        fields: {
-          a: { type: someType },
-        },
+        fields: { a: { type: someType } },
       }),
     });
     const document = parse('{ a }');
     const rootValue = { a: { b: 'c' } };
 
     const result = executeSync({ schema, document, rootValue });
-    expect(result).to.deep.equal({
-      data: { a: {} },
-    });
+    expect(result).to.deep.equal({ data: { a: {} } });
   });
 
   it('does not include illegal fields in output', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Q',
-        fields: {
-          a: { type: GraphQLString },
-        },
+        fields: { a: { type: GraphQLString } },
       }),
     });
     const document = parse('{ thisIsIllegalDoNotIncludeMe }');
 
     const result = executeSync({ schema, document });
-    expect(result).to.deep.equal({
-      data: {},
-    });
+    expect(result).to.deep.equal({ data: {} });
   });
 
   it('does not include arguments that were not set', () => {
@@ -1069,9 +1011,7 @@ describe('Execute: Handles basic execution tasks', () => {
 
     const result = executeSync({ schema, document });
     expect(result).to.deep.equal({
-      data: {
-        field: '{ a: true, c: false, e: 0 }',
-      },
+      data: { field: '{ a: true, c: false, e: 0 }' },
     });
   });
 
@@ -1104,22 +1044,16 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Query',
-        fields: {
-          specials: { type: new GraphQLList(SpecialType) },
-        },
+        fields: { specials: { type: new GraphQLList(SpecialType) } },
       }),
     });
 
     const document = parse('{ specials { value } }');
-    const rootValue = {
-      specials: [new Special('foo'), new NotSpecial('bar')],
-    };
+    const rootValue = { specials: [new Special('foo'), new NotSpecial('bar')] };
 
     const result = executeSync({ schema, document, rootValue });
     expectJSON(result).toDeepEqual({
-      data: {
-        specials: [{ value: 'foo' }, null],
-      },
+      data: { specials: [{ value: 'foo' }, null] },
       errors: [
         {
           message:
@@ -1150,10 +1084,7 @@ describe('Execute: Handles basic execution tasks', () => {
       query: new GraphQLObjectType({
         name: 'Query',
         fields: {
-          customScalar: {
-            type: customScalar,
-            resolve: () => 'CUSTOM_VALUE',
-          },
+          customScalar: { type: customScalar, resolve: () => 'CUSTOM_VALUE' },
         },
       }),
     });
@@ -1164,7 +1095,7 @@ describe('Execute: Handles basic execution tasks', () => {
       errors: [
         {
           message:
-            'Expected `CustomScalar.serialize("CUSTOM_VALUE")` to return non-nullable value, returned: undefined',
+            'Expected `CustomScalar.coerceOutputValue("CUSTOM_VALUE")` to return non-nullable value, returned: undefined',
           locations: [{ line: 1, column: 3 }],
           path: ['customScalar'],
         },
@@ -1176,9 +1107,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Query',
-        fields: {
-          foo: { type: GraphQLString },
-        },
+        fields: { foo: { type: GraphQLString } },
       }),
     });
 
@@ -1196,9 +1125,7 @@ describe('Execute: Handles basic execution tasks', () => {
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Query',
-        fields: {
-          foo: { type: GraphQLString },
-        },
+        fields: { foo: { type: GraphQLString } },
       }),
     });
     const document = parse('{ foo }');
@@ -1220,25 +1147,19 @@ describe('Execute: Handles basic execution tasks', () => {
 
     const fooInterface = new GraphQLInterfaceType({
       name: 'FooInterface',
-      fields: {
-        bar: { type: GraphQLString },
-      },
+      fields: { bar: { type: GraphQLString } },
     });
 
     const fooObject = new GraphQLObjectType({
       name: 'FooObject',
       interfaces: [fooInterface],
-      fields: {
-        bar: { type: GraphQLString },
-      },
+      fields: { bar: { type: GraphQLString } },
     });
 
     const schema = new GraphQLSchema({
       query: new GraphQLObjectType({
         name: 'Query',
-        fields: {
-          foo: { type: fooInterface },
-        },
+        fields: { foo: { type: fooInterface } },
       }),
       types: [fooObject],
     });
